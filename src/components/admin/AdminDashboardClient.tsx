@@ -22,24 +22,31 @@ import {
 } from "lucide-react";
 
 interface AdminDashboardClientProps {
+  currentUser?: Usuario;
   metrics: AdminDashboardMetricsData;
   clases: Clase[];
   profesores: Usuario[];
 }
 
 export function AdminDashboardClient({
+  currentUser,
   metrics,
   clases,
   profesores,
 }: AdminDashboardClientProps) {
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
 
+  // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
+  const cleanNombre = currentUser?.nombre_completo
+    ? currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
+    : "Francisco Nievas";
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
-      {/* Header Directivo con Logo Oficial - Card Azul Oficial #0F3E86 */}
-      <div className="p-5 sm:p-6 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-md shadow-blue-950/30 shrink-0">
+      {/* 1. Banner Principal del Sensei / Directivo - Card Reducida y Compacta en Azul Oficial #0F3E86 */}
+      <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md shadow-blue-950/15">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-white border border-white shadow-xs shrink-0">
             <Image
               src="/nievas-logo.jpg"
               alt="Nievas Academia Deportiva"
@@ -48,48 +55,24 @@ export function AdminDashboardClient({
               priority
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest bg-white/10 px-2.5 py-0.5 rounded-md border border-white/20">
-                SuperAdmin Directivo
-              </span>
-              <span className="text-xs text-blue-200 font-semibold">
-                Francisco Nievas
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-0.5">
-              Nievas Academia Deportiva
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight truncate">
+              {cleanNombre}
             </h1>
-            <p className="text-xs text-blue-200 font-medium">
-              Panel directivo: métricas institucionales, ausentismo crítico y desempeño de profesores.
+            <p className="text-[11px] text-blue-200 font-medium truncate">
+              Panel directivo de la academia y tatami
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap self-start sm:self-center">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIsCrearClaseOpen(true)}
-            className="px-4 py-2.5 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95"
+            className="px-3.5 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-sm flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 shrink-0"
           >
             <Plus className="w-4 h-4 text-[#0F3E86]" />
             <span>Nueva Clase</span>
           </button>
-
-          <Link
-            href="/admin/historial"
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1.5 touch-target-safe cursor-pointer"
-          >
-            <History className="w-4 h-4 text-cyan-300" />
-            <span>Ver Historial</span>
-          </Link>
-
-          <Link
-            href="/admin/alumnos"
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1.5 touch-target-safe cursor-pointer"
-          >
-            <Award className="w-4 h-4 text-amber-300" />
-            <span>Alumnos & Cintos</span>
-          </Link>
         </div>
       </div>
 

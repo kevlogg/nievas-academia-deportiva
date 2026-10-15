@@ -49,6 +49,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardClient
+      currentUser={currentUser}
       metrics={metrics}
       clases={clases}
       profesores={profesores}

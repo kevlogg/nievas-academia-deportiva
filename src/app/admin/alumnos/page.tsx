@@ -36,5 +36,10 @@ export default async function AdminAlumnosPage() {
 
   const alumnos = await dalGetAdminAlumnos();
 
-  return <AdminAlumnosClient initialAlumnos={alumnos} />;
+  return (
+    <AdminAlumnosClient
+      currentUser={currentUser}
+      initialAlumnos={alumnos}
+    />
+  );
 }

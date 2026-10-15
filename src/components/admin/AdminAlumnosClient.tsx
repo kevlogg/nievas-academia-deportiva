@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Alumno, KarateBelt } from "@/types";
+import { Alumno, KarateBelt, Usuario } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { ModalGraduacion } from "./ModalGraduacion";
 import { ModalNotaPrivada } from "./ModalNotaPrivada";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 interface AdminAlumnosClientProps {
+  currentUser?: Usuario;
   initialAlumnos: Alumno[];
 }
 
@@ -47,9 +48,15 @@ const BELT_OPTIONS: KarateBelt[] = [
 ];
 
 export function AdminAlumnosClient({
+  currentUser,
   initialAlumnos,
 }: AdminAlumnosClientProps) {
   const [alumnos, setAlumnos] = useState<Alumno[]>(initialAlumnos);
+
+  // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
+  const cleanNombre = currentUser?.nombre_completo
+    ? currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
+    : "Francisco Nievas";
 
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState<KarateBelt | "TODOS">("TODOS");
@@ -111,10 +118,10 @@ export function AdminAlumnosClient({
         </span>
       </div>
 
-      {/* Header con Logo Oficial - Card Azul Oficial #0F3E86 */}
-      <div className="p-5 sm:p-6 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-md shadow-blue-950/30 shrink-0">
+      {/* 1. Banner Principal del Sensei - Card Reducida y Compacta en Azul Oficial #0F3E86 */}
+      <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md shadow-blue-950/15">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-white border border-white shadow-xs shrink-0">
             <Image
               src="/nievas-logo.jpg"
               alt="Logo Nievas"
@@ -123,32 +130,20 @@ export function AdminAlumnosClient({
               priority
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-md border border-white/20">
-                Padrón de Karatecas
-              </span>
-              <span className="text-xs text-blue-200 font-medium">
-                Nievas Academia Deportiva
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">
-              Gestión de Alumnos y Cinturones
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight truncate">
+              {cleanNombre}
             </h1>
-            <p className="text-xs text-blue-200 font-medium">
-              Cualquier Admin puede editar el cinturón de sus alumnos directamente aquí o al armar listas.
+            <p className="text-[11px] text-blue-200 font-medium truncate">
+              Gestión de alumnos, graduaciones y cinturones
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <div className="px-4 py-2 bg-white/10 rounded-2xl border border-white/20 text-center">
-            <span className="text-[10px] text-blue-200 block uppercase font-bold">
-              Total Alumnos
-            </span>
-            <span className="text-xl font-black text-white">
-              {alumnos.length}
-            </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-[11px] font-bold text-cyan-300 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+            <Award className="w-3.5 h-3.5 text-amber-300" />
+            <span>{alumnos.length} Alumnos</span>
           </div>
         </div>
       </div>

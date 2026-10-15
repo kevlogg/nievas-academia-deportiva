@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Usuario, ClaseHistorialItem } from "@/types";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import {
@@ -32,6 +33,11 @@ export function HistorialClasesClient({
 
   const isAdmin = currentUser.rol === "ADMIN";
 
+  // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
+  const cleanNombre = currentUser.nombre_completo
+    .replace(/\s*\((admin|superadmin|profesor)\)/gi, "")
+    .trim();
+
   const filteredItems = historialItems.filter((item) => {
     const matchSearch =
       item.clase.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -50,39 +56,40 @@ export function HistorialClasesClient({
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
-      {/* Cabecera y Navegación Atrás - Card Azul Oficial #0F3E86 */}
-      <div className="p-5 sm:p-6 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
+      {/* 1. Banner Principal del Sensei - Card Reducida y Compacta en Azul Oficial #0F3E86 */}
+      <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md shadow-blue-950/15">
+        <div className="flex items-center gap-3 min-w-0">
           <Link
             href={isAdmin ? "/admin/dashboard" : "/profesor/clases"}
-            className="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/20 cursor-pointer"
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors border border-white/20 cursor-pointer shrink-0"
             title="Volver"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-md border border-white/20">
-                Historial Oficial
-              </span>
-              <span className="text-xs text-blue-200 font-semibold">
-                Nievas Academia Deportiva
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">
-              Historial de Clases & Tatami
+          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-white border border-white shadow-xs shrink-0">
+            <Image
+              src="/nievas-logo.jpg"
+              alt="Logo Nievas"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight truncate">
+              {cleanNombre}
             </h1>
-            <p className="text-xs text-blue-200 font-medium">
-              {isAdmin
-                ? "Registro histórico completo de todas las clases de la academia"
-                : `Registro histórico de todas las clases de ${currentUser.nombre_completo}`}
+            <p className="text-[11px] text-blue-200 font-medium truncate">
+              Historial y registro de clases pasadas
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-bold text-cyan-300 bg-white/10 border border-white/20 px-3.5 py-2 rounded-xl">
-          <History className="w-4 h-4 text-cyan-300" />
-          <span>{filteredItems.length} Clases Registradas</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="text-[11px] font-bold text-cyan-300 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+            <History className="w-3.5 h-3.5 text-cyan-300" />
+            <span>{filteredItems.length} Clases</span>
+          </div>
         </div>
       </div>
 
