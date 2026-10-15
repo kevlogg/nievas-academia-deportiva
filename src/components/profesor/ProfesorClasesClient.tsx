@@ -193,63 +193,63 @@ export function ProfesorClasesClient({
           {clasesAbiertas.map((item) => (
             <div
               key={item.sesion.id}
-              className="p-4 sm:p-5 bg-gradient-to-r from-[#0F3E86] via-[#124694] to-[#0F3E86] text-white border-2 border-emerald-400 rounded-2xl shadow-xl animate-open-class transition-all flex flex-col items-center justify-center text-center gap-2.5"
+              className="p-3 sm:py-2.5 sm:px-4 bg-gradient-to-r from-[#0F3E86] via-[#124694] to-[#0F3E86] text-white border-2 border-emerald-400 rounded-2xl shadow-lg animate-open-class transition-all"
             >
-              {/* Badge Centrado: Clase Abierta En Vivo */}
-              <div className="flex items-center justify-center gap-2 flex-wrap">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span className="text-[11px] font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                  CLASE ABIERTA EN TATAMI
-                </span>
-                <span className="text-[10px] font-bold bg-white/10 text-cyan-200 px-2.5 py-0.5 rounded-full border border-white/20">
-                  En Vivo
-                </span>
-              </div>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                {/* Info agrupada: Título, estado y metadatos ultra compactos */}
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-300 uppercase tracking-wider bg-emerald-950/70 border border-emerald-500/50 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                      </span>
+                      <span>CLASE ABIERTA</span>
+                    </span>
 
-              {/* Título de la clase centrado */}
-              <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                {item.clase.nombre}
-              </h2>
+                    <h2 className="text-sm sm:text-base font-black text-white tracking-tight truncate">
+                      {item.clase.nombre}
+                    </h2>
+                  </div>
 
-              {/* Badges de Metadatos Centrados y Alineados */}
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-blue-200 font-medium">
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15 text-[11px]">
-                  <Clock className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
-                  <span>
-                    {formatTime(item.clase.hora_inicio)} - {formatTime(item.clase.hora_fin)}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15 text-[11px]">
-                  <Users className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
-                  <span>{item.totalCount} alumnos</span>
-                </span>
-                <span className="text-emerald-300 font-bold bg-emerald-950/70 px-2.5 py-1 rounded-lg border border-emerald-500/40 text-[11px] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span>{item.presentesCount} presentes</span>
-                </span>
-              </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-blue-200">
+                    <span className="flex items-center gap-1 text-[11px] text-blue-100">
+                      <Clock className="w-3 h-3 text-cyan-300 shrink-0" />
+                      <span>
+                        {formatTime(item.clase.hora_inicio)} - {formatTime(item.clase.hora_fin)}
+                      </span>
+                    </span>
+                    <span className="text-blue-300/40 hidden xs:inline">•</span>
+                    <span className="flex items-center gap-1 text-[11px] text-blue-100">
+                      <Users className="w-3 h-3 text-cyan-300 shrink-0" />
+                      <span>{item.totalCount} alumnos</span>
+                    </span>
+                    <span className="text-blue-300/40 hidden xs:inline">•</span>
+                    <span className="text-emerald-300 font-bold text-[11px] flex items-center gap-1 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-500/40">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <span>{item.presentesCount} presentes</span>
+                    </span>
+                  </div>
+                </div>
 
-              {/* Botones de Acción Centrados y Alineados */}
-              <div className="flex items-center justify-center gap-2.5 pt-1 flex-wrap">
-                <Link
-                  href={`/profesor/clases/${item.clase.id}/asistencia`}
-                  className="px-4 sm:px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 text-xs font-black rounded-xl shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
-                >
-                  <ClipboardCheck className="w-4 h-4 text-slate-950 shrink-0" />
-                  <span>CONTINUAR ASISTENCIA</span>
-                </Link>
-                <button
-                  onClick={() => handleCerrarClase(item.sesion.id)}
-                  disabled={cerrandoSesionId === item.sesion.id}
-                  className="px-3.5 sm:px-4 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-white border border-rose-400/40 text-xs font-bold rounded-xl transition-all active:scale-98 touch-target-safe cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                >
-                  <Lock className="w-3.5 h-3.5 text-rose-300 shrink-0" />
-                  <span>{cerrandoSesionId === item.sesion.id ? "Cerrando..." : "Cerrar"}</span>
-                </button>
+                {/* Botones de Acción Alineados */}
+                <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto pt-1 lg:pt-0">
+                  <Link
+                    href={`/profesor/clases/${item.clase.id}/asistencia`}
+                    className="flex-1 lg:flex-initial py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all touch-target-safe cursor-pointer"
+                  >
+                    <ClipboardCheck className="w-4 h-4 text-slate-950 shrink-0" />
+                    <span>CONTINUAR ASISTENCIA</span>
+                  </Link>
+                  <button
+                    onClick={() => handleCerrarClase(item.sesion.id)}
+                    disabled={cerrandoSesionId === item.sesion.id}
+                    className="py-2 px-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-white border border-rose-400/40 text-xs font-bold rounded-xl transition-all active:scale-98 touch-target-safe cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1 shrink-0"
+                  >
+                    <Lock className="w-3 h-3 text-rose-300 shrink-0" />
+                    <span>{cerrandoSesionId === item.sesion.id ? "..." : "Cerrar"}</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
