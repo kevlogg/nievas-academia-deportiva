@@ -37,14 +37,14 @@ export default async function AsistenciaTatamiPage({
       <div className="flex items-center justify-between">
         <Link
           href="/profesor/clases"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white py-1.5 px-2.5 rounded-lg hover:bg-slate-800 transition-colors touch-target-safe"
+          className="inline-flex items-center gap-2 text-xs font-bold text-[#0F3E86] hover:text-white py-2 px-3 rounded-xl bg-blue-50 hover:bg-[#0F3E86] border border-blue-200 transition-all touch-target-safe shadow-xs cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Volver a Clases</span>
         </Link>
 
-        <span className="text-xs text-slate-500 font-mono">
-          Sensei: {currentUser.nombre_completo}
+        <span className="text-xs text-slate-700 font-bold bg-white px-3 py-1.5 rounded-xl border border-blue-100 shadow-xs">
+          Sensei: {currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()}
         </span>
       </div>
 
