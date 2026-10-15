@@ -14,11 +14,15 @@ import {
   Inscripcion,
   KarateBelt,
   ProfesorMetricasData,
+  ProfesorMetricasCompletasData,
+  SesionMetricaItem,
+  AlumnoMetricaItem,
   AdminDashboardMetricsData,
   SesionClase,
   Usuario,
   ListaAlumnos,
   ClaseHistorialItem,
+  ClaseAbiertaItem,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -35,18 +39,18 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 const SEED_USUARIOS: Usuario[] = [
   {
     id: "11111111-1111-1111-1111-111111111111",
-    email: "admin@nievaskarate.com",
+    email: "francisco.nievas@nievasacademia.com",
     rol: "ADMIN",
-    nombre_completo: "Sensei Marcos Nievas (Headmaster)",
+    nombre_completo: "Francisco Nievas (SuperAdmin)",
     telefono: "+54 9 11 5555-0101",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
   },
   {
     id: "22222222-2222-2222-2222-222222222222",
-    email: "profesor@nievaskarate.com",
+    email: "sensei.benitez@nievasacademia.com",
     rol: "PROFESOR",
-    nombre_completo: "Sensei Lucas Benítez",
+    nombre_completo: "Sensei Lucas Benítez (Admin)",
     telefono: "+54 9 11 5555-0202",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
@@ -58,7 +62,7 @@ const SEED_CLASES: Clase[] = [
     id: "c1111111-1111-1111-1111-111111111111",
     nombre: "Infantiles Kumite (6-12 años)",
     profesor_id: "22222222-2222-2222-2222-222222222222",
-    profesor_nombre: "Sensei Lucas Benítez",
+    profesor_nombre: "Sensei Lucas Benítez (Admin)",
     dias_semana: [1, 3, 5], // Lun, Mié, Vie
     hora_inicio: "18:00:00",
     hora_fin: "19:15:00",
@@ -71,7 +75,7 @@ const SEED_CLASES: Clase[] = [
     id: "c2222222-2222-2222-2222-222222222222",
     nombre: "Juveniles Kata & Bunkai",
     profesor_id: "22222222-2222-2222-2222-222222222222",
-    profesor_nombre: "Sensei Lucas Benítez",
+    profesor_nombre: "Sensei Lucas Benítez (Admin)",
     dias_semana: [2, 4], // Mar, Jue
     hora_inicio: "19:30:00",
     hora_fin: "21:00:00",
@@ -84,7 +88,7 @@ const SEED_CLASES: Clase[] = [
     id: "c3333333-3333-3333-3333-333333333333",
     nombre: "Adultos Tradicional y Dan",
     profesor_id: "11111111-1111-1111-1111-111111111111",
-    profesor_nombre: "Sensei Marcos Nievas (Headmaster)",
+    profesor_nombre: "Francisco Nievas (SuperAdmin)",
     dias_semana: [1, 3, 5], // Lun, Mié, Vie
     hora_inicio: "20:30:00",
     hora_fin: "22:00:00",
@@ -308,9 +312,54 @@ const SEED_SESIONES: SesionClase[] = [
     created_at: new Date().toISOString(),
     clase_nombre: "Infantiles Kumite (6-12 años)",
   },
+  {
+    id: "s2222222-2222-2222-2222-222222222222",
+    clase_id: "c1111111-1111-1111-1111-111111111111",
+    profesor_id: "22222222-2222-2222-2222-222222222222",
+    fecha: new Date(Date.now() - 5 * 86400000).toISOString().split("T")[0],
+    hora_apertura: new Date(Date.now() - 5 * 86400000).toISOString(),
+    estado: "FINALIZADA",
+    observaciones: "Práctica de guardias y combinaciones.",
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    clase_nombre: "Infantiles Kumite (6-12 años)",
+  },
+  {
+    id: "s3333333-3333-3333-3333-333333333333",
+    clase_id: "c2222222-2222-2222-2222-222222222222",
+    profesor_id: "22222222-2222-2222-2222-222222222222",
+    fecha: new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0],
+    hora_apertura: new Date(Date.now() - 14 * 86400000).toISOString(),
+    estado: "FINALIZADA",
+    observaciones: "Kata Bassai Dai y bunkai básico.",
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+    clase_nombre: "Juveniles Kata & Bunkai",
+  },
+  {
+    id: "s4444444-4444-4444-4444-444444444444",
+    clase_id: "c1111111-1111-1111-1111-111111111111",
+    profesor_id: "22222222-2222-2222-2222-222222222222",
+    fecha: new Date(Date.now() - 45 * 86400000).toISOString().split("T")[0],
+    hora_apertura: new Date(Date.now() - 45 * 86400000).toISOString(),
+    estado: "FINALIZADA",
+    observaciones: "Kihon Ippon Kumite.",
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+    clase_nombre: "Infantiles Kumite (6-12 años)",
+  },
+  {
+    id: "s5555555-5555-5555-5555-555555555555",
+    clase_id: "c2222222-2222-2222-2222-222222222222",
+    profesor_id: "22222222-2222-2222-2222-222222222222",
+    fecha: new Date(Date.now() - 75 * 86400000).toISOString().split("T")[0],
+    hora_apertura: new Date(Date.now() - 75 * 86400000).toISOString(),
+    estado: "FINALIZADA",
+    observaciones: "Evaluación técnica de posiciones.",
+    created_at: new Date(Date.now() - 75 * 86400000).toISOString(),
+    clase_nombre: "Juveniles Kata & Bunkai",
+  },
 ];
 
 const SEED_ASISTENCIAS: Asistencia[] = [
+  // Sesion 1 (Hoy)
   {
     id: "as111111-1111-1111-1111-111111111111",
     sesion_id: "s1111111-1111-1111-1111-111111111111",
@@ -346,6 +395,82 @@ const SEED_ASISTENCIAS: Asistencia[] = [
     es_recuperacion: false,
     marcado_en: new Date().toISOString(),
     created_at: new Date().toISOString(),
+  },
+  // Sesion 2 (Hace 5 días)
+  {
+    id: "as211111-1111-1111-1111-111111111111",
+    sesion_id: "s2222222-2222-2222-2222-222222222222",
+    alumno_id: "a1111111-1111-1111-1111-111111111111",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+  {
+    id: "as222222-1111-1111-1111-111111111111",
+    sesion_id: "s2222222-2222-2222-2222-222222222222",
+    alumno_id: "a2222222-2222-2222-2222-222222222222",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+  {
+    id: "as233333-1111-1111-1111-111111111111",
+    sesion_id: "s2222222-2222-2222-2222-222222222222",
+    alumno_id: "a3333333-3333-3333-3333-333333333333",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
+  // Sesion 3 (Hace 14 días)
+  {
+    id: "as311111-1111-1111-1111-111111111111",
+    sesion_id: "s3333333-3333-3333-3333-333333333333",
+    alumno_id: "a6666666-6666-6666-6666-666666666666",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 14 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  {
+    id: "as322222-1111-1111-1111-111111111111",
+    sesion_id: "s3333333-3333-3333-3333-333333333333",
+    alumno_id: "a7777777-7777-7777-7777-777777777777",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 14 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  },
+  // Sesion 4 (Hace 45 días)
+  {
+    id: "as411111-1111-1111-1111-111111111111",
+    sesion_id: "s4444444-4444-4444-4444-444444444444",
+    alumno_id: "a1111111-1111-1111-1111-111111111111",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 45 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+  },
+  {
+    id: "as422222-1111-1111-1111-111111111111",
+    sesion_id: "s4444444-4444-4444-4444-444444444444",
+    alumno_id: "a2222222-2222-2222-2222-222222222222",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 45 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
+  },
+  // Sesion 5 (Hace 75 días)
+  {
+    id: "as511111-1111-1111-1111-111111111111",
+    sesion_id: "s5555555-5555-5555-5555-555555555555",
+    alumno_id: "a6666666-6666-6666-6666-666666666666",
+    estado: "PRESENTE",
+    es_recuperacion: false,
+    marcado_en: new Date(Date.now() - 75 * 86400000).toISOString(),
+    created_at: new Date(Date.now() - 75 * 86400000).toISOString(),
   },
 ];
 
@@ -868,6 +993,107 @@ export async function dalGetProfesorMetricas(
 }
 
 /**
+ * Métricas completas con historial para filtro dinámico (Último mes, 3 meses, Todo, Personalizado)
+ */
+export async function dalGetProfesorMetricasCompletas(
+  profesorId?: string
+): Promise<ProfesorMetricasCompletasData> {
+  const currentUser = await requireProfesor();
+  const effectiveProfId =
+    currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
+
+  const profesor =
+    dbState.usuarios.find((u) => u.id === effectiveProfId) || currentUser;
+
+  const clasesProfesor = dbState.clases.filter(
+    (c) => c.profesor_id === effectiveProfId
+  );
+  const clasesIds = new Set(clasesProfesor.map((c) => c.id));
+
+  // Todas las sesiones de este profesor
+  const sesiones: SesionMetricaItem[] = dbState.sesiones
+    .filter((s) => clasesIds.has(s.clase_id))
+    .map((s) => {
+      const asistenciasSesion = dbState.asistencias.filter((a) => a.sesion_id === s.id);
+      const presentesCount = asistenciasSesion.filter(
+        (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+      return {
+        id: s.id,
+        clase_id: s.clase_id,
+        clase_nombre: s.clase_nombre || "Clase Tatami",
+        fecha: s.fecha,
+        presentesCount,
+        totalAsistencias: asistenciasSesion.length,
+      };
+    });
+
+  // Alumnos inscriptos
+  const inscripcionesProf = dbState.inscripciones.filter(
+    (ins) => clasesIds.has(ins.clase_id) && ins.activo
+  );
+
+  const alumnoIdToClases = new Map<string, string[]>();
+  for (const ins of inscripcionesProf) {
+    const claseObj = clasesProfesor.find((c) => c.id === ins.clase_id);
+    const existing = alumnoIdToClases.get(ins.alumno_id) || [];
+    if (claseObj) existing.push(claseObj.nombre);
+    alumnoIdToClases.set(ins.alumno_id, existing);
+  }
+
+  const alumnos: AlumnoMetricaItem[] = [];
+
+  for (const [alumnoId, clasesNombres] of alumnoIdToClases.entries()) {
+    const rawAlumno = dbState.alumnos.find((a) => a.id === alumnoId);
+    if (!rawAlumno) continue;
+
+    const alumno: Alumno = {
+      ...rawAlumno,
+      notas_privadas:
+        currentUser.rol === "ADMIN" ? rawAlumno.notas_privadas : null,
+    };
+
+    const asistenciasAlumno = dbState.asistencias
+      .filter((a) => a.alumno_id === alumnoId)
+      .map((a) => {
+        const ses = dbState.sesiones.find((s) => s.id === a.sesion_id);
+        return {
+          sesionId: a.sesion_id,
+          fecha: ses?.fecha || a.created_at.split("T")[0],
+          estado: a.estado,
+        };
+      });
+
+    const gradActual = dbState.graduaciones
+      .filter(
+        (g) => g.alumno_id === alumno.id && g.cinturon === alumno.cinturon_actual
+      )
+      .sort((x, y) => y.fecha_graduacion.localeCompare(x.fecha_graduacion))[0];
+
+    const fechaCinto = gradActual ? gradActual.fecha_graduacion : "2026-01-01";
+    const clasesEnCinto = dbState.asistencias.filter(
+      (a) =>
+        a.alumno_id === alumnoId &&
+        (a.estado === "PRESENTE" || a.estado === "TARDE") &&
+        a.marcado_en >= fechaCinto
+    ).length;
+
+    alumnos.push({
+      alumno,
+      clasesNombre: clasesNombres,
+      asistencias: asistenciasAlumno,
+      clasesEnCinturonActual: clasesEnCinto,
+    });
+  }
+
+  return {
+    profesor,
+    sesiones,
+    alumnos,
+  };
+}
+
+/**
  * Métricas globales para el Administrador / Headmaster (/admin/dashboard)
  */
 export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetricsData> {
@@ -1253,4 +1479,105 @@ export async function dalGetHistorialClasesProfesor(
 export async function dalGetProfesores(): Promise<Usuario[]> {
   await requireAuth();
   return dbState.usuarios.filter((u) => u.activo);
+}
+
+/**
+ * Actualizar cinturón de un alumno (permite a cualquier Admin editar el cinturón al cargar listas)
+ */
+export async function dalActualizarCinturonAlumno(
+  alumnoId: string,
+  nuevoCinturon: KarateBelt
+): Promise<Alumno> {
+  const currentUser = await requireProfesor();
+  const alumno = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (!alumno) {
+    throw new Error("Alumno no encontrado");
+  }
+
+  alumno.cinturon_actual = nuevoCinturon;
+
+  const now = new Date().toISOString();
+  dbState.graduaciones.push({
+    id: "g" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    alumno_id: alumnoId,
+    cinturon: nuevoCinturon,
+    fecha_graduacion: now.split("T")[0],
+    graduado_por: currentUser.id,
+    graduado_por_nombre: currentUser.nombre_completo,
+    observaciones: `Cinturón actualizado por ${currentUser.nombre_completo}`,
+    created_at: now,
+  });
+
+  return alumno;
+}
+
+/**
+ * Obtener clases abiertas de un sensei (permanecen abiertas hasta que el sensei las cierra)
+ */
+export async function dalGetClasesAbiertas(
+  profesorId?: string
+): Promise<ClaseAbiertaItem[]> {
+  const currentUser = await requireProfesor();
+  const effectiveProfId =
+    currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
+
+  // Buscar sesiones en estado ABIERTA
+  let sesionesAbiertas = dbState.sesiones.filter((s) => s.estado === "ABIERTA");
+  if (currentUser.rol === "PROFESOR") {
+    sesionesAbiertas = sesionesAbiertas.filter(
+      (s) => s.profesor_id === currentUser.id
+    );
+  } else if (profesorId && profesorId !== currentUser.id) {
+    sesionesAbiertas = sesionesAbiertas.filter(
+      (s) => s.profesor_id === profesorId
+    );
+  }
+
+  const items: ClaseAbiertaItem[] = [];
+
+  for (const sesion of sesionesAbiertas) {
+    const clase = dbState.clases.find((c) => c.id === sesion.clase_id);
+    if (!clase) continue;
+
+    const inscriptos = dbState.inscripciones.filter(
+      (ins) => ins.clase_id === clase.id && ins.activo
+    );
+
+    const asistencias = dbState.asistencias.filter(
+      (a) => a.sesion_id === sesion.id
+    );
+
+    const presentesCount = asistencias.filter(
+      (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
+    ).length;
+
+    items.push({
+      sesion,
+      clase,
+      presentesCount,
+      totalCount: inscriptos.length || clase.total_inscriptos || 0,
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Cerrar/finalizar sesión de clase
+ */
+export async function dalCerrarSesionClase(
+  sesionId: string
+): Promise<SesionClase> {
+  const currentUser = await requireProfesor();
+  const sesion = dbState.sesiones.find((s) => s.id === sesionId);
+  if (!sesion) {
+    throw new Error("Sesión no encontrada");
+  }
+
+  if (currentUser.rol === "PROFESOR" && sesion.profesor_id !== currentUser.id) {
+    throw new Error("No tienes permisos para cerrar la sesión de otro profesor");
+  }
+
+  sesion.estado = "FINALIZADA";
+  return sesion;
 }

@@ -21,45 +21,45 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
   };
 
   return (
-    <div className="flex items-center gap-1 p-1 bg-slate-900/95 border border-blue-900/50 rounded-xl shadow-inner text-xs">
+    <div className="flex items-center gap-1 p-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-inner text-xs">
       <button
         onClick={() => handleToggle("PROFESOR")}
         disabled={isPending}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all duration-200 touch-target-safe cursor-pointer",
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-200 touch-target-safe cursor-pointer",
           currentUser.rol === "PROFESOR"
-            ? "bg-[#154495] text-white shadow-md shadow-blue-950 font-bold border border-blue-400/40"
-            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            ? "bg-white text-[#0F3E86] shadow-md border border-white"
+            : "text-blue-100 hover:text-white hover:bg-white/10"
         )}
         aria-pressed={currentUser.rol === "PROFESOR"}
-        title="Cambiar a vista Sensei (Profesor en Tatami)"
+        title="Cambiar a vista Admin (Sensei Profesor)"
       >
         {isPending && currentUser.rol !== "PROFESOR" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <UserCheck className="w-3.5 h-3.5 text-blue-200" />
+          <UserCheck className="w-3.5 h-3.5" />
         )}
-        <span>Sensei</span>
+        <span>Admin</span>
       </button>
 
       <button
         onClick={() => handleToggle("ADMIN")}
         disabled={isPending}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all duration-200 touch-target-safe cursor-pointer",
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-200 touch-target-safe cursor-pointer",
           currentUser.rol === "ADMIN"
-            ? "bg-slate-800 text-amber-300 shadow-md font-bold border border-amber-500/60"
-            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            ? "bg-amber-400 text-slate-950 shadow-md border border-amber-300"
+            : "text-blue-100 hover:text-white hover:bg-white/10"
         )}
         aria-pressed={currentUser.rol === "ADMIN"}
-        title="Cambiar a vista Headmaster Sensei (Admin Dueño)"
+        title="Cambiar a vista SuperAdmin (Francisco Nievas - Dueño)"
       >
         {isPending && currentUser.rol !== "ADMIN" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+          <ShieldCheck className="w-3.5 h-3.5" />
         )}
-        <span>Headmaster</span>
+        <span>SuperAdmin</span>
       </button>
     </div>
   );

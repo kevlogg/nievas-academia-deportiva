@@ -148,6 +148,13 @@ export interface ClaseHistorialItem {
   totalTardes: number;
 }
 
+export interface ClaseAbiertaItem {
+  sesion: SesionClase;
+  clase: Clase;
+  presentesCount: number;
+  totalCount: number;
+}
+
 export interface Inscripcion {
   id: string;
   clase_id: string;
@@ -198,6 +205,32 @@ export interface AlumnoSesionItem {
   es_recuperacion: boolean;
   marcado_en?: string;
   clases_en_cinturon?: number;
+}
+
+export interface SesionMetricaItem {
+  id: string;
+  clase_id: string;
+  clase_nombre: string;
+  fecha: string;
+  presentesCount: number;
+  totalAsistencias: number;
+}
+
+export interface AlumnoMetricaItem {
+  alumno: Alumno;
+  clasesNombre: string[];
+  asistencias: Array<{
+    sesionId: string;
+    fecha: string;
+    estado: AsistenciaEstado;
+  }>;
+  clasesEnCinturonActual: number;
+}
+
+export interface ProfesorMetricasCompletasData {
+  profesor: Usuario;
+  sesiones: SesionMetricaItem[];
+  alumnos: AlumnoMetricaItem[];
 }
 
 export interface ProfesorMetricasData {

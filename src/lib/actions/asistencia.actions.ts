@@ -7,6 +7,7 @@ import {
   dalGetOrCreateSesionClase,
   dalInscribirAlumnoRapido,
   dalMarcarAsistencia,
+  dalCerrarSesionClase,
 } from "@/lib/dal";
 import {
   AgregarRecuperacionSchema,
@@ -232,3 +233,30 @@ export async function sincronizarAsistenciasOfflineAction(
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Cerrar/finalizar una clase abierta
+ */
+export async function cerrarClaseAction(
+  sesionId: string
+): Promise<ActionResponse<{ id: string }>> {
+  try {
+    const sesion = await dalCerrarSesionClase(sesionId);
+
+    revalidatePath(`/profesor/clases`);
+    revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+    revalidatePath(`/profesor/historial`);
+    revalidatePath(`/admin/dashboard`);
+    revalidatePath(`/admin/historial`);
+
+    return {
+      success: true,
+      data: { id: sesion.id },
+      message: "Clase finalizada con éxito",
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error al cerrar la clase";
+    return { success: false, error: msg };
+  }
+}
+

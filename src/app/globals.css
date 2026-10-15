@@ -2,20 +2,20 @@
 
 @layer base {
   :root {
-    --background: #080D1A;
-    --foreground: #F8FAFC;
-    --card: #FFFFFF;
-    --card-foreground: #0F2756;
-    --primary: #154495;
+    --background: #FFFFFF;
+    --foreground: #0F172A;
+    --card: #0F3E86;
+    --card-foreground: #FFFFFF;
+    --primary: #0F3E86;
     --primary-foreground: #FFFFFF;
-    --secondary: #EFF6FF;
-    --secondary-foreground: #154495;
-    --muted: #DBEAFE;
-    --muted-foreground: #1E3A8A;
-    --accent: #1D4ED8;
+    --secondary: #144EAA;
+    --secondary-foreground: #FFFFFF;
+    --muted: #E2E8F0;
+    --muted-foreground: #64748B;
+    --accent: #2563EB;
     --accent-foreground: #FFFFFF;
-    --border: #BFDBFE;
-    --ring: #2563EB;
+    --border: #E2E8F0;
+    --ring: #0F3E86;
   }
 }
 
@@ -28,26 +28,26 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Nievas Royal Dojo Blue Brand Accents */
+/* Nievas Exact Logo Blue (#0F3E86) Tokens */
 .bg-brand-blue {
-  background-color: #154495;
+  background-color: #0F3E86;
 }
 
 .text-brand-blue {
-  color: #154495;
+  color: #0F3E86;
 }
 
 .border-brand-blue {
-  border-color: #154495;
+  border-color: #0F3E86;
 }
 
-/* Cards Claras con texto y elementos azules (Requisito Oficial) */
-.card-light {
-  background-color: #FFFFFF;
-  color: #0F2756;
-  border: 2px solid #BFDBFE;
-  border-radius: 1.25rem;
-  box-shadow: 0 10px 15px -3px rgba(21, 68, 149, 0.08), 0 4px 6px -4px rgba(21, 68, 149, 0.04);
+/* Nievas Official Brand Blue Card (#0F3E86) */
+.card-blue {
+  background-color: #0F3E86;
+  color: #FFFFFF;
+  border: 2px solid #1E57A8;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 20px -3px rgba(15, 62, 134, 0.25), 0 4px 6px -4px rgba(15, 62, 134, 0.15);
 }
 
 /* Tatami Touch Target Optimization */
@@ -56,28 +56,34 @@ body {
   min-width: 48px;
 }
 
-/* Smooth micro-animations */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(0.98); }
+/* Animación Parpadeo para Clase Abierta */
+@keyframes open-class-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6), 0 10px 20px -3px rgba(15, 62, 134, 0.3);
+    border-color: #34D399;
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0), 0 10px 25px -3px rgba(15, 62, 134, 0.5);
+    border-color: #10B981;
+  }
 }
 
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s infinite ease-in-out;
+.animate-open-class {
+  animation: open-class-glow 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
-/* Custom Scrollbar for Tatami Lists */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #080D1A;
+  background: #F1F5F9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E3158;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2563EB;
+  background: #0F3E86;
 }

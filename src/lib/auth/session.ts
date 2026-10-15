@@ -7,18 +7,18 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 días para tatami tácti
 export const DEMO_USERS: Record<UserRole, Usuario> = {
   ADMIN: {
     id: "11111111-1111-1111-1111-111111111111",
-    email: "admin@nievaskarate.com",
+    email: "francisco.nievas@nievasacademia.com",
     rol: "ADMIN",
-    nombre_completo: "Sensei Marcos Nievas (Headmaster)",
+    nombre_completo: "Francisco Nievas (SuperAdmin)",
     telefono: "+54 9 11 5555-0101",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
   },
   PROFESOR: {
     id: "22222222-2222-2222-2222-222222222222",
-    email: "profesor@nievaskarate.com",
+    email: "sensei.benitez@nievasacademia.com",
     rol: "PROFESOR",
-    nombre_completo: "Sensei Lucas Benítez",
+    nombre_completo: "Sensei Lucas Benítez (Admin)",
     telefono: "+54 9 11 5555-0202",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",

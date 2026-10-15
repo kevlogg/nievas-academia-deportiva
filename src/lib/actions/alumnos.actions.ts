@@ -5,12 +5,13 @@ import {
   dalActualizarNotaPrivada,
   dalBuscarAlumnosGlobalParaRecuperacion,
   dalRegistrarGraduacion,
+  dalActualizarCinturonAlumno,
 } from "@/lib/dal";
 import {
   ActualizarNotaPrivadaSchema,
   RegistrarGraduacionSchema,
 } from "@/schemas";
-import { Alumno, HistorialGraduacion } from "@/types";
+import { Alumno, HistorialGraduacion, KarateBelt } from "@/types";
 import { ActionResponse } from "./asistencia.actions";
 
 /**
@@ -115,3 +116,32 @@ export async function buscarAlumnosRecuperacionAction(
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Actualizar cinturón de alumno directamente (por Admin o SuperAdmin)
+ */
+export async function actualizarCinturonAction(
+  alumnoId: string,
+  nuevoCinturon: KarateBelt
+): Promise<ActionResponse<Alumno>> {
+  try {
+    const alumno = await dalActualizarCinturonAlumno(alumnoId, nuevoCinturon);
+
+    revalidatePath("/profesor/clases");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/alumnos");
+    revalidatePath("/profesor/metricas");
+    revalidatePath("/profesor/clases/[id]/asistencia", "page");
+
+    return {
+      success: true,
+      data: alumno,
+      message: `Cinturón de ${alumno.nombre} ${alumno.apellido} actualizado a ${nuevoCinturon}`,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al actualizar cinturón";
+    return { success: false, error: msg };
+  }
+}
+
