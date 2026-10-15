@@ -15,6 +15,7 @@ import { ModalCrearClaseProfesor } from "./ModalCrearClaseProfesor";
 import { ModalCrearListaAlumnos } from "./ModalCrearListaAlumnos";
 import { ModalVerListaAlumnos } from "./ModalVerListaAlumnos";
 import { ModalEditarListaAlumnos } from "./ModalEditarListaAlumnos";
+import { ModalVerClaseInfo } from "./ModalVerClaseInfo";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import { cerrarClaseAction } from "@/lib/actions/asistencia.actions";
 import { eliminarListaAlumnosAction } from "@/lib/actions/clases.actions";
@@ -68,6 +69,10 @@ export function ProfesorClasesClient({
   const [listaParaEditar, setListaParaEditar] = useState<ListaAlumnos | null>(null);
   const [eliminandoListaId, setEliminandoListaId] = useState<string | null>(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
+
+  // Estados para Ver Info y Menú de Clases del Historial
+  const [claseParaVerInfo, setClaseParaVerInfo] = useState<ClaseHistorialItem | null>(null);
+  const [menuClaseAbiertoId, setMenuClaseAbiertoId] = useState<string | null>(null);
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser.nombre_completo
@@ -390,25 +395,22 @@ export function ProfesorClasesClient({
 
       {/* 4. HISTORIAL DE LAS ÚLTIMAS CLASES (Cards Azules #0F3E86) */}
       <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#0F3E86] border border-[#1E57A8] text-white shadow-xs">
-              <History className="w-5 h-5 text-cyan-300" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Historial de Últimas Clases
-              </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Mostrando las últimas 3 clases dictadas por este sensei
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-[#0F3E86] border border-[#1E57A8] text-white shadow-xs">
+            <History className="w-5 h-5 text-cyan-300" />
           </div>
-
-          <span className="text-xs font-bold text-[#0F3E86] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-            {ultimasClases.length} de 3
-          </span>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+            Historial de Últimas Clases
+          </h2>
         </div>
+
+        {/* Backdrop invisible para cerrar el menú de clase si está abierto al tocar afuera */}
+        {menuClaseAbiertoId && (
+          <div
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setMenuClaseAbiertoId(null)}
+          />
+        )}
 
         {ultimasClases.length === 0 ? (
           <div className="p-8 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl text-center space-y-3 shadow-lg">
@@ -426,70 +428,107 @@ export function ProfesorClasesClient({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {ultimasClases.slice(0, 3).map((item) => (
-              <div
-                key={item.clase.id}
-                className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-2xl p-5 shadow-xl shadow-blue-950/20 flex flex-col justify-between gap-4 transition-all relative overflow-hidden"
-              >
-                <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {ultimasClases.slice(0, 3).map((item) => {
+              const isMenuOpen = menuClaseAbiertoId === item.clase.id;
+
+              return (
+                <div
+                  key={item.clase.id}
+                  className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-2xl p-4 shadow-xl shadow-blue-950/20 flex flex-col justify-between gap-3 transition-all relative"
+                >
+                  {/* Fila Superior: Nombre de la clase + Menú Hamburguesa */}
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-bold text-cyan-200 bg-white/10 px-2.5 py-1 rounded-lg border border-white/20 uppercase tracking-wider">
-                      {item.fecha || "Tatami"}
-                    </span>
-                    <span className="text-xs text-blue-100 font-bold flex items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                      <h3
+                        className="font-extrabold text-sm sm:text-base text-white tracking-tight leading-snug truncate"
+                        title={item.clase.nombre}
+                      >
+                        {item.clase.nombre}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-blue-200 flex-wrap">
+                        <span className="font-bold text-cyan-200 bg-white/10 px-2 py-0.5 rounded-md border border-white/15 text-[11px]">
+                          {item.fecha || "Tatami"}
+                        </span>
+                        <span className="flex items-center gap-1 text-[11px] font-medium text-blue-100">
+                          <Clock className="w-3 h-3 text-cyan-300" />
+                          <span>
+                            {formatTime(item.clase.hora_inicio)} - {formatTime(item.clase.hora_fin)}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Menú Hamburguesa con Ver Info y Editar Asistencia */}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuClaseAbiertoId(isMenuOpen ? null : item.clase.id);
+                        }}
+                        className={`p-2 rounded-xl transition-all cursor-pointer touch-target-safe flex items-center justify-center ${
+                          isMenuOpen
+                            ? "bg-white text-[#0F3E86] shadow-md scale-105"
+                            : "bg-white/10 hover:bg-white/20 text-white"
+                        }`}
+                        title="Opciones de la clase"
+                        aria-label={`Opciones de la clase ${item.clase.nombre}`}
+                      >
+                        <Menu className="w-4 h-4" />
+                      </button>
+
+                      {/* Dropdown del menú */}
+                      {isMenuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#082552] border border-[#2056A8] rounded-2xl shadow-2xl shadow-blue-950/80 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuClaseAbiertoId(null);
+                              setClaseParaVerInfo(item);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4 text-cyan-300 shrink-0" />
+                            <span>Ver Info</span>
+                          </button>
+
+                          <Link
+                            href={`/profesor/clases/${item.clase.id}/asistencia`}
+                            onClick={() => setMenuClaseAbiertoId(null)}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-4 h-4 text-blue-300 shrink-0" />
+                            <span>Editar Asistencia</span>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fila Inferior: Conteo de Asistencia Limpio y Compacto */}
+                  <div className="flex items-center justify-between text-xs pt-2.5 border-t border-white/15">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex items-center gap-1 text-emerald-300 font-bold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{item.totalPresentes} presentes</span>
+                      </span>
+                      <span className="text-blue-200/90 text-xs font-medium">
+                        {item.totalAusentes} ausentes
+                      </span>
+                    </div>
+
+                    <span className="text-blue-100 font-bold flex items-center gap-1 text-xs">
                       <Users className="w-3.5 h-3.5 text-cyan-300" />
-                      <span>{item.totalInscriptos} alumnos</span>
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="font-extrabold text-base text-white tracking-tight leading-snug">
-                      {item.clase.nombre}
-                    </h3>
-                    <p className="text-xs text-blue-200 font-medium mt-1">
-                      Profesor: {item.clase.profesor_nombre || currentUser.nombre_completo}
-                    </p>
-                  </div>
-
-                  {/* Metadatos Horario y Días */}
-                  <div className="space-y-1.5 text-xs text-blue-100 bg-white/10 p-2.5 rounded-xl border border-white/15">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-cyan-300" />
-                      <span className="font-semibold">
-                        {formatTime(item.clase.hora_inicio)} a {formatTime(item.clase.hora_fin)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CalendarDays className="w-3.5 h-3.5 text-cyan-300" />
-                      <span className="font-semibold">
-                        {formatDaysList(item.clase.dias_semana)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Estadísticas de Asistencia si hubo sesión */}
-                  <div className="flex items-center justify-between text-xs font-semibold px-2">
-                    <span className="flex items-center gap-1 text-emerald-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>{item.totalPresentes} presentes</span>
-                    </span>
-                    <span className="text-blue-300">
-                      {item.totalAusentes} ausentes
+                      <span>{item.totalInscriptos}</span>
                     </span>
                   </div>
                 </div>
-
-                {/* Botón Táctil para Abrir Asistencia */}
-                <Link
-                  href={`/profesor/clases/${item.clase.id}/asistencia`}
-                  className="w-full py-3 px-3 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
-                >
-                  <ClipboardCheck className="w-4 h-4 text-[#0F3E86]" />
-                  <span>PASAR ASISTENCIA EN TATAMI</span>
-                </Link>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -551,6 +590,13 @@ export function ProfesorClasesClient({
           handleListaActualizada(listaActualizada);
           setListaParaEditar(null);
         }}
+      />
+
+      {/* Modal para Ver Info Completa de Clase Cerrada */}
+      <ModalVerClaseInfo
+        isOpen={!!claseParaVerInfo}
+        item={claseParaVerInfo}
+        onClose={() => setClaseParaVerInfo(null)}
       />
     </div>
   );
