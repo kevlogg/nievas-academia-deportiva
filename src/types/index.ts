@@ -127,6 +127,27 @@ export interface Clase {
   total_inscriptos?: number;
 }
 
+export interface ListaAlumnos {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  alumnos_ids: string[];
+  creado_por_id: string;
+  creado_por_nombre?: string;
+  created_at: string;
+  total_alumnos?: number;
+}
+
+export interface ClaseHistorialItem {
+  clase: Clase;
+  sesion?: SesionClase;
+  fecha: string;
+  totalInscriptos: number;
+  totalPresentes: number;
+  totalAusentes: number;
+  totalTardes: number;
+}
+
 export interface Inscripcion {
   id: string;
   clase_id: string;

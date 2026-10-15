@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Usuario } from "@/types";
 import { RoleSwitcher } from "@/components/ui/RoleSwitcher";
-import { Shield, BarChart3, Users, CalendarDays } from "lucide-react";
+import { Shield, BarChart3, Users, CalendarDays, History } from "lucide-react";
 
 interface NavbarProps {
   currentUser: Usuario;
@@ -18,7 +18,7 @@ export function Navbar({ currentUser }: NavbarProps) {
         {/* Brand / Official Logo */}
         <Link
           href={isAdmin ? "/admin/dashboard" : "/profesor/clases"}
-          className="flex items-center gap-2.5 group"
+          className="flex items-center gap-3 group"
         >
           <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-[#154495] border-2 border-blue-400/50 shadow-md shadow-blue-950/60 group-hover:scale-105 transition-transform duration-200 shrink-0">
             <Image
@@ -29,18 +29,13 @@ export function Navbar({ currentUser }: NavbarProps) {
               priority
             />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-base tracking-wider text-white">
-                NIEVAS
-              </span>
-              <span className="text-[10px] font-mono tracking-widest text-blue-300 font-bold bg-blue-950/90 px-1.5 py-0.5 rounded border border-blue-800/60">
-                空手道
-              </span>
-            </div>
-            <p className="text-[10px] text-blue-200/80 font-bold tracking-widest uppercase">
-              Academia Deportiva
-            </p>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-sm sm:text-base tracking-wider text-white uppercase leading-tight font-sans">
+              NIEVAS ACADEMIA DEPORTIVA
+            </span>
+            <span className="text-[11px] text-blue-200 font-semibold tracking-wide font-sans">
+              Sistema de Tatami & Asistencia
+            </span>
           </div>
         </Link>
 
@@ -51,7 +46,14 @@ export function Navbar({ currentUser }: NavbarProps) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-blue-950/50 hover:border-blue-800/50 border border-transparent transition-all"
           >
             <CalendarDays className="w-4 h-4 text-blue-400" />
-            <span>Clases de Tatami</span>
+            <span>Clases Tatami</span>
+          </Link>
+          <Link
+            href={isAdmin ? "/admin/historial" : "/profesor/historial"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-blue-950/50 hover:border-blue-800/50 border border-transparent transition-all"
+          >
+            <History className="w-4 h-4 text-indigo-400" />
+            <span>Historial Clases</span>
           </Link>
           <Link
             href="/profesor/metricas"

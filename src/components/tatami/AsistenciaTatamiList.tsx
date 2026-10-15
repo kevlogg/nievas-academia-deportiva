@@ -377,8 +377,8 @@ export function AsistenciaTatamiList({
 
       {/* Control Principal: Iniciar Clase o Sesión Activa */}
       {!sesion ? (
-        <div className="p-6 bg-gradient-to-b from-[#154495]/20 via-slate-900 to-slate-950 border border-blue-900/50 rounded-2xl text-center space-y-4 shadow-xl">
-          <div className="relative w-20 h-20 mx-auto rounded-2xl overflow-hidden bg-[#154495] border-2 border-blue-400/50 shadow-xl shadow-blue-950/80">
+        <div className="p-6 bg-white border-2 border-blue-200 rounded-3xl text-center space-y-4 shadow-xl text-blue-950">
+          <div className="relative w-20 h-20 mx-auto rounded-2xl overflow-hidden bg-[#154495] border-2 border-blue-400/60 shadow-md shadow-blue-950/20">
             <Image
               src="/nievas-logo.jpg"
               alt="Nievas Academia Deportiva"
@@ -388,13 +388,13 @@ export function AsistenciaTatamiList({
             />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">
+            <span className="text-[10px] font-bold text-[#154495] uppercase tracking-widest bg-blue-100 px-2.5 py-0.5 rounded border border-blue-200">
               Apertura de Tatami
             </span>
-            <h2 className="text-xl font-bold text-white tracking-tight mt-1.5">
+            <h2 className="text-xl font-black text-blue-950 tracking-tight mt-1.5">
               {clase.nombre}
             </h2>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-blue-700 mt-0.5 font-medium">
               Sesión del día no iniciada todavía. Inicia la clase para comenzar a marcar asistencia.
             </p>
           </div>
@@ -402,7 +402,7 @@ export function AsistenciaTatamiList({
           <button
             onClick={handleIniciarClase}
             disabled={isPending}
-            className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold text-base rounded-2xl shadow-xl shadow-blue-950/80 border border-blue-400/40 flex items-center justify-center gap-3 transition-transform active:scale-95 touch-target-safe cursor-pointer"
+            className="w-full py-4 px-6 bg-[#154495] hover:bg-blue-800 text-white font-extrabold text-base rounded-2xl shadow-xl shadow-blue-950/20 flex items-center justify-center gap-3 transition-transform active:scale-98 touch-target-safe cursor-pointer"
           >
             <Play className="w-6 h-6 fill-current text-blue-200" />
             <span>INICIAR CLASE EN TATAMI</span>
@@ -411,7 +411,7 @@ export function AsistenciaTatamiList({
       ) : (
         <div className="space-y-4">
           {/* Header de la Sesión en curso */}
-          <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 shadow-md">
+          <div className="p-5 bg-white border-2 border-blue-200 rounded-3xl space-y-3 shadow-md text-blue-950">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -419,25 +419,25 @@ export function AsistenciaTatamiList({
                     className={cn(
                       "inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider",
                       sesion.estado === "ABIERTA"
-                        ? "bg-emerald-950/90 text-emerald-300 border border-emerald-800"
-                        : "bg-slate-800 text-slate-300 border border-slate-700"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : "bg-slate-100 text-slate-700 border border-slate-300"
                     )}
                   >
                     <span
                       className={cn(
                         "w-1.5 h-1.5 rounded-full",
                         sesion.estado === "ABIERTA"
-                          ? "bg-emerald-400 animate-pulse"
+                          ? "bg-emerald-600 animate-pulse"
                           : "bg-slate-400"
                       )}
                     />
                     {sesion.estado === "ABIERTA" ? "Sesión Activa" : "Finalizada"}
                   </span>
-                  <span className="text-xs text-slate-400 font-medium">
+                  <span className="text-xs text-blue-700 font-semibold">
                     {sesion.fecha}
                   </span>
                 </div>
-                <h1 className="text-lg font-bold text-white tracking-tight mt-1">
+                <h1 className="text-xl font-black text-blue-950 tracking-tight mt-1">
                   {clase.nombre}
                 </h1>
               </div>
@@ -446,7 +446,7 @@ export function AsistenciaTatamiList({
                 <button
                   onClick={handleFinalizarClase}
                   disabled={isPending}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl border border-slate-700 transition-colors touch-target-safe cursor-pointer"
+                  className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-[#154495] text-xs font-bold rounded-xl border border-blue-200 transition-colors touch-target-safe cursor-pointer"
                 >
                   Finalizar Clase
                 </button>
@@ -454,36 +454,36 @@ export function AsistenciaTatamiList({
             </div>
 
             {/* Marcadores de Asistencia en Tiempo Real */}
-            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-800/80 text-center">
-              <div className="p-2 bg-slate-950/60 rounded-xl border border-slate-800">
-                <span className="block text-[10px] text-slate-400 uppercase font-medium">
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-blue-100 text-center">
+              <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200">
+                <span className="block text-[10px] text-blue-700 uppercase font-bold">
                   Total
                 </span>
-                <span className="text-base font-bold text-white">
+                <span className="text-base font-black text-blue-950">
                   {totalCount}
                 </span>
               </div>
-              <div className="p-2 bg-emerald-950/40 rounded-xl border border-emerald-900/50">
-                <span className="block text-[10px] text-emerald-400 uppercase font-medium">
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                <span className="block text-[10px] text-emerald-700 uppercase font-bold">
                   Presentes
                 </span>
-                <span className="text-base font-bold text-emerald-300">
+                <span className="text-base font-black text-emerald-800">
                   {presentesCount}
                 </span>
               </div>
-              <div className="p-2 bg-red-950/30 rounded-xl border border-red-900/40">
-                <span className="block text-[10px] text-red-400 uppercase font-medium">
+              <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200">
+                <span className="block text-[10px] text-rose-700 uppercase font-bold">
                   Ausentes
                 </span>
-                <span className="text-base font-bold text-red-300">
+                <span className="text-base font-black text-rose-800">
                   {ausentesCount}
                 </span>
               </div>
-              <div className="p-2 bg-amber-950/30 rounded-xl border border-amber-900/40">
-                <span className="block text-[10px] text-amber-400 uppercase font-medium">
+              <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200">
+                <span className="block text-[10px] text-amber-700 uppercase font-bold">
                   Recup.
                 </span>
-                <span className="text-base font-bold text-amber-300">
+                <span className="text-base font-black text-amber-800">
                   {recuperacionesCount}
                 </span>
               </div>
@@ -494,16 +494,16 @@ export function AsistenciaTatamiList({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={() => setActiveModal("recuperacion")}
-              className="py-3 px-3.5 bg-slate-900/90 hover:bg-slate-800 border border-blue-900/40 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
+              className="py-3 px-3.5 bg-white hover:bg-blue-50 border-2 border-blue-200 rounded-2xl text-xs font-bold text-[#154495] flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer transition-colors"
             >
-              <UserPlus className="w-4 h-4 text-blue-400" />
+              <UserPlus className="w-4 h-4 text-[#154495]" />
               <span>+ Alumno Recuperación</span>
             </button>
             <button
               onClick={() => setActiveModal("inscribir")}
-              className="py-3 px-3.5 bg-slate-900/90 hover:bg-slate-800 border border-blue-900/40 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
+              className="py-3 px-3.5 bg-white hover:bg-blue-50 border-2 border-blue-200 rounded-2xl text-xs font-bold text-[#154495] flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer transition-colors"
             >
-              <UserCheck className="w-4 h-4 text-cyan-400" />
+              <UserCheck className="w-4 h-4 text-[#154495]" />
               <span>+ Inscribir Alumno</span>
             </button>
           </div>
@@ -511,8 +511,8 @@ export function AsistenciaTatamiList({
           {/* Lista Táctil de Alumnos para Tomar Asistencia */}
           <div className="space-y-2.5" role="list" aria-label="Lista de alumnos en clase">
             {items.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-slate-800 text-sm">
-                No hay alumnos inscriptos en esta clase aún. Toca "+ Inscribir Alumno" para sumar el primero.
+              <div className="p-8 text-center text-blue-700 bg-white rounded-2xl border-2 border-dashed border-blue-200 text-sm font-medium">
+                No hay alumnos inscriptos en esta clase aún. Toca &quot;+ Inscribir Alumno&quot; para sumar el primero.
               </div>
             ) : (
               items.map((item) => {
@@ -524,13 +524,13 @@ export function AsistenciaTatamiList({
                   <div
                     key={item.alumno.id}
                     className={cn(
-                      "p-3.5 rounded-2xl border transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md",
+                      "p-4 rounded-2xl border-2 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shadow-blue-950/5",
                       isPresente &&
-                        "bg-slate-900/90 border-emerald-800/80 shadow-emerald-950/20",
+                        "bg-white border-emerald-500 ring-2 ring-emerald-500/20",
                       isAusente &&
-                        "bg-slate-900/50 border-slate-800/80 opacity-85",
+                        "bg-slate-50 border-slate-200 opacity-90",
                       isTarde &&
-                        "bg-slate-900/90 border-amber-800/80 shadow-amber-950/20"
+                        "bg-white border-amber-400 ring-2 ring-amber-400/20"
                     )}
                   >
                     {/* Info Alumno */}
@@ -540,8 +540,8 @@ export function AsistenciaTatamiList({
                         className={cn(
                           "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 border",
                           isPresente
-                            ? "bg-emerald-950 text-emerald-300 border-emerald-700/60"
-                            : "bg-slate-800 text-slate-300 border-slate-700"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : "bg-blue-100 text-[#154495] border-blue-200"
                         )}
                       >
                         {item.alumno.nombre[0]}
@@ -550,7 +550,7 @@ export function AsistenciaTatamiList({
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-white text-sm tracking-tight">
+                          <span className="font-extrabold text-blue-950 text-base tracking-tight">
                             {item.alumno.nombre} {item.alumno.apellido}
                           </span>
 
@@ -560,34 +560,34 @@ export function AsistenciaTatamiList({
                           />
 
                           {item.es_recuperacion && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-950 text-amber-300 border border-amber-800">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">
                               Recuperación
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                        <div className="flex items-center gap-3 text-xs text-blue-800 font-medium">
                           {item.clases_en_cinturon !== undefined && (
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <Award className="w-3 h-3 text-amber-400" />
+                            <span className="flex items-center gap-1 text-blue-700">
+                              <Award className="w-3.5 h-3.5 text-amber-500" />
                               <span>{item.clases_en_cinturon} clases en cinto</span>
                             </span>
                           )}
 
                           <a
                             href={`tel:${item.alumno.telefono_contacto}`}
-                            className="flex items-center gap-1 hover:text-white transition-colors"
+                            className="flex items-center gap-1 text-blue-800 hover:text-[#154495] transition-colors"
                             title="Llamar contacto"
                           >
-                            <Phone className="w-3 h-3 text-slate-400" />
+                            <Phone className="w-3.5 h-3.5 text-[#154495]" />
                             <span>{item.alumno.telefono_contacto}</span>
                           </a>
                         </div>
 
                         {/* Notas privadas (solo visible si es ADMIN) */}
                         {isAdmin && item.alumno.notas_privadas && (
-                          <div className="flex items-center gap-1 text-[11px] text-amber-400/90 font-medium bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900/50 mt-1">
-                            <ShieldAlert className="w-3 h-3 shrink-0" />
+                          <div className="flex items-center gap-1 text-[11px] text-amber-900 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200 mt-1">
+                            <ShieldAlert className="w-3 h-3 shrink-0 text-amber-600" />
                             <span className="truncate max-w-[260px]">
                               Nota: {item.alumno.notas_privadas}
                             </span>
@@ -609,8 +609,8 @@ export function AsistenciaTatamiList({
                         className={cn(
                           "px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all touch-target-safe cursor-pointer",
                           isPresente
-                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-950 scale-102"
-                            : "bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/20 scale-102"
+                            : "bg-blue-50 text-blue-900 border border-blue-200 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
                         )}
                         aria-pressed={isPresente}
                         title="Marcar Presente"
@@ -628,10 +628,10 @@ export function AsistenciaTatamiList({
                           )
                         }
                         className={cn(
-                          "px-2.5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-1 transition-all touch-target-safe cursor-pointer",
+                          "px-2.5 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-1 transition-all touch-target-safe cursor-pointer",
                           isTarde
-                            ? "bg-amber-600 text-white shadow-md shadow-amber-950"
-                            : "bg-slate-800/60 text-slate-400 hover:text-slate-200"
+                            ? "bg-amber-500 text-white shadow-md shadow-amber-950/20"
+                            : "bg-blue-50 text-blue-900 border border-blue-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300"
                         )}
                         aria-pressed={isTarde}
                         title="Marcar Tarde"
@@ -649,10 +649,10 @@ export function AsistenciaTatamiList({
                           )
                         }
                         className={cn(
-                          "px-3 py-2.5 rounded-xl font-medium text-xs flex items-center gap-1 transition-all touch-target-safe cursor-pointer",
+                          "px-3 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-1 transition-all touch-target-safe cursor-pointer",
                           isAusente
-                            ? "bg-red-950/80 text-red-300 border border-red-800"
-                            : "bg-slate-800/60 text-slate-500 hover:text-slate-300"
+                            ? "bg-rose-600 text-white shadow-md shadow-rose-950/20"
+                            : "bg-blue-50 text-blue-900 border border-blue-200 hover:bg-rose-50 hover:text-rose-800 hover:border-rose-300"
                         )}
                         aria-pressed={isAusente}
                         title="Marcar Ausente"

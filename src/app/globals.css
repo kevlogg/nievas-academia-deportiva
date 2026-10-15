@@ -4,18 +4,18 @@
   :root {
     --background: #080D1A;
     --foreground: #F8FAFC;
-    --card: #0F182E;
-    --card-foreground: #F8FAFC;
-    --primary: #1D4ED8;
+    --card: #FFFFFF;
+    --card-foreground: #0F2756;
+    --primary: #154495;
     --primary-foreground: #FFFFFF;
-    --secondary: #16223F;
-    --secondary-foreground: #F8FAFC;
-    --muted: #1A284B;
-    --muted-foreground: #94A3B8;
-    --accent: #2563EB;
+    --secondary: #EFF6FF;
+    --secondary-foreground: #154495;
+    --muted: #DBEAFE;
+    --muted-foreground: #1E3A8A;
+    --accent: #1D4ED8;
     --accent-foreground: #FFFFFF;
-    --border: #1E3158;
-    --ring: #3B82F6;
+    --border: #BFDBFE;
+    --ring: #2563EB;
   }
 }
 
@@ -34,11 +34,20 @@ body {
 }
 
 .text-brand-blue {
-  color: #2563EB;
+  color: #154495;
 }
 
 .border-brand-blue {
-  border-color: #1E40AF;
+  border-color: #154495;
+}
+
+/* Cards Claras con texto y elementos azules (Requisito Oficial) */
+.card-light {
+  background-color: #FFFFFF;
+  color: #0F2756;
+  border: 2px solid #BFDBFE;
+  border-radius: 1.25rem;
+  box-shadow: 0 10px 15px -3px rgba(21, 68, 149, 0.08), 0 4px 6px -4px rgba(21, 68, 149, 0.04);
 }
 
 /* Tatami Touch Target Optimization */

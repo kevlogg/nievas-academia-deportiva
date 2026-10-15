@@ -58,7 +58,8 @@ export const ActualizarNotaPrivadaSchema = z.object({
 
 export const CrearClaseSchema = z.object({
   nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
-  profesorId: z.string().uuid("ID de profesor inválido"),
+  profesorId: z.string().optional(),
+  listaAlumnosId: z.string().optional(),
   diasSemana: z
     .array(z.number().int().min(0).max(6))
     .min(1, "Debe seleccionar al menos un día"),
@@ -69,6 +70,12 @@ export const CrearClaseSchema = z.object({
     .string()
     .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM"),
   cupoMaximo: z.coerce.number().int().positive().default(30),
+});
+
+export const CrearListaAlumnosSchema = z.object({
+  nombre: z.string().min(3, "El nombre de la lista debe tener al menos 3 caracteres"),
+  descripcion: z.string().optional(),
+  alumnosIds: z.array(z.string()).min(1, "Debe seleccionar al menos un alumno"),
 });
 
 export const IniciarSesionSchema = z.object({
@@ -87,4 +94,5 @@ export type ActualizarNotaPrivadaInput = z.infer<
   typeof ActualizarNotaPrivadaSchema
 >;
 export type CrearClaseInput = z.infer<typeof CrearClaseSchema>;
+export type CrearListaAlumnosInput = z.infer<typeof CrearListaAlumnosSchema>;
 export type IniciarSesionInput = z.infer<typeof IniciarSesionSchema>;

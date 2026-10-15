@@ -17,8 +17,14 @@ import {
   AdminDashboardMetricsData,
   SesionClase,
   Usuario,
+  ListaAlumnos,
+  ClaseHistorialItem,
 } from "@/types";
-import { InscribirAlumnoInput, CrearClaseInput } from "@/schemas";
+import {
+  InscribirAlumnoInput,
+  CrearClaseInput,
+  CrearListaAlumnosInput,
+} from "@/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 // ======================================================================================
@@ -343,6 +349,50 @@ const SEED_ASISTENCIAS: Asistencia[] = [
   },
 ];
 
+// Listas de Alumnos preconfiguradas
+const SEED_LISTAS_ALUMNOS: ListaAlumnos[] = [
+  {
+    id: "l1111111-1111-1111-1111-111111111111",
+    nombre: "Infantiles Kumite & Básico (6-12 años)",
+    descripcion: "Alumnos cinturón blanco a verde turno tarde",
+    alumnos_ids: [
+      "a1111111-1111-1111-1111-111111111111", // Joaquín Martínez (Amarillo)
+      "a2222222-2222-2222-2222-222222222222", // Sofía Gómez (Naranja)
+      "a3333333-3333-3333-3333-333333333333", // Mateo Rossi (Verde)
+      "a4444444-4444-4444-4444-444444444444", // Valentina Díaz (Blanco)
+      "a5555555-5555-5555-5555-555555555555", // Facundo Fernández (Azul)
+    ],
+    creado_por_id: "22222222-2222-2222-2222-222222222222",
+    creado_por_nombre: "Sensei Lucas Benítez",
+    created_at: "2026-01-10T00:00:00Z",
+  },
+  {
+    id: "l2222222-2222-2222-2222-222222222222",
+    nombre: "Juveniles Kata & Bunkai (13-17 años)",
+    descripcion: "Alumnos de práctica técnica avanzada",
+    alumnos_ids: [
+      "a2222222-2222-2222-2222-222222222222", // Sofía Gómez
+      "a6666666-6666-6666-6666-666666666666", // Camila López (Marrón)
+      "a7777777-7777-7777-7777-777777777777", // Agustín Pérez (Blanco/Amarillo)
+    ],
+    creado_por_id: "22222222-2222-2222-2222-222222222222",
+    creado_por_nombre: "Sensei Lucas Benítez",
+    created_at: "2026-01-12T00:00:00Z",
+  },
+  {
+    id: "l3333333-3333-3333-3333-333333333333",
+    nombre: "Adultos & Graduados Shodan",
+    descripcion: "Alumnos de alta graduación y combate tradicional",
+    alumnos_ids: [
+      "a6666666-6666-6666-6666-666666666666", // Camila López
+      "a8888888-8888-8888-8888-888888888888", // Santiago Nievas (Negro)
+    ],
+    creado_por_id: "11111111-1111-1111-1111-111111111111",
+    creado_por_nombre: "Sensei Marcos Nievas (Headmaster)",
+    created_at: "2026-01-15T00:00:00Z",
+  },
+];
+
 // Variables en memoria mutables de la aplicación
 const dbState = {
   usuarios: [...SEED_USUARIOS],
@@ -352,6 +402,7 @@ const dbState = {
   graduaciones: [...SEED_GRADUACIONES],
   sesiones: [...SEED_SESIONES],
   asistencias: [...SEED_ASISTENCIAS],
+  listas_alumnos: [...SEED_LISTAS_ALUMNOS],
 };
 
 // ======================================================================================
@@ -1009,19 +1060,20 @@ export async function dalActualizarNotaPrivada(
 }
 
 /**
- * Crear nueva clase / horario
+ * Crear nueva clase / horario con asignación de lista de alumnos y sesión inmediata en tatami
  */
 export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
-  await requireAdmin();
-
-  const profesor = dbState.usuarios.find((u) => u.id === data.profesorId);
+  const currentUser = await requireProfesor();
+  const effectiveProfId = data.profesorId || currentUser.id;
+  const profesor = dbState.usuarios.find((u) => u.id === effectiveProfId);
   const now = new Date().toISOString();
+  const hoyFecha = now.split("T")[0];
 
   const nuevaClase: Clase = {
     id: "c" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
     nombre: data.nombre.trim(),
-    profesor_id: data.profesorId,
-    profesor_nombre: profesor ? profesor.nombre_completo : "Sensei Asignado",
+    profesor_id: effectiveProfId,
+    profesor_nombre: profesor ? profesor.nombre_completo : currentUser.nombre_completo,
     dias_semana: data.diasSemana,
     hora_inicio: data.horaInicio,
     hora_fin: data.horaFin,
@@ -1032,7 +1084,167 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
   };
 
   dbState.clases.push(nuevaClase);
+
+  // Si se seleccionó una lista de alumnos, inscribir automáticamente a todos los alumnos de la lista
+  if (data.listaAlumnosId) {
+    const lista = dbState.listas_alumnos.find((l) => l.id === data.listaAlumnosId);
+    if (lista && lista.alumnos_ids.length > 0) {
+      for (const alumnoId of lista.alumnos_ids) {
+        dbState.inscripciones.push({
+          id: "i" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+          clase_id: nuevaClase.id,
+          alumno_id: alumnoId,
+          fecha_alta: hoyFecha,
+          activo: true,
+          created_at: now,
+        });
+      }
+      nuevaClase.total_inscriptos = lista.alumnos_ids.length;
+    }
+  }
+
+  // Crear de inmediato la sesión de clase para el día de hoy
+  const nuevaSesion: SesionClase = {
+    id: "s" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    clase_id: nuevaClase.id,
+    profesor_id: effectiveProfId,
+    fecha: hoyFecha,
+    hora_apertura: now,
+    estado: "ABIERTA",
+    observaciones: "Sesión creada al iniciar clase.",
+    created_at: now,
+    clase_nombre: nuevaClase.nombre,
+  };
+  dbState.sesiones.push(nuevaSesion);
+
+  // Inicializar asistencias en ausente por defecto para los alumnos inscriptos
+  const inscriptos = dbState.inscripciones.filter(
+    (ins) => ins.clase_id === nuevaClase.id && ins.activo
+  );
+  for (const ins of inscriptos) {
+    dbState.asistencias.push({
+      id: "as" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+      sesion_id: nuevaSesion.id,
+      alumno_id: ins.alumno_id,
+      estado: "AUSENTE",
+      es_recuperacion: false,
+      marcado_en: now,
+      created_at: now,
+    });
+  }
+
   return nuevaClase;
+}
+
+/**
+ * Obtener listas de alumnos disponibles
+ */
+export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
+  await requireProfesor();
+  return dbState.listas_alumnos.map((lista) => ({
+    ...lista,
+    total_alumnos: lista.alumnos_ids.length,
+  }));
+}
+
+/**
+ * Crear nueva lista de alumnos
+ */
+export async function dalCrearListaAlumnos(
+  input: CrearListaAlumnosInput
+): Promise<ListaAlumnos> {
+  const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  const nuevaLista: ListaAlumnos = {
+    id: "l" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    nombre: input.nombre.trim(),
+    descripcion: input.descripcion?.trim() || "",
+    alumnos_ids: input.alumnosIds,
+    creado_por_id: currentUser.id,
+    creado_por_nombre: currentUser.nombre_completo,
+    created_at: now,
+    total_alumnos: input.alumnosIds.length,
+  };
+
+  dbState.listas_alumnos.unshift(nuevaLista);
+  return nuevaLista;
+}
+
+/**
+ * Obtener todos los alumnos activos para selección en listas
+ */
+export async function dalGetTodosAlumnos(): Promise<Alumno[]> {
+  await requireProfesor();
+  return dbState.alumnos.filter((a) => a.estado === "ACTIVO");
+}
+
+/**
+ * Obtener las últimas clases de un sensei (por defecto 3)
+ */
+export async function dalGetUltimasClasesProfesor(
+  profesorId?: string,
+  limit: number = 3
+): Promise<ClaseHistorialItem[]> {
+  const currentUser = await requireProfesor();
+  const effectiveProfId =
+    currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
+
+  let clasesSensei = dbState.clases.filter((c) => c.activa);
+  if (currentUser.rol === "PROFESOR" || profesorId) {
+    clasesSensei = clasesSensei.filter((c) => c.profesor_id === effectiveProfId);
+  }
+
+  // Ordenar por created_at descendente (más recientes primero)
+  const sortedClases = [...clasesSensei].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const items: ClaseHistorialItem[] = [];
+
+  for (const clase of sortedClases.slice(0, limit)) {
+    const sesion = dbState.sesiones
+      .filter((s) => s.clase_id === clase.id)
+      .sort(
+        (a, b) => new Date(b.hora_apertura).getTime() - new Date(a.hora_apertura).getTime()
+      )[0];
+
+    const inscriptos = dbState.inscripciones.filter(
+      (ins) => ins.clase_id === clase.id && ins.activo
+    );
+
+    let presentes = 0;
+    let ausentes = 0;
+    let tardes = 0;
+
+    if (sesion) {
+      const asistencias = dbState.asistencias.filter((as) => as.sesion_id === sesion.id);
+      presentes = asistencias.filter((a) => a.estado === "PRESENTE").length;
+      ausentes = asistencias.filter((a) => a.estado === "AUSENTE").length;
+      tardes = asistencias.filter((a) => a.estado === "TARDE").length;
+    }
+
+    items.push({
+      clase,
+      sesion,
+      fecha: sesion?.fecha || clase.created_at.split("T")[0],
+      totalInscriptos: inscriptos.length || clase.total_inscriptos || 0,
+      totalPresentes: presentes,
+      totalAusentes: ausentes,
+      totalTardes: tardes,
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Obtener todo el historial de clases de un sensei o de la academia
+ */
+export async function dalGetHistorialClasesProfesor(
+  profesorId?: string
+): Promise<ClaseHistorialItem[]> {
+  return dalGetUltimasClasesProfesor(profesorId, 50);
 }
 
 /**
