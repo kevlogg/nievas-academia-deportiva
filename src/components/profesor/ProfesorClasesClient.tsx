@@ -34,6 +34,7 @@ import {
   Eye,
   Edit2,
   Trash2,
+  Menu,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -66,6 +67,7 @@ export function ProfesorClasesClient({
   const [listaParaVer, setListaParaVer] = useState<ListaAlumnos | null>(null);
   const [listaParaEditar, setListaParaEditar] = useState<ListaAlumnos | null>(null);
   const [eliminandoListaId, setEliminandoListaId] = useState<string | null>(null);
+  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser.nombre_completo
@@ -250,128 +252,138 @@ export function ProfesorClasesClient({
         </div>
       )}
 
-      {/* 3. ACCIONES PRINCIPALES: Crear Nueva Clase & Crear Nueva Lista (Cards Azules #0F3E86) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Card 1: Crear Nueva Clase */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-3xl p-5 sm:p-6 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-4 transition-all group">
-          <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-cyan-300 group-hover:scale-105 group-hover:bg-white group-hover:text-[#0F3E86] transition-all shadow-sm">
-              <PlusCircle className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                Crear Nueva Clase
-              </h2>
-              <p className="text-xs text-blue-200 font-medium leading-relaxed">
-                Selecciona una lista de alumnos y define el horario para iniciar de inmediato la toma de asistencia en el tatami.
-              </p>
-            </div>
-          </div>
-
+      {/* 3. ACCIONES PRINCIPALES: Botones Compactos de Crear Clase y Lista */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Card 1: Botón Crear Nueva Clase */}
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-2.5 sm:p-3 shadow-md shadow-blue-950/15 flex items-center">
           <button
             onClick={() => setIsCrearClaseOpen(true)}
-            className="w-full py-3.5 px-4 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-extrabold text-sm rounded-2xl shadow-lg shadow-black/20 flex items-center justify-center gap-2 transition-all cursor-pointer touch-target-safe"
+            className="w-full py-3.5 px-4 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-black text-sm rounded-xl shadow-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer touch-target-safe"
           >
             <PlusCircle className="w-5 h-5 text-[#0F3E86]" />
             <span>CREAR NUEVA CLASE</span>
           </button>
         </div>
 
-        {/* Card 2: Crear Nueva Lista de Alumnos */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-3xl p-5 sm:p-6 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-4 transition-all group">
-          <div className="space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-cyan-300 group-hover:scale-105 group-hover:bg-white group-hover:text-[#0F3E86] transition-all shadow-sm">
-              <ListPlus className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">
-                Crear Nueva Lista de Alumnos
-              </h2>
-              <p className="text-xs text-blue-200 font-medium leading-relaxed">
-                Agrupa alumnos de la academia para que aparezcan en las opciones de selección al crear clases y edita sus cinturones.
-              </p>
-            </div>
-          </div>
-
+        {/* Card 2: Botón Crear Nueva Lista de Alumnos */}
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-2.5 sm:p-3 shadow-md shadow-blue-950/15 flex items-center">
           <button
             onClick={() => setIsCrearListaOpen(true)}
-            className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white border-2 border-white/40 active:scale-98 font-extrabold text-sm rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer touch-target-safe"
+            className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white border border-white/30 active:scale-98 font-black text-sm rounded-xl shadow-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer touch-target-safe"
           >
             <Users className="w-5 h-5 text-cyan-300" />
-            <span>CREAR NUEVA LISTA</span>
+            <span>CREAR NUEVA LISTA DE ALUMNOS</span>
           </button>
         </div>
       </div>
 
       {/* Resumen y Gestión de Listas de Alumnos Guardadas */}
       {listasAlumnos.length > 0 && (
-        <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-white">
-              <Sparkles className="w-4 h-4 text-cyan-300" />
-              <span>Listas de Alumnos Guardadas ({listasAlumnos.length})</span>
-            </div>
-            <button
-              onClick={() => setIsCrearListaOpen(true)}
-              className="text-xs text-cyan-300 hover:text-white font-bold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <ListPlus className="w-3.5 h-3.5" />
-              <span>+ Nueva Lista</span>
-            </button>
+        <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-3.5 relative">
+          {/* Header de la Card: Sin botón de nueva lista (pedido expreso del usuario) */}
+          <div className="flex items-center gap-2 text-xs font-bold text-white">
+            <Sparkles className="w-4 h-4 text-cyan-300" />
+            <span>Listas de Alumnos Guardadas ({listasAlumnos.length})</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {listasAlumnos.map((lista) => (
-              <div
-                key={lista.id}
-                className="p-3 bg-[#0A2E65] border border-[#2056A8] hover:border-cyan-400/50 rounded-2xl flex items-center justify-between gap-2.5 transition-all shadow-sm"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs text-white truncate">
-                      {lista.nombre}
-                    </span>
-                    <span className="font-mono text-[10px] bg-white/15 px-1.5 py-0.2 rounded-md font-bold text-cyan-200 shrink-0">
-                      {lista.total_alumnos || lista.alumnos_ids.length}
-                    </span>
-                  </div>
-                  {lista.descripcion && (
-                    <p className="text-[10px] text-blue-200 truncate mt-0.5">
-                      {lista.descripcion}
-                    </p>
-                  )}
-                </div>
+          {/* Backdrop invisible para cerrar el menú si está abierto al tocar afuera */}
+          {menuAbiertoId && (
+            <div
+              className="fixed inset-0 z-20 cursor-default"
+              onClick={() => setMenuAbiertoId(null)}
+            />
+          )}
 
-                {/* Acciones: Ver, Editar, Eliminar */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => setListaParaVer(lista)}
-                    title="Ver detalles de la lista y alumnos"
-                    className="p-2 bg-white/10 hover:bg-white/20 text-cyan-300 hover:text-white rounded-xl transition-colors cursor-pointer touch-target-safe"
-                    aria-label={`Ver lista ${lista.nombre}`}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setListaParaEditar(lista)}
-                    title="Editar información y alumnos"
-                    className="p-2 bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white rounded-xl transition-colors cursor-pointer touch-target-safe"
-                    aria-label={`Editar lista ${lista.nombre}`}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEliminarLista(lista)}
-                    disabled={eliminandoListaId === lista.id}
-                    title="Eliminar lista de alumnos"
-                    className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 rounded-xl transition-colors cursor-pointer disabled:opacity-50 touch-target-safe"
-                    aria-label={`Eliminar lista ${lista.nombre}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {listasAlumnos.map((lista) => {
+              const isMenuOpen = menuAbiertoId === lista.id;
+
+              return (
+                <div
+                  key={lista.id}
+                  className="p-3 bg-[#0A2E65] border border-[#2056A8] hover:border-cyan-400/50 rounded-2xl flex items-center justify-between gap-3 transition-all shadow-sm relative"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-xs sm:text-sm text-white truncate">
+                        {lista.nombre}
+                      </span>
+                      <span className="font-mono text-[10px] bg-white/15 px-1.5 py-0.2 rounded-md font-bold text-cyan-200 shrink-0">
+                        {lista.total_alumnos || lista.alumnos_ids.length}
+                      </span>
+                    </div>
+                    {lista.descripcion && (
+                      <p className="text-[11px] text-blue-200 truncate mt-0.5">
+                        {lista.descripcion}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Botón Hamburguesa con Opciones Encapsuladas */}
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuAbiertoId(isMenuOpen ? null : lista.id);
+                      }}
+                      className={`p-2.5 rounded-xl transition-all cursor-pointer touch-target-safe flex items-center justify-center ${
+                        isMenuOpen
+                          ? "bg-white text-[#0F3E86] shadow-md scale-105"
+                          : "bg-white/10 hover:bg-white/20 text-white"
+                      }`}
+                      title="Opciones de la lista"
+                      aria-label={`Opciones de la lista ${lista.nombre}`}
+                    >
+                      <Menu className="w-4 h-4" />
+                    </button>
+
+                    {/* Menú Desplegable con Ver, Editar y Eliminar */}
+                    {isMenuOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#082552] border border-[#2056A8] rounded-2xl shadow-2xl shadow-blue-950/80 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                      >
+                        <button
+                          onClick={() => {
+                            setMenuAbiertoId(null);
+                            setListaParaVer(lista);
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-4 h-4 text-cyan-300 shrink-0" />
+                          <span>Ver Alumnos</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setMenuAbiertoId(null);
+                            setListaParaEditar(lista);
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="w-4 h-4 text-blue-300 shrink-0" />
+                          <span>Editar Información</span>
+                        </button>
+
+                        <div className="my-1 border-t border-[#1E57A8]/80" />
+
+                        <button
+                          onClick={() => {
+                            setMenuAbiertoId(null);
+                            handleEliminarLista(lista);
+                          }}
+                          disabled={eliminandoListaId === lista.id}
+                          className="w-full px-3.5 py-2.5 text-left text-xs text-rose-300 hover:bg-rose-500/20 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+                          <span>Eliminar Lista</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
