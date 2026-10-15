@@ -193,51 +193,50 @@ export function ProfesorClasesClient({
           {clasesAbiertas.map((item) => (
             <div
               key={item.sesion.id}
-              className="p-5 bg-gradient-to-r from-[#0F3E86] via-[#124694] to-[#0F3E86] text-white border-2 border-emerald-400 rounded-3xl shadow-xl animate-open-class transition-all"
+              className="p-3.5 sm:p-4 bg-gradient-to-r from-[#0F3E86] via-[#124694] to-[#0F3E86] text-white border-2 border-emerald-400 rounded-2xl shadow-xl animate-open-class transition-all"
             >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-3 w-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="relative flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
-                    <span className="text-xs font-black text-emerald-300 uppercase tracking-widest flex items-center gap-1.5">
-                      <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                    <span className="text-[11px] font-black text-emerald-300 uppercase tracking-wider flex items-center gap-1">
+                      <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
                       CLASE ABIERTA EN TATAMI
                     </span>
-                    <span className="text-[11px] bg-white/10 text-blue-100 px-2 py-0.5 rounded-full border border-white/20">
+                    <span className="text-[10px] bg-white/10 text-blue-100 px-2 py-0.2 rounded-full border border-white/20">
                       En Vivo
                     </span>
                   </div>
 
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                      {item.clase.nombre}
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-blue-200 mt-1 font-medium">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-cyan-300" />
-                        <span>
-                          {formatTime(item.clase.hora_inicio)} a {formatTime(item.clase.hora_fin)}
-                        </span>
+                  <h2 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                    {item.clase.nombre}
+                  </h2>
+
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs text-blue-200 font-medium">
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Clock className="w-3 h-3 text-cyan-300" />
+                      <span>
+                        {formatTime(item.clase.hora_inicio)} - {formatTime(item.clase.hora_fin)}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-cyan-300" />
-                        <span>{item.totalCount} alumnos inscriptos</span>
-                      </span>
-                      <span className="text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60">
-                        {item.presentesCount} presentes marcados
-                      </span>
-                    </div>
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px]">
+                      <Users className="w-3 h-3 text-cyan-300" />
+                      <span>{item.totalCount} alumnos</span>
+                    </span>
+                    <span className="text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/60 text-[11px]">
+                      {item.presentesCount} presentes
+                    </span>
                   </div>
                 </div>
 
                 {/* Acciones de la Clase Abierta */}
-                <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                   <Link
                     href={`/profesor/clases/${item.clase.id}/asistencia`}
-                    className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black rounded-xl shadow-lg shadow-emerald-950/30 flex items-center gap-2 transition-all active:scale-98 touch-target-safe cursor-pointer"
+                    className="px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 transition-all active:scale-98 touch-target-safe cursor-pointer"
                   >
                     <ClipboardCheck className="w-4 h-4 text-slate-950" />
                     <span>CONTINUAR ASISTENCIA</span>
@@ -245,10 +244,10 @@ export function ProfesorClasesClient({
                   <button
                     onClick={() => handleCerrarClase(item.sesion.id)}
                     disabled={cerrandoSesionId === item.sesion.id}
-                    className="px-4 py-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold rounded-xl transition-all active:scale-98 touch-target-safe cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-3 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 text-xs font-bold rounded-xl transition-all active:scale-98 touch-target-safe cursor-pointer disabled:opacity-50 flex items-center gap-1"
                   >
                     <Lock className="w-3.5 h-3.5 text-rose-300" />
-                    <span>{cerrandoSesionId === item.sesion.id ? "Cerrando..." : "CERRAR CLASE"}</span>
+                    <span>{cerrandoSesionId === item.sesion.id ? "..." : "Cerrar"}</span>
                   </button>
                 </div>
               </div>

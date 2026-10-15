@@ -409,103 +409,100 @@ export function AsistenciaTatamiList({
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Header de la Sesión en curso */}
-          <div className="p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl space-y-3 shadow-xl shadow-blue-950/20">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
+        <div className="space-y-3">
+          {/* Header de la Sesión en curso - Compacto y de Menor Altura */}
+          <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/20 space-y-2.5">
+            {/* Fila 1: Título, estado y botón finalizar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0",
+                    sesion.estado === "ABIERTA"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"
+                      : "bg-white/10 text-blue-200 border border-white/20"
+                  )}
+                >
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider",
+                      "w-2 h-2 rounded-full",
                       sesion.estado === "ABIERTA"
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"
-                        : "bg-white/10 text-blue-200 border border-white/20"
+                        ? "bg-emerald-400 animate-pulse"
+                        : "bg-blue-300"
                     )}
-                  >
-                    <span
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        sesion.estado === "ABIERTA"
-                          ? "bg-emerald-400 animate-pulse"
-                          : "bg-blue-300"
-                      )}
-                    />
-                    {sesion.estado === "ABIERTA" ? "Sesión Activa" : "Finalizada"}
-                  </span>
-                  <span className="text-xs text-blue-200 font-semibold">
-                    {sesion.fecha}
-                  </span>
-                </div>
-                <h1 className="text-xl font-black text-white tracking-tight mt-1">
+                  />
+                  {sesion.estado === "ABIERTA" ? "Sesión Activa" : "Finalizada"}
+                </span>
+
+                <h1 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                   {clase.nombre}
                 </h1>
+
+                <span className="hidden md:inline-block text-xs text-blue-200 font-semibold shrink-0">
+                  • {sesion.fecha}
+                </span>
               </div>
 
               {sesion.estado === "ABIERTA" && (
                 <button
                   onClick={handleFinalizarClase}
                   disabled={isPending}
-                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-colors touch-target-safe cursor-pointer"
+                  className="self-end sm:self-auto px-3 py-1.5 bg-white/10 hover:bg-rose-500/20 text-rose-200 hover:text-white text-xs font-bold rounded-xl border border-white/20 hover:border-rose-400/40 transition-colors touch-target-safe cursor-pointer shrink-0"
                 >
                   Finalizar Clase
                 </button>
               )}
             </div>
 
-            {/* Marcadores de Asistencia en Tiempo Real */}
-            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/15 text-center">
-              <div className="p-2.5 bg-[#0A2E65] rounded-xl border border-[#2056A8]">
-                <span className="block text-[10px] text-blue-200 uppercase font-bold">
-                  Total
+            {/* Fila 2: Marcadores compactos de asistencia + Botones de acción rápida integrados */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/15">
+              {/* Marcadores compactos en pastillas horizontales */}
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs">
+                <span className="bg-[#0A2E65] border border-[#2056A8] px-2.5 py-1 rounded-lg text-white font-bold flex items-center gap-1.5">
+                  <span className="text-[10px] text-blue-200 uppercase font-semibold">Total:</span>
+                  <span className="font-mono text-sm">{totalCount}</span>
                 </span>
-                <span className="text-base font-black text-white">
-                  {totalCount}
+
+                <span className="bg-[#0A2E65] border border-emerald-500/40 px-2.5 py-1 rounded-lg text-emerald-300 font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>{presentesCount}</span>
+                  <span className="text-[11px] text-emerald-400/80 font-normal hidden xs:inline">presentes</span>
+                </span>
+
+                <span className="bg-[#0A2E65] border border-rose-500/40 px-2.5 py-1 rounded-lg text-rose-300 font-bold flex items-center gap-1.5">
+                  <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>{ausentesCount}</span>
+                  <span className="text-[11px] text-rose-400/80 font-normal hidden xs:inline">ausentes</span>
+                </span>
+
+                <span className="bg-[#0A2E65] border border-amber-500/40 px-2.5 py-1 rounded-lg text-amber-300 font-bold flex items-center gap-1.5">
+                  <span className="text-[10px] text-amber-400 uppercase font-semibold">Recup:</span>
+                  <span className="font-mono text-sm">{recuperacionesCount}</span>
                 </span>
               </div>
-              <div className="p-2.5 bg-[#0A2E65] rounded-xl border border-emerald-500/40">
-                <span className="block text-[10px] text-emerald-300 uppercase font-bold">
-                  Presentes
-                </span>
-                <span className="text-base font-black text-emerald-400">
-                  {presentesCount}
-                </span>
-              </div>
-              <div className="p-2.5 bg-[#0A2E65] rounded-xl border border-rose-500/40">
-                <span className="block text-[10px] text-rose-300 uppercase font-bold">
-                  Ausentes
-                </span>
-                <span className="text-base font-black text-rose-300">
-                  {ausentesCount}
-                </span>
-              </div>
-              <div className="p-2.5 bg-[#0A2E65] rounded-xl border border-amber-500/40">
-                <span className="block text-[10px] text-amber-300 uppercase font-bold">
-                  Recup.
-                </span>
-                <span className="text-base font-black text-amber-300">
-                  {recuperacionesCount}
-                </span>
+
+              {/* Botones de acción rápida integrados compactos */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveModal("recuperacion")}
+                  className="py-1.5 px-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 shadow-sm touch-target-safe cursor-pointer transition-all active:scale-98"
+                  title="Agregar alumno de recuperación"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-cyan-300" />
+                  <span className="hidden sm:inline">+ Recuperación</span>
+                  <span className="sm:hidden">+ Recup.</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveModal("inscribir")}
+                  className="py-1.5 px-3 bg-white hover:bg-blue-50 border border-white rounded-xl text-xs font-black text-[#0F3E86] flex items-center gap-1.5 shadow-sm touch-target-safe cursor-pointer transition-all active:scale-98"
+                  title="Inscribir nuevo alumno"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-[#0F3E86]" />
+                  <span>+ Inscribir</span>
+                </button>
               </div>
             </div>
-          </div>
-
-          {/* Botones de Acción Rápida en Tatami (Mobile First) */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => setActiveModal("recuperacion")}
-              className="py-3 px-3.5 bg-[#0F3E86] hover:bg-[#144EAA] border-2 border-[#1E57A8] rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 shadow-md shadow-blue-950/20 touch-target-safe cursor-pointer transition-all active:scale-98"
-            >
-              <UserPlus className="w-4 h-4 text-cyan-300" />
-              <span>+ Alumno Recuperación</span>
-            </button>
-            <button
-              onClick={() => setActiveModal("inscribir")}
-              className="py-3 px-3.5 bg-[#0F3E86] hover:bg-[#144EAA] border-2 border-[#1E57A8] rounded-2xl text-xs font-bold text-white flex items-center justify-center gap-2 shadow-md shadow-blue-950/20 touch-target-safe cursor-pointer transition-all active:scale-98"
-            >
-              <UserCheck className="w-4 h-4 text-cyan-300" />
-              <span>+ Inscribir Alumno</span>
-            </button>
           </div>
 
           {/* Lista Táctil de Alumnos para Tomar Asistencia */}
