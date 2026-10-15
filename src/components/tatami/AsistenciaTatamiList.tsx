@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition, useCallback } from "react";
+import Image from "next/image";
 import {
   Alumno,
   AlumnoSesionItem,
@@ -376,25 +377,34 @@ export function AsistenciaTatamiList({
 
       {/* Control Principal: Iniciar Clase o Sesión Activa */}
       {!sesion ? (
-        <div className="p-6 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-2xl text-center space-y-4 shadow-xl">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-red-950/80 border border-red-800/60 flex items-center justify-center text-red-400 shadow-lg">
-            <Flame className="w-8 h-8 text-amber-300" />
+        <div className="p-6 bg-gradient-to-b from-[#154495]/20 via-slate-900 to-slate-950 border border-blue-900/50 rounded-2xl text-center space-y-4 shadow-xl">
+          <div className="relative w-20 h-20 mx-auto rounded-2xl overflow-hidden bg-[#154495] border-2 border-blue-400/50 shadow-xl shadow-blue-950/80">
+            <Image
+              src="/nievas-logo.jpg"
+              alt="Nievas Academia Deportiva"
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">
+              Apertura de Tatami
+            </span>
+            <h2 className="text-xl font-bold text-white tracking-tight mt-1.5">
               {clase.nombre}
             </h2>
-            <p className="text-sm text-slate-400 mt-1">
-              Sesión del día no iniciada todavía.
+            <p className="text-xs text-slate-300 mt-0.5">
+              Sesión del día no iniciada todavía. Inicia la clase para comenzar a marcar asistencia.
             </p>
           </div>
 
           <button
             onClick={handleIniciarClase}
             disabled={isPending}
-            className="w-full py-4 px-6 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-base rounded-2xl shadow-xl shadow-red-950/60 border border-red-500/40 flex items-center justify-center gap-3 transition-transform active:scale-95 touch-target-safe cursor-pointer"
+            className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold text-base rounded-2xl shadow-xl shadow-blue-950/80 border border-blue-400/40 flex items-center justify-center gap-3 transition-transform active:scale-95 touch-target-safe cursor-pointer"
           >
-            <Play className="w-6 h-6 fill-current" />
+            <Play className="w-6 h-6 fill-current text-blue-200" />
             <span>INICIAR CLASE EN TATAMI</span>
           </button>
         </div>
@@ -484,16 +494,16 @@ export function AsistenciaTatamiList({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={() => setActiveModal("recuperacion")}
-              className="py-3 px-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
+              className="py-3 px-3.5 bg-slate-900/90 hover:bg-slate-800 border border-blue-900/40 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
             >
-              <UserPlus className="w-4 h-4 text-red-400" />
+              <UserPlus className="w-4 h-4 text-blue-400" />
               <span>+ Alumno Recuperación</span>
             </button>
             <button
               onClick={() => setActiveModal("inscribir")}
-              className="py-3 px-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
+              className="py-3 px-3.5 bg-slate-900/90 hover:bg-slate-800 border border-blue-900/40 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-sm touch-target-safe cursor-pointer"
             >
-              <UserCheck className="w-4 h-4 text-amber-400" />
+              <UserCheck className="w-4 h-4 text-cyan-400" />
               <span>+ Inscribir Alumno</span>
             </button>
           </div>

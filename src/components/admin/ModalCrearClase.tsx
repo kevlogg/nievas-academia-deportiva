@@ -157,7 +157,7 @@ export function ModalCrearClase({
                     onClick={() => toggleDia(d.id)}
                     className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                       selected
-                        ? "bg-red-600 text-white border-red-500"
+                        ? "bg-blue-600 text-white border-blue-500 shadow-xs"
                         : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
                     }`}
                   >
@@ -221,7 +221,7 @@ export function ModalCrearClase({
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-950 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               {isPending ? (
                 <>

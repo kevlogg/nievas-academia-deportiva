@@ -7,8 +7,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Nievas Academia Deportiva | Karate Tradicional",
   description:
-    "Sistema Mobile-First de gestión de asistencia en tatami, métricas deportivas y seguimiento de graduaciones para Nievas Academia Deportiva.",
+    "Sistema oficial de gestión de asistencia en tatami, métricas deportivas y seguimiento de graduaciones para Nievas Academia Deportiva.",
   applicationName: "Nievas Karate Tatami",
+  icons: {
+    icon: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -21,7 +25,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#090D14",
+  themeColor: "#080D1A",
 };
 
 export default async function RootLayout({
@@ -33,7 +37,7 @@ export default async function RootLayout({
 
   return (
     <html lang="es" className="dark">
-      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased flex flex-col selection:bg-red-600 selection:text-white">
+      <body className="min-h-screen bg-slate-950 text-slate-100 antialiased flex flex-col selection:bg-blue-600 selection:text-white">
         <Navbar currentUser={currentUser} />
         <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-24 md:pb-8">
           {children}

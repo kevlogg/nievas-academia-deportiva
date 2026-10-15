@@ -48,7 +48,7 @@ export function BottomBar({ userRole }: BottomBarProps) {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800/80 px-2 py-1.5 shadow-2xl safe-area-pb"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-blue-950/80 px-2 py-1.5 shadow-2xl safe-area-pb"
       aria-label="Navegación Móvil Tatami"
     >
       <div className="flex items-center justify-around max-w-md mx-auto">
@@ -61,14 +61,14 @@ export function BottomBar({ userRole }: BottomBarProps) {
               className={cn(
                 "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-150 touch-target-safe cursor-pointer",
                 item.active
-                  ? "text-red-500 font-semibold"
+                  ? "text-blue-400 font-semibold"
                   : "text-slate-400 hover:text-slate-200"
               )}
             >
               <div
                 className={cn(
                   "p-1 rounded-lg transition-transform duration-150",
-                  item.active && "bg-red-950/60 text-red-400 scale-110"
+                  item.active && "bg-blue-950/80 text-blue-300 scale-110 shadow-xs shadow-blue-900/50 border border-blue-800/40"
                 )}
               >
                 <Icon className="w-5 h-5" />

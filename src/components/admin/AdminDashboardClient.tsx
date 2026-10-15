@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { AdminDashboardMetricsData, Clase, Usuario } from "@/types";
 import { ModalCrearClase } from "@/components/admin/ModalCrearClase";
 import { formatDaysList, formatTime } from "@/lib/utils";
@@ -12,7 +13,6 @@ import {
   Award,
   Calendar,
   Phone,
-  Flame,
   Plus,
   ArrowUpRight,
   ArrowDownRight,
@@ -35,27 +35,38 @@ export function AdminDashboardClient({
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* Header Headmaster */}
-      <div className="p-5 bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border border-red-900/60 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-widest bg-amber-950/80 px-2.5 py-0.5 rounded border border-amber-800/60">
-              Sensei Headmaster
-            </span>
-            <span className="text-xs text-slate-400">Control General</span>
+      {/* Header Headmaster con Logo Oficial de Nievas */}
+      <div className="p-5 bg-gradient-to-r from-[#154495]/40 via-slate-900 to-slate-900 border border-blue-900/50 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-[#154495] border-2 border-blue-400/50 shadow-lg shadow-blue-950/80 shrink-0">
+            <Image
+              src="/nievas-logo.jpg"
+              alt="Nievas Academia Deportiva"
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-            Nievas Academia Deportiva
-          </h1>
-          <p className="text-xs text-slate-300">
-            Panel directivo: métricas consolidadas, ausentismo crítico y desempeño de profesores.
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest bg-amber-950/80 px-2.5 py-0.5 rounded border border-amber-800/60">
+                Sensei Headmaster
+              </span>
+              <span className="text-xs text-blue-300 font-medium">Control Directivo Oficial</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-0.5">
+              Nievas Academia Deportiva
+            </h1>
+            <p className="text-xs text-slate-300">
+              Panel directivo: métricas consolidadas, ausentismo crítico y desempeño de profesores.
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-center">
           <button
             onClick={() => setIsCrearClaseOpen(true)}
-            className="px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95"
+            className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-950 flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 border border-blue-400/30"
           >
             <Plus className="w-4 h-4" />
             <span>Nueva Clase</span>
@@ -63,7 +74,7 @@ export function AdminDashboardClient({
 
           <Link
             href="/admin/alumnos"
-            className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 touch-target-safe"
+            className="px-3.5 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-blue-900/50 flex items-center gap-1.5 touch-target-safe"
           >
             <Award className="w-4 h-4 text-amber-400" />
             <span>Alumnos & Cintos</span>
@@ -103,7 +114,7 @@ export function AdminDashboardClient({
         <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-1">
           <div className="flex items-center justify-between text-slate-400 text-xs">
             <span>Clases de Tatami</span>
-            <Calendar className="w-4 h-4 text-amber-400" />
+            <Calendar className="w-4 h-4 text-blue-400" />
           </div>
           <p className="text-2xl font-black text-white">{clases.length}</p>
           <span className="text-[11px] text-slate-400">
@@ -191,7 +202,7 @@ export function AdminDashboardClient({
       {/* SECCIÓN: DESEMPEÑO POR PROFESOR */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-red-500" />
+          <ShieldCheck className="w-5 h-5 text-blue-400" />
           <h2 className="text-base font-bold text-white tracking-tight">
             Desempeño y Cumplimiento de Profesores
           </h2>
@@ -231,7 +242,7 @@ export function AdminDashboardClient({
                   <span className="text-[10px] text-slate-400 block">
                     Promedio Alumnos / Clase
                   </span>
-                  <span className="font-bold text-amber-400 text-sm">
+                  <span className="font-bold text-blue-400 text-sm">
                     {prof.promedioAlumnosPorClase}
                   </span>
                 </div>
@@ -244,7 +255,7 @@ export function AdminDashboardClient({
       {/* SECCIÓN: CONVOCATORIA DE CLASES (MAYOR VS MENOR) */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-amber-400" />
+          <TrendingUp className="w-5 h-5 text-blue-400" />
           <h2 className="text-base font-bold text-white tracking-tight">
             Convocatoria de Clases de Karate
           </h2>
@@ -280,7 +291,7 @@ export function AdminDashboardClient({
 
           {/* Menor Convocatoria */}
           <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+            <div className="flex items-center gap-2 text-blue-400 text-xs font-bold">
               <ArrowDownRight className="w-4 h-4" />
               <span>Menor Convocatoria (Reforzar Promoción)</span>
             </div>
@@ -293,7 +304,7 @@ export function AdminDashboardClient({
                 >
                   <span className="font-semibold text-white">{c.nombre}</span>
                   <div className="text-right">
-                    <span className="font-bold text-amber-400 block">
+                    <span className="font-bold text-blue-300 block">
                       {c.promedioAsistencias} prom.
                     </span>
                     <span className="text-[10px] text-slate-500">
@@ -311,7 +322,7 @@ export function AdminDashboardClient({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-red-500" />
+            <Calendar className="w-5 h-5 text-blue-400" />
             <h2 className="text-base font-bold text-white tracking-tight">
               Gestión de Horarios y Profesores Asignados
             </h2>
@@ -319,7 +330,7 @@ export function AdminDashboardClient({
 
           <button
             onClick={() => setIsCrearClaseOpen(true)}
-            className="text-xs text-red-400 hover:text-red-300 font-semibold cursor-pointer"
+            className="text-xs text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
           >
             + Nueva Clase
           </button>

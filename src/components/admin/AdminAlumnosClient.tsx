@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Alumno, KarateBelt } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { ModalGraduacion } from "@/components/admin/ModalGraduacion";
@@ -13,7 +14,6 @@ import {
   ShieldAlert,
   ChevronLeft,
   Phone,
-  Filter,
 } from "lucide-react";
 
 interface AdminAlumnosClientProps {
@@ -82,32 +82,43 @@ export function AdminAlumnosClient({
           href="/admin/dashboard"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white py-1.5 px-2.5 rounded-lg hover:bg-slate-800 transition-colors touch-target-safe"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 text-blue-400" />
           <span>Volver al Dashboard</span>
         </Link>
 
-        <span className="text-xs text-amber-400 font-semibold bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-800/60">
+        <span className="text-xs text-blue-300 font-semibold bg-blue-950/80 px-2.5 py-1 rounded-full border border-blue-800/60">
           Registro Oficial de Alumnos
         </span>
       </div>
 
-      <div className="p-5 bg-gradient-to-r from-red-950/70 via-slate-900 to-slate-900 border border-red-900/50 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-red-400" />
-            <span className="text-xs font-bold text-red-400 uppercase tracking-widest">
-              Padrón de Karatecas
-            </span>
+      <div className="p-5 bg-gradient-to-r from-[#154495]/40 via-slate-900 to-slate-900 border border-blue-900/50 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-[#154495] border-2 border-blue-400/50 shadow-md shadow-blue-950/80 shrink-0">
+            <Image
+              src="/nievas-logo.jpg"
+              alt="Logo Nievas"
+              fill
+              className="object-cover"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight mt-1">
-            Gestión de Alumnos & Graduaciones
-          </h1>
-          <p className="text-xs text-slate-300">
-            Pase de cinto oficial, historial de graduación y notas confidenciales del Headmaster.
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              <span className="text-[10px] font-bold text-blue-300 uppercase tracking-widest bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">
+                Padrón de Karatecas
+              </span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight mt-0.5">
+              Gestión de Alumnos & Graduaciones
+            </h1>
+            <p className="text-xs text-slate-300">
+              Pase de cinto oficial, historial de graduación y notas confidenciales del Headmaster.
+            </p>
+          </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-right self-start sm:self-center">
           <span className="text-2xl font-black text-white">
             {alumnos.length}
           </span>
@@ -124,7 +135,7 @@ export function AdminAlumnosClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, apellido o teléfono..."
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-red-500"
+            className="w-full pl-9 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-500"
           />
         </div>
 
@@ -134,7 +145,7 @@ export function AdminAlumnosClient({
             onChange={(e) =>
               setBeltFilter(e.target.value as KarateBelt | "TODOS")
             }
-            className="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+            className="w-full px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-blue-500"
           >
             {BELTS.map((b) => (
               <option key={b} value={b}>
@@ -155,7 +166,7 @@ export function AdminAlumnosClient({
           filteredAlumnos.map((alumno) => (
             <div
               key={alumno.id}
-              className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-slate-700 transition-colors"
+              className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-blue-900/60 transition-colors"
             >
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm text-slate-200 shrink-0">
@@ -173,7 +184,7 @@ export function AdminAlumnosClient({
 
                   <div className="flex items-center gap-3 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
+                      <Phone className="w-3 h-3 text-blue-400" />
                       <span>{alumno.telefono_contacto}</span>
                     </span>
                     <span>•</span>

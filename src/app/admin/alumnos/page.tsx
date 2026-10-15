@@ -26,7 +26,7 @@ export default async function AdminAlumnosPage() {
         </div>
         <Link
           href="/profesor/clases"
-          className="inline-block px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md touch-target-safe"
+          className="inline-block px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-950 touch-target-safe"
         >
           Volver al Tatami
         </Link>

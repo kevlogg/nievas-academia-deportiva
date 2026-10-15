@@ -147,7 +147,7 @@ export function ModalRecuperacion({
                   {alumno.apellido[0]}
                 </div>
                 <div>
-                  <p className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors">
+                  <p className="font-semibold text-sm text-white group-hover:text-blue-400 transition-colors">
                     {alumno.nombre} {alumno.apellido}
                   </p>
                   <p className="text-[11px] text-slate-400">
@@ -158,7 +158,7 @@ export function ModalRecuperacion({
 
               <div className="flex items-center gap-2">
                 <BeltBadge belt={alumno.cinturon_actual} size="sm" />
-                <span className="text-xs bg-red-600/90 text-white font-medium px-2 py-1 rounded-lg group-hover:bg-red-500 transition-colors">
+                <span className="text-xs bg-blue-600/90 text-white font-semibold px-2.5 py-1 rounded-lg group-hover:bg-blue-500 transition-colors">
                   + Agregar
                 </span>
               </div>

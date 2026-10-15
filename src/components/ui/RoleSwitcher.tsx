@@ -21,14 +21,14 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-xl shadow-inner text-xs">
+    <div className="flex items-center gap-1 p-1 bg-slate-900/95 border border-blue-900/50 rounded-xl shadow-inner text-xs">
       <button
         onClick={() => handleToggle("PROFESOR")}
         disabled={isPending}
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all duration-200 touch-target-safe cursor-pointer",
           currentUser.rol === "PROFESOR"
-            ? "bg-red-600 text-white shadow-sm font-semibold"
+            ? "bg-[#154495] text-white shadow-md shadow-blue-950 font-bold border border-blue-400/40"
             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
         )}
         aria-pressed={currentUser.rol === "PROFESOR"}
@@ -37,9 +37,9 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
         {isPending && currentUser.rol !== "PROFESOR" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <UserCheck className="w-3.5 h-3.5" />
+          <UserCheck className="w-3.5 h-3.5 text-blue-200" />
         )}
-        <span>Sensei (Profesor)</span>
+        <span>Sensei</span>
       </button>
 
       <button
@@ -48,7 +48,7 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
         className={cn(
           "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all duration-200 touch-target-safe cursor-pointer",
           currentUser.rol === "ADMIN"
-            ? "bg-amber-600 text-white shadow-sm font-semibold"
+            ? "bg-slate-800 text-amber-300 shadow-md font-bold border border-amber-500/60"
             : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
         )}
         aria-pressed={currentUser.rol === "ADMIN"}
@@ -57,9 +57,9 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
         {isPending && currentUser.rol !== "ADMIN" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
-          <ShieldCheck className="w-3.5 h-3.5" />
+          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
         )}
-        <span>Headmaster (Admin)</span>
+        <span>Headmaster</span>
       </button>
     </div>
   );
