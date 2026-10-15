@@ -67,47 +67,47 @@ export function ModalGraduacion({
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+      <div className="w-full max-w-md bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-5 shadow-2xl shadow-blue-950/50 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-[#1E57A8]">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-950/80 border border-amber-800/60 text-amber-400">
-              <Award className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-white text-amber-500 shadow-sm">
+              <Award className="w-5 h-5 text-amber-500" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white tracking-tight">
                 Examen y Graduación de Cinturón
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-blue-200 font-medium">
                 Ascenso formal en Nievas Academia Deportiva
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+            className="p-1.5 text-blue-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-950/60 border border-red-800 rounded-xl flex items-center gap-2 text-xs text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+          <div className="p-3 bg-rose-950/60 border border-rose-500/50 rounded-xl flex items-center gap-2 text-xs text-rose-200">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Info Alumno */}
-        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+        <div className="p-3 bg-[#0A2E65] rounded-xl border border-[#2056A8] flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-400">Alumno a graduar:</p>
+            <p className="text-xs text-blue-200 font-medium">Alumno a graduar:</p>
             <p className="font-bold text-sm text-white">
               {alumno.nombre} {alumno.apellido}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] text-slate-400 mb-1">Cinturón Actual:</p>
+            <p className="text-[11px] text-blue-200 mb-1 font-medium">Cinturón Actual:</p>
             <BeltBadge belt={alumno.cinturon_actual} size="sm" />
           </div>
         </div>
@@ -115,16 +115,16 @@ export function ModalGraduacion({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-blue-100 mb-1">
               Nuevo Cinturón Adquirido *
             </label>
             <select
               value={nuevoCinturon}
               onChange={(e) => setNuevoCinturon(e.target.value as KarateBelt)}
-              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+              className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white cursor-pointer"
             >
               {BELTS.map((b) => (
-                <option key={b} value={b}>
+                <option key={b} value={b} className="bg-[#082552] text-white">
                   {b}
                 </option>
               ))}
@@ -132,7 +132,7 @@ export function ModalGraduacion({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-blue-100 mb-1">
               Fecha de Graduación / Examen *
             </label>
             <input
@@ -140,12 +140,12 @@ export function ModalGraduacion({
               required
               value={fechaGraduacion}
               onChange={(e) => setFechaGraduacion(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+              className="w-full px-3 py-2 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-blue-100 mb-1">
               Observaciones / Kata evaluado
             </label>
             <textarea
@@ -153,23 +153,23 @@ export function ModalGraduacion({
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
               placeholder="Ej. Demostró excelente kihon y kata Heian Nidan ante tribunal..."
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-hidden focus:border-red-500"
+              className="w-full px-3 py-2 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-white"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex items-center gap-2">
+          <div className="pt-3 border-t border-[#1E57A8] flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl"
+              className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 text-blue-200 font-bold text-xs rounded-xl border border-white/20 transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-98 cursor-pointer disabled:opacity-50"
             >
               {isPending ? (
                 <>

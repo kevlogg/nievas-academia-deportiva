@@ -83,12 +83,12 @@ export function ModalInscribirAlumno({
       aria-modal="true"
       aria-labelledby="modal-inscribir-title"
     >
-      <div className="w-full sm:max-w-md bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+      <div className="w-full sm:max-w-md bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl shadow-blue-950/50 flex flex-col max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-[#1E57A8]">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-red-950/70 border border-red-800/50 text-red-400">
-              <UserCheck className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-white text-[#0F3E86] shadow-sm">
+              <UserCheck className="w-5 h-5 text-[#0F3E86]" />
             </div>
             <div>
               <h2
@@ -97,14 +97,14 @@ export function ModalInscribirAlumno({
               >
                 Inscribir Alumno en Tatami
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-blue-200 font-medium">
                 Alta rápida y asignación inmediata a la clase actual
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 touch-target-safe cursor-pointer"
+            className="p-2 text-blue-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors touch-target-safe cursor-pointer"
             aria-label="Cerrar modal"
           >
             <X className="w-5 h-5" />
@@ -112,8 +112,8 @@ export function ModalInscribirAlumno({
         </div>
 
         {error && (
-          <div className="mt-3 p-3 bg-red-950/60 border border-red-800 rounded-xl flex items-center gap-2 text-xs text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+          <div className="mt-3 p-3 bg-rose-950/60 border border-rose-500/50 rounded-xl flex items-center gap-2 text-xs text-rose-200">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
         )}
@@ -122,7 +122,7 @@ export function ModalInscribirAlumno({
         <form onSubmit={handleSubmit} className="space-y-3.5 my-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-blue-100 mb-1">
                 Nombre *
               </label>
               <input
@@ -133,11 +133,11 @@ export function ModalInscribirAlumno({
                   setFormData({ ...formData, nombre: e.target.value })
                 }
                 placeholder="Ej. Lucas"
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+                className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white placeholder:text-blue-300/60"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-blue-100 mb-1">
                 Apellido *
               </label>
               <input
@@ -148,14 +148,14 @@ export function ModalInscribirAlumno({
                   setFormData({ ...formData, apellido: e.target.value })
                 }
                 placeholder="Ej. Morales"
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+                className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white placeholder:text-blue-300/60"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-blue-100 mb-1">
                 Cinturón Actual
               </label>
               <select
@@ -166,17 +166,17 @@ export function ModalInscribirAlumno({
                     cinturonActual: e.target.value as KarateBelt,
                   })
                 }
-                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+                className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white cursor-pointer"
               >
                 {BELTS.map((b) => (
-                  <option key={b} value={b}>
+                  <option key={b} value={b} className="bg-[#082552] text-white">
                     {b}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-blue-100 mb-1">
                 Fecha Nacimiento
               </label>
               <input
@@ -186,13 +186,13 @@ export function ModalInscribirAlumno({
                 onChange={(e) =>
                   setFormData({ ...formData, fechaNacimiento: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+                className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-blue-100 mb-1">
               Teléfono de Contacto *
             </label>
             <input
@@ -203,12 +203,12 @@ export function ModalInscribirAlumno({
                 setFormData({ ...formData, telefonoContacto: e.target.value })
               }
               placeholder="+54 9 11 1234-5678"
-              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+              className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white placeholder:text-blue-300/60"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-blue-100 mb-1">
               Contacto de Emergencia & Parentesco *
             </label>
             <input
@@ -219,27 +219,27 @@ export function ModalInscribirAlumno({
                 setFormData({ ...formData, contactoEmergencia: e.target.value })
               }
               placeholder="Madre: Carolina +54 9 11 9876-5432"
-              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-hidden focus:border-red-500"
+              className="w-full px-3 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-white placeholder:text-blue-300/60"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex items-center gap-2">
+          <div className="pt-3 border-t border-[#1E57A8] flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl transition-colors touch-target-safe cursor-pointer"
+              className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-blue-200 font-bold text-xs rounded-xl border border-white/20 transition-colors touch-target-safe cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-950 transition-all flex items-center justify-center gap-1.5 touch-target-safe cursor-pointer"
+              className="flex-1 py-3 bg-white hover:bg-blue-50 text-[#0F3E86] font-black text-xs rounded-xl shadow-md transition-all active:scale-98 flex items-center justify-center gap-1.5 touch-target-safe cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0F3E86]" />
                   <span>Inscribiendo...</span>
                 </>
               ) : (

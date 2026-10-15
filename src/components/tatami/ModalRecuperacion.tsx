@@ -61,17 +61,17 @@ export function ModalRecuperacion({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-recuperacion-title"
     >
-      <div className="w-full sm:max-w-md bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="w-full sm:max-w-md bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl shadow-blue-950/50 flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-[#1E57A8]">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-red-950/70 border border-red-800/50 text-red-400">
-              <UserPlus className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-white text-[#0F3E86] shadow-sm">
+              <UserPlus className="w-5 h-5 text-[#0F3E86]" />
             </div>
             <div>
               <h2
@@ -80,14 +80,14 @@ export function ModalRecuperacion({
               >
                 Alumno de Recuperación
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-blue-200 font-medium">
                 Buscar en todo el dojo para incorporar a esta clase
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 touch-target-safe"
+            className="p-2 text-blue-200 hover:text-white rounded-lg hover:bg-white/10 transition-colors touch-target-safe cursor-pointer"
             aria-label="Cerrar modal"
           >
             <X className="w-5 h-5" />
@@ -96,9 +96,9 @@ export function ModalRecuperacion({
 
         {/* Search Bar */}
         <div className="my-4 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-blue-300">
             {isSearching ? (
-              <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+              <Loader2 className="w-4 h-4 animate-spin text-cyan-300" />
             ) : (
               <Search className="w-4 h-4" />
             )}
@@ -108,14 +108,14 @@ export function ModalRecuperacion({
             value={query}
             onChange={handleSearch}
             placeholder="Buscar por nombre, apellido o cinturón..."
-            className="w-full pl-9 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-red-500 focus:ring-1 focus:ring-red-500 touch-target-safe"
+            className="w-full pl-9 pr-4 py-3 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-sm text-white placeholder-blue-300/60 focus:outline-none focus:ring-2 focus:ring-white touch-target-safe"
             autoFocus
           />
         </div>
 
         {error && (
-          <div className="mb-3 p-3 bg-red-950/60 border border-red-800 rounded-xl flex items-center gap-2 text-xs text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+          <div className="mb-3 p-3 bg-rose-950/60 border border-rose-500/50 rounded-xl flex items-center gap-2 text-xs text-rose-200">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
         )}
@@ -123,13 +123,13 @@ export function ModalRecuperacion({
         {/* Results List */}
         <div className="overflow-y-auto flex-1 space-y-2 pr-1 min-h-[160px]">
           {query.trim().length < 2 && (
-            <div className="py-8 text-center text-slate-500 text-xs">
+            <div className="py-8 text-center text-blue-200 text-xs font-medium">
               Escribe al menos 2 caracteres para buscar alumnos del dojo
             </div>
           )}
 
           {query.trim().length >= 2 && results.length === 0 && !isSearching && (
-            <div className="py-8 text-center text-slate-500 text-xs">
+            <div className="py-8 text-center text-blue-200 text-xs font-medium">
               No se encontraron alumnos disponibles para recuperación
             </div>
           )}
@@ -139,18 +139,18 @@ export function ModalRecuperacion({
               key={alumno.id}
               onClick={() => handleSelectAlumno(alumno)}
               disabled={isAdding}
-              className="w-full flex items-center justify-between p-3 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 rounded-xl transition-all duration-150 text-left touch-target-safe group cursor-pointer"
+              className="w-full flex items-center justify-between p-3 bg-[#0A2E65] hover:bg-[#124285] border border-[#2056A8] rounded-xl transition-all duration-150 text-left touch-target-safe group cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-slate-200">
+                <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-xs text-cyan-300">
                   {alumno.nombre[0]}
                   {alumno.apellido[0]}
                 </div>
                 <div>
-                  <p className="font-semibold text-sm text-white group-hover:text-blue-400 transition-colors">
+                  <p className="font-semibold text-sm text-white group-hover:text-cyan-300 transition-colors">
                     {alumno.nombre} {alumno.apellido}
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-blue-200">
                     Tel: {alumno.telefono_contacto}
                   </p>
                 </div>
@@ -158,7 +158,7 @@ export function ModalRecuperacion({
 
               <div className="flex items-center gap-2">
                 <BeltBadge belt={alumno.cinturon_actual} size="sm" />
-                <span className="text-xs bg-blue-600/90 text-white font-semibold px-2.5 py-1 rounded-lg group-hover:bg-blue-500 transition-colors">
+                <span className="text-xs bg-white text-[#0F3E86] font-extrabold px-2.5 py-1 rounded-lg group-hover:bg-blue-50 transition-colors shadow-xs">
                   + Agregar
                 </span>
               </div>
@@ -167,10 +167,10 @@ export function ModalRecuperacion({
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-slate-800 mt-2">
+        <div className="pt-3 border-t border-[#1E57A8] mt-2">
           <button
             onClick={onClose}
-            className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded-xl transition-colors touch-target-safe cursor-pointer"
+            className="w-full py-2.5 bg-white/10 hover:bg-white/20 text-blue-200 font-bold text-xs rounded-xl border border-white/20 transition-colors touch-target-safe cursor-pointer"
           >
             Cancelar
           </button>

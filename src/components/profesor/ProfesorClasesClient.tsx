@@ -13,8 +13,11 @@ import {
 } from "@/types";
 import { ModalCrearClaseProfesor } from "./ModalCrearClaseProfesor";
 import { ModalCrearListaAlumnos } from "./ModalCrearListaAlumnos";
+import { ModalVerListaAlumnos } from "./ModalVerListaAlumnos";
+import { ModalEditarListaAlumnos } from "./ModalEditarListaAlumnos";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import { cerrarClaseAction } from "@/lib/actions/asistencia.actions";
+import { eliminarListaAlumnosAction } from "@/lib/actions/clases.actions";
 import {
   CalendarDays,
   Clock,
@@ -28,6 +31,9 @@ import {
   CheckCircle2,
   Radio,
   Lock,
+  Eye,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -56,8 +62,47 @@ export function ProfesorClasesClient({
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
   const [isCrearListaOpen, setIsCrearListaOpen] = useState(false);
 
+  // Estados para Ver y Editar Listas de Alumnos Guardadas
+  const [listaParaVer, setListaParaVer] = useState<ListaAlumnos | null>(null);
+  const [listaParaEditar, setListaParaEditar] = useState<ListaAlumnos | null>(null);
+  const [eliminandoListaId, setEliminandoListaId] = useState<string | null>(null);
+
+  // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
+  const cleanNombre = currentUser.nombre_completo
+    .replace(/\s*\((admin|superadmin|profesor)\)/gi, "")
+    .trim();
+
   const handleListaCreada = (nuevaLista: ListaAlumnos) => {
     setListasAlumnos((prev) => [nuevaLista, ...prev]);
+  };
+
+  const handleListaActualizada = (listaActualizada: ListaAlumnos) => {
+    setListasAlumnos((prev) =>
+      prev.map((l) => (l.id === listaActualizada.id ? listaActualizada : l))
+    );
+  };
+
+  const handleEliminarLista = async (lista: ListaAlumnos) => {
+    const confirmar = window.confirm(
+      `¿Estás seguro de que deseas eliminar la lista "${lista.nombre}"?`
+    );
+    if (!confirmar) return;
+
+    setEliminandoListaId(lista.id);
+    try {
+      const res = await eliminarListaAlumnosAction(lista.id);
+      if (res.success) {
+        setListasAlumnos((prev) => prev.filter((l) => l.id !== lista.id));
+        if (listaParaVer?.id === lista.id) setListaParaVer(null);
+        if (listaParaEditar?.id === lista.id) setListaParaEditar(null);
+      } else {
+        alert(res.error || "No se pudo eliminar la lista");
+      }
+    } catch {
+      alert("Error al eliminar la lista de alumnos");
+    } finally {
+      setEliminandoListaId(null);
+    }
   };
 
   const handleClaseCreada = (nuevaClase: Clase) => {
@@ -112,10 +157,10 @@ export function ProfesorClasesClient({
 
   return (
     <div className="space-y-6">
-      {/* 1. Banner Principal del Sensei - Card Azul Oficial #0F3E86 */}
-      <div className="p-5 sm:p-6 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl shadow-blue-950/20">
-        <div className="flex items-center gap-3.5">
-          <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-md shadow-blue-950/30 shrink-0">
+      {/* 1. Banner Principal del Sensei - Card Reducida y Compacta en Azul Oficial #0F3E86 */}
+      <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md shadow-blue-950/15">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-white border border-white shadow-xs shrink-0">
             <Image
               src="/nievas-logo.jpg"
               alt="Logo Nievas"
@@ -124,32 +169,14 @@ export function ProfesorClasesClient({
               priority
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-md border border-white/20">
-                {currentUser.rol === "ADMIN" ? "SuperAdmin" : "Admin Sensei"}
-              </span>
-              <span className="text-xs text-blue-200 font-semibold">
-                Nievas Academia Deportiva
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">
-              {currentUser.nombre_completo}
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight truncate">
+              {cleanNombre}
             </h1>
-            <p className="text-xs text-blue-200 font-medium">
-              Crea una clase con tu lista de alumnos o retoma una de tus últimas clases.
+            <p className="text-[11px] text-blue-200 font-medium truncate">
+              Gestión de clases y asistencia en tatami
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <Link
-            href="/profesor/metricas"
-            className="px-4 py-2.5 bg-white hover:bg-blue-50 text-[#0F3E86] text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-colors touch-target-safe cursor-pointer"
-          >
-            <span>Ver Mis Métricas</span>
-            <ChevronRight className="w-3.5 h-3.5 text-[#0F3E86]" />
-          </Link>
         </div>
       </div>
 
@@ -276,25 +303,76 @@ export function ProfesorClasesClient({
         </div>
       </div>
 
-      {/* Resumen de Listas Disponibles */}
+      {/* Resumen y Gestión de Listas de Alumnos Guardadas */}
       {listasAlumnos.length > 0 && (
-        <div className="p-4 bg-[#0F3E86] text-white border border-[#1E57A8] rounded-2xl shadow-md flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-blue-100 mr-2">
-            <Sparkles className="w-4 h-4 text-cyan-300" />
-            <span>Listas de Alumnos Guardadas:</span>
-          </div>
-          {listasAlumnos.map((lista) => (
-            <span
-              key={lista.id}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 text-white border border-white/20 flex items-center gap-1.5"
+        <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-white">
+              <Sparkles className="w-4 h-4 text-cyan-300" />
+              <span>Listas de Alumnos Guardadas ({listasAlumnos.length})</span>
+            </div>
+            <button
+              onClick={() => setIsCrearListaOpen(true)}
+              className="text-xs text-cyan-300 hover:text-white font-bold flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <Users className="w-3.5 h-3.5 text-cyan-300" />
-              <span>{lista.nombre}</span>
-              <span className="font-mono text-[10px] bg-white/20 px-1.5 py-0.2 rounded-md font-bold text-cyan-200">
-                {lista.total_alumnos || lista.alumnos_ids.length}
-              </span>
-            </span>
-          ))}
+              <ListPlus className="w-3.5 h-3.5" />
+              <span>+ Nueva Lista</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {listasAlumnos.map((lista) => (
+              <div
+                key={lista.id}
+                className="p-3 bg-[#0A2E65] border border-[#2056A8] hover:border-cyan-400/50 rounded-2xl flex items-center justify-between gap-2.5 transition-all shadow-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-xs text-white truncate">
+                      {lista.nombre}
+                    </span>
+                    <span className="font-mono text-[10px] bg-white/15 px-1.5 py-0.2 rounded-md font-bold text-cyan-200 shrink-0">
+                      {lista.total_alumnos || lista.alumnos_ids.length}
+                    </span>
+                  </div>
+                  {lista.descripcion && (
+                    <p className="text-[10px] text-blue-200 truncate mt-0.5">
+                      {lista.descripcion}
+                    </p>
+                  )}
+                </div>
+
+                {/* Acciones: Ver, Editar, Eliminar */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setListaParaVer(lista)}
+                    title="Ver detalles de la lista y alumnos"
+                    className="p-2 bg-white/10 hover:bg-white/20 text-cyan-300 hover:text-white rounded-xl transition-colors cursor-pointer touch-target-safe"
+                    aria-label={`Ver lista ${lista.nombre}`}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setListaParaEditar(lista)}
+                    title="Editar información y alumnos"
+                    className="p-2 bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white rounded-xl transition-colors cursor-pointer touch-target-safe"
+                    aria-label={`Editar lista ${lista.nombre}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleEliminarLista(lista)}
+                    disabled={eliminandoListaId === lista.id}
+                    title="Eliminar lista de alumnos"
+                    className="p-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-100 rounded-xl transition-colors cursor-pointer disabled:opacity-50 touch-target-safe"
+                    aria-label={`Eliminar lista ${lista.nombre}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -436,6 +514,30 @@ export function ProfesorClasesClient({
         onListaCreada={(nuevaLista) => {
           handleListaCreada(nuevaLista);
           setIsCrearClaseOpen(true);
+        }}
+      />
+
+      {/* Modal para Ver Detalles de Alumnos de la Lista */}
+      <ModalVerListaAlumnos
+        isOpen={!!listaParaVer}
+        lista={listaParaVer}
+        alumnosDisponibles={alumnosDisponibles}
+        onClose={() => setListaParaVer(null)}
+        onEditar={(lista) => {
+          setListaParaVer(null);
+          setListaParaEditar(lista);
+        }}
+      />
+
+      {/* Modal para Editar Nombre, Descripción, Alumnos y Cinturones */}
+      <ModalEditarListaAlumnos
+        isOpen={!!listaParaEditar}
+        lista={listaParaEditar}
+        alumnosDisponibles={alumnosDisponibles}
+        onClose={() => setListaParaEditar(null)}
+        onListaActualizada={(listaActualizada) => {
+          handleListaActualizada(listaActualizada);
+          setListaParaEditar(null);
         }}
       />
     </div>

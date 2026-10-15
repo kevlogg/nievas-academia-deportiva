@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { dalCrearClase, dalCrearListaAlumnos } from "@/lib/dal";
+import {
+  dalCrearClase,
+  dalCrearListaAlumnos,
+  dalActualizarListaAlumnos,
+  dalEliminarListaAlumnos,
+} from "@/lib/dal";
 import { CrearClaseSchema, CrearListaAlumnosSchema } from "@/schemas";
 import { Clase, ListaAlumnos } from "@/types";
 import { ActionResponse } from "./asistencia.actions";
@@ -68,6 +73,61 @@ export async function crearListaAlumnosAction(
   } catch (err: unknown) {
     const msg =
       err instanceof Error ? err.message : "Error al crear la lista de alumnos";
+    return { success: false, error: msg };
+  }
+}
+
+export async function actualizarListaAlumnosAction(
+  listaId: string,
+  formData: Record<string, unknown>
+): Promise<ActionResponse<ListaAlumnos>> {
+  try {
+    const parseResult = CrearListaAlumnosSchema.safeParse(formData);
+
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: "Datos de la lista de alumnos inválidos",
+        validationErrors: parseResult.error.flatten().fieldErrors,
+      };
+    }
+
+    const lista = await dalActualizarListaAlumnos(listaId, parseResult.data);
+
+    revalidatePath("/profesor/clases");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/clases");
+
+    return {
+      success: true,
+      data: lista,
+      message: `Lista "${lista.nombre}" actualizada con éxito`,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al actualizar la lista de alumnos";
+    return { success: false, error: msg };
+  }
+}
+
+export async function eliminarListaAlumnosAction(
+  listaId: string
+): Promise<ActionResponse<{ id: string }>> {
+  try {
+    const res = await dalEliminarListaAlumnos(listaId);
+
+    revalidatePath("/profesor/clases");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/clases");
+
+    return {
+      success: true,
+      data: res,
+      message: "Lista de alumnos eliminada con éxito",
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al eliminar la lista de alumnos";
     return { success: false, error: msg };
   }
 }

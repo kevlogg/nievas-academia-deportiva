@@ -1398,6 +1398,43 @@ export async function dalCrearListaAlumnos(
 }
 
 /**
+ * Actualizar lista de alumnos existente
+ */
+export async function dalActualizarListaAlumnos(
+  listaId: string,
+  input: CrearListaAlumnosInput
+): Promise<ListaAlumnos> {
+  await requireProfesor();
+  const lista = dbState.listas_alumnos.find((l) => l.id === listaId);
+  if (!lista) {
+    throw new Error("Lista de alumnos no encontrada");
+  }
+
+  lista.nombre = input.nombre.trim();
+  lista.descripcion = input.descripcion?.trim() || "";
+  lista.alumnos_ids = input.alumnosIds;
+  lista.total_alumnos = input.alumnosIds.length;
+
+  return lista;
+}
+
+/**
+ * Eliminar lista de alumnos
+ */
+export async function dalEliminarListaAlumnos(
+  listaId: string
+): Promise<{ id: string }> {
+  await requireProfesor();
+  const index = dbState.listas_alumnos.findIndex((l) => l.id === listaId);
+  if (index === -1) {
+    throw new Error("Lista de alumnos no encontrada");
+  }
+
+  dbState.listas_alumnos.splice(index, 1);
+  return { id: listaId };
+}
+
+/**
  * Obtener todos los alumnos activos para selección en listas
  */
 export async function dalGetTodosAlumnos(): Promise<Alumno[]> {
