@@ -52,14 +52,14 @@ export function RoleSwitcher({ currentUser }: RoleSwitcherProps) {
             : "text-blue-100 hover:text-white hover:bg-white/10"
         )}
         aria-pressed={currentUser.rol === "ADMIN"}
-        title="Cambiar a vista SuperAdmin (Francisco Nievas - Dueño)"
+        title="Cambiar a vista Dirección (Francisco Nievas - Dueño)"
       >
         {isPending && currentUser.rol !== "ADMIN" ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
         ) : (
           <ShieldCheck className="w-3.5 h-3.5" />
         )}
-        <span>SuperAdmin</span>
+        <span>Dirección</span>
       </button>
     </div>
   );

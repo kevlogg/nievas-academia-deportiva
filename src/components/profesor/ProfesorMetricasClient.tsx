@@ -220,7 +220,7 @@ export function ProfesorMetricasClient({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/15">
             <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
               <Shield className="w-4 h-4 text-amber-300" />
-              <span>Alcance de Estadísticas (SuperAdmin):</span>
+              <span>Alcance de Estadísticas (Dirección):</span>
             </div>
 
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">

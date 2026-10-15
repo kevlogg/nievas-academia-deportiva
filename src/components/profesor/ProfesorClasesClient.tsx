@@ -561,6 +561,7 @@ export function ProfesorClasesClient({
         isOpen={isCrearListaOpen}
         onClose={() => setIsCrearListaOpen(false)}
         alumnosDisponibles={alumnosDisponibles}
+        currentUser={currentUser}
         onListaCreada={(nuevaLista) => {
           handleListaCreada(nuevaLista);
           setIsCrearClaseOpen(true);
@@ -584,6 +585,7 @@ export function ProfesorClasesClient({
         isOpen={!!listaParaEditar}
         lista={listaParaEditar}
         alumnosDisponibles={alumnosDisponibles}
+        currentUser={currentUser}
         onClose={() => setListaParaEditar(null)}
         onListaActualizada={(listaActualizada) => {
           handleListaActualizada(listaActualizada);

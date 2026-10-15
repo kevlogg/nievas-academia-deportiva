@@ -145,3 +145,37 @@ export async function actualizarCinturonAction(
   }
 }
 
+/**
+ * Crear alumno rápido para agregar a una lista (por Profesor o Dirección)
+ */
+export async function crearAlumnoRapidoAction(input: {
+  nombre: string;
+  apellido: string;
+  cinturonActual?: KarateBelt;
+  telefonoContacto?: string;
+  contactoEmergencia?: string;
+}): Promise<ActionResponse<Alumno>> {
+  try {
+    if (!input.nombre.trim() || !input.apellido.trim()) {
+      return { success: false, error: "El nombre y apellido son obligatorios" };
+    }
+
+    const { dalCrearAlumnoRapido } = await import("@/lib/dal");
+    const alumno = await dalCrearAlumnoRapido(input);
+
+    revalidatePath("/profesor/clases");
+    revalidatePath("/admin/alumnos");
+
+    return {
+      success: true,
+      data: alumno,
+      message: `Alumno ${alumno.nombre} ${alumno.apellido} registrado exitosamente`,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al crear alumno";
+    return { success: false, error: msg };
+  }
+}
+
+

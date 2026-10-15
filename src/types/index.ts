@@ -110,6 +110,8 @@ export interface Alumno {
   cinturon_actual: KarateBelt;
   estado: AlumnoEstado;
   notas_privadas?: string | null;
+  profesores_ids?: string[];
+  profesores_nombres?: string[];
   created_at: string;
 }
 

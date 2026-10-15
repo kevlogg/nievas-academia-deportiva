@@ -31,7 +31,7 @@ export function BottomBar({ userRole }: BottomBarProps) {
     ...(isAdmin
       ? [
           {
-            label: "SuperAdmin",
+            label: "Dirección",
             href: "/admin/dashboard",
             icon: Shield,
             active: pathname === "/admin/dashboard",

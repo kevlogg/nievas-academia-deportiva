@@ -22,6 +22,7 @@ import {
 interface AdminAlumnosClientProps {
   currentUser?: Usuario;
   initialAlumnos: Alumno[];
+  profesores?: Usuario[];
 }
 
 const BELTS: Array<KarateBelt | "TODOS"> = [
@@ -50,6 +51,7 @@ const BELT_OPTIONS: KarateBelt[] = [
 export function AdminAlumnosClient({
   currentUser,
   initialAlumnos,
+  profesores = [],
 }: AdminAlumnosClientProps) {
   const [alumnos, setAlumnos] = useState<Alumno[]>(initialAlumnos);
 
@@ -58,6 +60,8 @@ export function AdminAlumnosClient({
     ? currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
     : "Francisco Nievas";
 
+  const [scope, setScope] = useState<"TODO_EL_DOJO" | "MIS_ALUMNOS">("TODO_EL_DOJO");
+  const [selectedProfesorId, setSelectedProfesorId] = useState<string>("TODOS");
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState<KarateBelt | "TODOS">("TODOS");
 
@@ -66,11 +70,24 @@ export function AdminAlumnosClient({
   const [cambiandoCintoId, setCambiandoCintoId] = useState<string | null>(null);
 
   const filteredAlumnos = alumnos.filter((a) => {
+    // 1. Filtro de alcance: Mis Alumnos vs Todo el Dojo
+    if (scope === "MIS_ALUMNOS") {
+      if (currentUser?.id && !a.profesores_ids?.includes(currentUser.id)) {
+        return false;
+      }
+    } else if (selectedProfesorId !== "TODOS") {
+      if (!a.profesores_ids?.includes(selectedProfesorId)) {
+        return false;
+      }
+    }
+
+    // 2. Buscador por texto
     const matchesSearch =
       a.nombre.toLowerCase().includes(search.toLowerCase()) ||
       a.apellido.toLowerCase().includes(search.toLowerCase()) ||
       a.telefono_contacto.includes(search);
 
+    // 3. Cinturón
     const matchesBelt =
       beltFilter === "TODOS" ? true : a.cinturon_actual === beltFilter;
 
@@ -143,9 +160,70 @@ export function AdminAlumnosClient({
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-[11px] font-bold text-cyan-300 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
             <Award className="w-3.5 h-3.5 text-amber-300" />
-            <span>{alumnos.length} Alumnos</span>
+            <span>{filteredAlumnos.length} de {alumnos.length} Alumnos</span>
           </div>
         </div>
+      </div>
+
+      {/* 2. Filtro de Alcance de Dirección: Todo el Dojo vs Mis Alumnos & Selector por Sensei */}
+      <div className="p-3.5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
+            Alcance:
+          </span>
+          <div className="flex items-center bg-[#0A2E65] p-1 rounded-xl border border-[#2056A8]">
+            <button
+              onClick={() => {
+                setScope("TODO_EL_DOJO");
+                setSelectedProfesorId("TODOS");
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                scope === "TODO_EL_DOJO"
+                  ? "bg-white text-[#0F3E86] shadow-sm font-extrabold"
+                  : "text-blue-200 hover:text-white"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Todo el Dojo</span>
+            </button>
+            <button
+              onClick={() => {
+                setScope("MIS_ALUMNOS");
+                setSelectedProfesorId("TODOS");
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                scope === "MIS_ALUMNOS"
+                  ? "bg-white text-[#0F3E86] shadow-sm font-extrabold"
+                  : "text-blue-200 hover:text-white"
+              }`}
+            >
+              <span>Mis Alumnos</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Selector de Sensei Específico (cuando está activo Todo el Dojo) */}
+        {scope === "TODO_EL_DOJO" && profesores && profesores.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-blue-200 shrink-0">
+              Sensei:
+            </span>
+            <select
+              value={selectedProfesorId}
+              onChange={(e) => setSelectedProfesorId(e.target.value)}
+              className="px-3 py-1.5 bg-[#0A2E65] border border-[#2056A8] text-cyan-300 font-bold text-xs rounded-xl focus:outline-none cursor-pointer"
+            >
+              <option value="TODOS" className="bg-[#082552] text-white">
+                Todos los Senseis
+              </option>
+              {profesores.map((prof) => (
+                <option key={prof.id} value={prof.id} className="bg-[#082552] text-white">
+                  {prof.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Barra de Búsqueda y Filtros de Cinturón */}
@@ -226,13 +304,21 @@ export function AdminAlumnosClient({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-blue-200 font-medium">
+                  <div className="flex items-center gap-3 text-xs text-blue-200 font-medium flex-wrap">
                     <span className="flex items-center gap-1">
                       <Phone className="w-3.5 h-3.5 text-cyan-300" />
                       <span>{alumno.telefono_contacto}</span>
                     </span>
                     <span>•</span>
                     <span>Emergencia: {alumno.contacto_emergencia}</span>
+                    {alumno.profesores_nombres && alumno.profesores_nombres.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-cyan-200 font-bold bg-[#0A2E65] px-2 py-0.5 rounded-md border border-[#2056A8] text-[11px]">
+                          Sensei: {alumno.profesores_nombres.join(", ")}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {alumno.notas_privadas && (

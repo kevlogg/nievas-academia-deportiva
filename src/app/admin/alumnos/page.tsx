@@ -1,6 +1,6 @@
 import React from "react";
 import { getCurrentUser } from "@/lib/auth/session";
-import { dalGetAdminAlumnos } from "@/lib/dal";
+import { dalGetAdminAlumnos, dalGetProfesores } from "@/lib/dal";
 import { AdminAlumnosClient } from "@/components/admin/AdminAlumnosClient";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
@@ -35,11 +35,13 @@ export default async function AdminAlumnosPage() {
   }
 
   const alumnos = await dalGetAdminAlumnos();
+  const profesores = await dalGetProfesores();
 
   return (
     <AdminAlumnosClient
       currentUser={currentUser}
       initialAlumnos={alumnos}
+      profesores={profesores}
     />
   );
 }

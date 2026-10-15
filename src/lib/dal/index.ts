@@ -41,7 +41,7 @@ const SEED_USUARIOS: Usuario[] = [
     id: "11111111-1111-1111-1111-111111111111",
     email: "francisco.nievas@nievasacademia.com",
     rol: "ADMIN",
-    nombre_completo: "Francisco Nievas (SuperAdmin)",
+    nombre_completo: "Francisco Nievas",
     telefono: "+54 9 11 5555-0101",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
@@ -50,7 +50,7 @@ const SEED_USUARIOS: Usuario[] = [
     id: "22222222-2222-2222-2222-222222222222",
     email: "sensei.benitez@nievasacademia.com",
     rol: "PROFESOR",
-    nombre_completo: "Sensei Lucas Benítez (Admin)",
+    nombre_completo: "Sensei Lucas Benítez",
     telefono: "+54 9 11 5555-0202",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
@@ -529,6 +529,42 @@ const dbState = {
   asistencias: [...SEED_ASISTENCIAS],
   listas_alumnos: [...SEED_LISTAS_ALUMNOS],
 };
+
+/**
+ * Helper para obtener los senseis vinculados a un alumno (por clases o listas)
+ */
+export function getProfesoresForAlumno(alumnoId: string): { ids: string[]; nombres: string[] } {
+  const profIdSet = new Set<string>();
+
+  // 1. De inscripciones activas a clases
+  const inscripciones = dbState.inscripciones.filter(
+    (i) => i.alumno_id === alumnoId && i.activo
+  );
+  for (const insc of inscripciones) {
+    const clase = dbState.clases.find((c) => c.id === insc.clase_id);
+    if (clase && clase.profesor_id) {
+      profIdSet.add(clase.profesor_id);
+    }
+  }
+
+  // 2. De listas de alumnos
+  const listas = dbState.listas_alumnos.filter((l) =>
+    l.alumnos_ids.includes(alumnoId)
+  );
+  for (const l of listas) {
+    if (l.creado_por_id) {
+      profIdSet.add(l.creado_por_id);
+    }
+  }
+
+  const ids = Array.from(profIdSet);
+  const nombres = ids.map((id) => {
+    const prof = dbState.usuarios.find((u) => u.id === id);
+    return prof?.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim() || "Sensei";
+  });
+
+  return { ids, nombres };
+}
 
 // ======================================================================================
 // DATA ACCESS LAYER (DAL) METHODS CON CONTROL DE ACCESO (RBAC)
@@ -1300,7 +1336,14 @@ export async function dalGetAdminAlumnos(
 ): Promise<Alumno[]> {
   await requireAdmin();
 
-  let list = dbState.alumnos;
+  let list = dbState.alumnos.map((a) => {
+    const { ids, nombres } = getProfesoresForAlumno(a.id);
+    return {
+      ...a,
+      profesores_ids: ids,
+      profesores_nombres: nombres,
+    };
+  });
 
   if (search && search.trim() !== "") {
     const q = search.toLowerCase().trim();
@@ -1532,7 +1575,50 @@ export async function dalEliminarListaAlumnos(
  */
 export async function dalGetTodosAlumnos(): Promise<Alumno[]> {
   await requireProfesor();
-  return dbState.alumnos.filter((a) => a.estado === "ACTIVO");
+  return dbState.alumnos
+    .filter((a) => a.estado === "ACTIVO")
+    .map((a) => {
+      const { ids, nombres } = getProfesoresForAlumno(a.id);
+      return {
+        ...a,
+        profesores_ids: ids,
+        profesores_nombres: nombres,
+      };
+    });
+}
+
+/**
+ * Crear alumno individual de forma rápida desde modal de listas
+ */
+export async function dalCrearAlumnoRapido(input: {
+  nombre: string;
+  apellido: string;
+  cinturonActual?: KarateBelt;
+  telefonoContacto?: string;
+  contactoEmergencia?: string;
+}): Promise<Alumno> {
+  const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  const nuevoAlumno: Alumno = {
+    id: "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    nombre: input.nombre.trim(),
+    apellido: input.apellido.trim(),
+    fecha_nacimiento: "2015-01-01",
+    telefono_contacto: input.telefonoContacto?.trim() || "Sin registrar",
+    contacto_emergencia: input.contactoEmergencia?.trim() || "Sin registrar",
+    cinturon_actual: input.cinturonActual || "Blanco",
+    estado: "ACTIVO",
+    notas_privadas: null,
+    profesores_ids: [currentUser.id],
+    profesores_nombres: [
+      currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim(),
+    ],
+    created_at: now,
+  };
+
+  dbState.alumnos.unshift(nuevoAlumno);
+  return nuevoAlumno;
 }
 
 /**
