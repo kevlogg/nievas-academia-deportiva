@@ -15,20 +15,33 @@ import {
   CheckCircle,
   Calendar,
   Filter,
+  Shield,
 } from "lucide-react";
 
 interface ProfesorMetricasClientProps {
   initialData: ProfesorMetricasCompletasData;
+  dojoData?: ProfesorMetricasCompletasData;
   userRole?: string;
 }
 
 type PeriodoTipo = "mes" | "3meses" | "todo" | "personalizado";
+type AlcanceTipo = "mis_clases" | "todo_el_dojo";
 
 export function ProfesorMetricasClient({
   initialData,
+  dojoData,
   userRole,
 }: ProfesorMetricasClientProps) {
-  const { profesor, sesiones, alumnos } = initialData;
+  const [alcance, setAlcance] = useState<AlcanceTipo>("mis_clases");
+
+  const activeData = useMemo(() => {
+    if (alcance === "todo_el_dojo" && dojoData) {
+      return dojoData;
+    }
+    return initialData;
+  }, [alcance, dojoData, initialData]);
+
+  const { profesor, sesiones, alumnos } = activeData;
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = profesor.nombre_completo
@@ -192,14 +205,49 @@ export function ProfesorMetricasClient({
               {cleanNombre}
             </h1>
             <p className="text-[11px] text-blue-200 font-medium truncate">
-              Métricas y estadísticas de rendimiento tatami
+              {alcance === "todo_el_dojo"
+                ? "Métricas globales y estadísticas de todo el dojo"
+                : "Métricas y estadísticas de rendimiento tatami"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 2. FILTRO DE PERÍODO (Último mes, 3 meses, Todo, Personalizado) */}
-      <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-4">
+      {/* 2. FILTRO DE PERÍODO Y ALCANCE (SuperAdmin: Mis Clases vs Todo el Dojo) */}
+      <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-4">
+        {/* Selector de Alcance para SuperAdmin: Mis Clases vs Todo el Dojo */}
+        {userRole === "ADMIN" && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/15">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
+              <Shield className="w-4 h-4 text-amber-300" />
+              <span>Alcance de Estadísticas (SuperAdmin):</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+              <button
+                onClick={() => setAlcance("mis_clases")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  alcance === "mis_clases"
+                    ? "bg-white text-[#0F3E86] shadow-md font-black scale-102"
+                    : "bg-white/10 text-blue-100 hover:bg-white/20 border border-white/20"
+                }`}
+              >
+                <span>Mis Clases (Sensei)</span>
+              </button>
+              <button
+                onClick={() => setAlcance("todo_el_dojo")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  alcance === "todo_el_dojo"
+                    ? "bg-amber-300 text-slate-900 shadow-md font-black scale-102"
+                    : "bg-white/10 text-blue-100 hover:bg-white/20 border border-white/20"
+                }`}
+              >
+                <span>Todo el Dojo</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
             <Filter className="w-4 h-4 text-cyan-300" />
@@ -283,7 +331,7 @@ export function ProfesorMetricasClient({
       {/* 3. CARDS DE MÉTRICAS DEL PERÍODO SELECCIONADO (Cards Azules #0F3E86) */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Card 1: Cantidad de Clases */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               Cantidad de Clases
@@ -303,7 +351,7 @@ export function ProfesorMetricasClient({
         </div>
 
         {/* Card 2: Alumnos Promedio */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               Alumnos Promedio
@@ -323,7 +371,7 @@ export function ProfesorMetricasClient({
         </div>
 
         {/* Card 3: Alumnos Totales */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               Alumnos Totales
@@ -343,7 +391,7 @@ export function ProfesorMetricasClient({
         </div>
 
         {/* Card 4: % de Presentismo */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               % Presentismo
@@ -363,7 +411,7 @@ export function ProfesorMetricasClient({
         </div>
 
         {/* Card 5: Asistencia Perfecta / Destacada */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               Asistencia Destacada
@@ -383,7 +431,7 @@ export function ProfesorMetricasClient({
         </div>
 
         {/* Card 6: Horas en Tatami */}
-        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
+        <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
               Horas en Tatami

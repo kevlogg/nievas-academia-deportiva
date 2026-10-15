@@ -1094,6 +1094,106 @@ export async function dalGetProfesorMetricasCompletas(
 }
 
 /**
+ * Obtener métricas consolidadas de todo el dojo (todas las clases y profesores) para el SuperAdmin
+ */
+export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCompletasData> {
+  const currentUser = await requireAdmin();
+
+  const todasClases = dbState.clases;
+  const clasesIds = new Set(todasClases.map((c) => c.id));
+
+  // Todas las sesiones dictadas en el dojo
+  const sesiones: SesionMetricaItem[] = dbState.sesiones
+    .filter((s) => clasesIds.has(s.clase_id))
+    .map((s) => {
+      const asistenciasSesion = dbState.asistencias.filter((a) => a.sesion_id === s.id);
+      const presentesCount = asistenciasSesion.filter(
+        (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+      return {
+        id: s.id,
+        clase_id: s.clase_id,
+        clase_nombre: s.clase_nombre || "Clase Tatami",
+        fecha: s.fecha,
+        presentesCount,
+        totalAsistencias: asistenciasSesion.length,
+      };
+    });
+
+  // Mapeo de alumnos con todas las clases en las que están inscriptos
+  const inscripcionesActivas = dbState.inscripciones.filter(
+    (ins) => clasesIds.has(ins.clase_id) && ins.activo
+  );
+
+  const alumnoIdToClases = new Map<string, string[]>();
+  for (const ins of inscripcionesActivas) {
+    const claseObj = todasClases.find((c) => c.id === ins.clase_id);
+    const existing = alumnoIdToClases.get(ins.alumno_id) || [];
+    if (claseObj && !existing.includes(claseObj.nombre)) {
+      existing.push(claseObj.nombre);
+    }
+    alumnoIdToClases.set(ins.alumno_id, existing);
+  }
+
+  // Asegurar que todos los alumnos activos del dojo figuren
+  for (const a of dbState.alumnos.filter((al) => al.estado === "ACTIVO")) {
+    if (!alumnoIdToClases.has(a.id)) {
+      alumnoIdToClases.set(a.id, []);
+    }
+  }
+
+  const alumnos: AlumnoMetricaItem[] = [];
+
+  for (const [alumnoId, clasesNombres] of alumnoIdToClases.entries()) {
+    const rawAlumno = dbState.alumnos.find((a) => a.id === alumnoId);
+    if (!rawAlumno) continue;
+
+    const alumno: Alumno = {
+      ...rawAlumno,
+      notas_privadas: rawAlumno.notas_privadas,
+    };
+
+    const asistenciasAlumno = dbState.asistencias
+      .filter((a) => a.alumno_id === alumnoId)
+      .map((a) => {
+        const ses = dbState.sesiones.find((s) => s.id === a.sesion_id);
+        return {
+          sesionId: a.sesion_id,
+          fecha: ses?.fecha || a.created_at.split("T")[0],
+          estado: a.estado,
+        };
+      });
+
+    const gradActual = dbState.graduaciones
+      .filter(
+        (g) => g.alumno_id === alumno.id && g.cinturon === alumno.cinturon_actual
+      )
+      .sort((x, y) => y.fecha_graduacion.localeCompare(x.fecha_graduacion))[0];
+
+    const fechaCinto = gradActual ? gradActual.fecha_graduacion : "2026-01-01";
+    const clasesEnCinto = dbState.asistencias.filter(
+      (a) =>
+        a.alumno_id === alumnoId &&
+        (a.estado === "PRESENTE" || a.estado === "TARDE") &&
+        a.marcado_en >= fechaCinto
+    ).length;
+
+    alumnos.push({
+      alumno,
+      clasesNombre: clasesNombres,
+      asistencias: asistenciasAlumno,
+      clasesEnCinturonActual: clasesEnCinto,
+    });
+  }
+
+  return {
+    profesor: currentUser,
+    sesiones,
+    alumnos,
+  };
+}
+
+/**
  * Métricas globales para el Administrador / Headmaster (/admin/dashboard)
  */
 export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetricsData> {
