@@ -1203,15 +1203,8 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     (a) => a.estado === "ACTIVO"
   ).length;
 
-  const totalAsistencias = dbState.asistencias.length;
-  const totalPresentes = dbState.asistencias.filter(
-    (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
-  ).length;
-
-  const promedioGeneralAsistencia =
-    totalAsistencias > 0
-      ? Math.round((totalPresentes / totalAsistencias) * 100)
-      : 84;
+  const totalProfesoresActivos = dbState.usuarios.filter((u) => u.activo).length;
+  const totalClasesDictadas = dbState.sesiones.length;
 
   // Desempeño por clase
   const clasesConvocatoria = dbState.clases.map((clase) => {
@@ -1226,7 +1219,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     const prom =
       sesionesClase.length > 0
         ? Math.round((pres / sesionesClase.length) * 10) / 10
-        : 14;
+        : 0;
 
     const inscriptos = dbState.inscripciones.filter(
       (i) => i.clase_id === clase.id && i.activo
@@ -1247,7 +1240,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
   const clasesConMayorConvocatoria = clasesSorted.slice(0, 3);
   const clasesConMenorConvocatoria = [...clasesSorted].reverse().slice(0, 3);
 
-  // Desempeño por profesor
+  // Desempeño por profesor (solo clases reales dictadas en tatami)
   const profesores = dbState.usuarios.filter((u) => u.activo);
   const desempenoProfesores = profesores.map((prof) => {
     const clasesProf = dbState.clases.filter((c) => c.profesor_id === prof.id);
@@ -1262,11 +1255,10 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     return {
       profesorId: prof.id,
       nombre: prof.nombre_completo,
-      clasesDictadasMes: ses.length || 18,
-      clasesProgramadasMes: 20,
+      clasesDictadas: ses.length,
       retencionPorcentaje: 92,
       promedioAlumnosPorClase:
-        ses.length > 0 ? Math.round((pres / ses.length) * 10) / 10 : 15.4,
+        ses.length > 0 ? Math.round((pres / ses.length) * 10) / 10 : 0,
     };
   });
 
@@ -1290,7 +1282,8 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
 
   return {
     totalAlumnosActivos,
-    promedioGeneralAsistencia,
+    totalProfesoresActivos,
+    totalClasesDictadas,
     clasesConMayorConvocatoria,
     clasesConMenorConvocatoria,
     desempenoProfesores,

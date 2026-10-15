@@ -256,7 +256,8 @@ export interface AlertaDesercion {
 
 export interface AdminDashboardMetricsData {
   totalAlumnosActivos: number;
-  promedioGeneralAsistencia: number;
+  totalProfesoresActivos: number;
+  totalClasesDictadas: number;
   clasesConMayorConvocatoria: Array<{
     claseId: string;
     nombre: string;
@@ -272,8 +273,7 @@ export interface AdminDashboardMetricsData {
   desempenoProfesores: Array<{
     profesorId: string;
     nombre: string;
-    clasesDictadasMes: number;
-    clasesProgramadasMes: number;
+    clasesDictadas: number;
     retencionPorcentaje: number;
     promedioAlumnosPorClase: number;
   }>;

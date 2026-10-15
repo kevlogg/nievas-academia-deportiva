@@ -110,7 +110,7 @@ export function AdminAlumnosClient({
           className="flex items-center gap-1.5 text-xs text-[#0F3E86] hover:text-blue-900 font-bold transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-[#0F3E86]" />
-          <span>Volver al Panel SuperAdmin</span>
+          <span>Volver a Dirección</span>
         </Link>
 
         <span className="text-xs font-bold text-[#0F3E86] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">

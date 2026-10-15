@@ -72,7 +72,7 @@ export function Navbar({ currentUser }: NavbarProps) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all font-semibold"
               >
                 <Shield className="w-4 h-4 text-amber-300" />
-                <span>Panel SuperAdmin</span>
+                <span>Dirección</span>
               </Link>
               <Link
                 href="/admin/alumnos"

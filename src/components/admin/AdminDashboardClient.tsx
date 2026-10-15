@@ -60,7 +60,7 @@ export function AdminDashboardClient({
               {cleanNombre}
             </h1>
             <p className="text-[11px] text-blue-200 font-medium truncate">
-              Panel directivo de la academia y tatami
+              Dirección general del dojo y retención de alumnos
             </p>
           </div>
         </div>
@@ -76,56 +76,45 @@ export function AdminDashboardClient({
         </div>
       </div>
 
-      {/* KPIs Globales del Dojo - Cards Azules #0F3E86 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+      {/* Resumen Directivo del Dojo - Cards Azules #0F3E86 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400 rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
+          <div className="flex items-center justify-between text-rose-300 text-xs font-bold">
+            <span>Alertas de Deserción</span>
+            <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse" />
+          </div>
+          <p className="text-3xl font-black text-rose-300">
+            {metrics.alertasDesercion.length}
+          </p>
+          <span className="text-[11px] text-rose-200 font-semibold">
+            Alumnos con &ge; 3 faltas seguidas
+          </span>
+        </div>
+
         <div className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
           <div className="flex items-center justify-between text-blue-200 text-xs font-bold">
-            <span>Alumnos Activos</span>
+            <span>Padrón de Alumnos</span>
             <Users className="w-4 h-4 text-cyan-300" />
           </div>
-          <p className="text-2xl font-black text-white">
+          <p className="text-3xl font-black text-white">
             {metrics.totalAlumnosActivos}
           </p>
           <span className="text-[11px] text-emerald-300 flex items-center gap-1 font-semibold">
             <CheckCircle className="w-3 h-3 text-emerald-400" />
-            <span>100% matriculados</span>
+            <span>Alumnos activos en el dojo</span>
           </span>
         </div>
 
         <div className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
           <div className="flex items-center justify-between text-blue-200 text-xs font-bold">
-            <span>Promedio Asistencia</span>
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <span>Equipo Docente</span>
+            <ShieldCheck className="w-4 h-4 text-amber-300" />
           </div>
-          <p className="text-2xl font-black text-emerald-300">
-            {metrics.promedioGeneralAsistencia}%
+          <p className="text-3xl font-black text-amber-300">
+            {metrics.totalProfesoresActivos}
           </p>
           <span className="text-[11px] text-blue-200 font-medium">
-            Asistencia global dojo
-          </span>
-        </div>
-
-        <div className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
-          <div className="flex items-center justify-between text-blue-200 text-xs font-bold">
-            <span>Clases de Tatami</span>
-            <Calendar className="w-4 h-4 text-cyan-300" />
-          </div>
-          <p className="text-2xl font-black text-white">{clases.length}</p>
-          <span className="text-[11px] text-blue-200 font-medium">
-            Horarios semanales
-          </span>
-        </div>
-
-        <div className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400/80 rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
-          <div className="flex items-center justify-between text-rose-300 text-xs font-bold">
-            <span>Alertas Deserción</span>
-            <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse" />
-          </div>
-          <p className="text-2xl font-black text-rose-300">
-            {metrics.alertasDesercion.length}
-          </p>
-          <span className="text-[11px] text-rose-300 font-semibold">
-            &ge; 3 faltas seguidas
+            Senseis profesores activos
           </span>
         </div>
       </div>
@@ -225,10 +214,10 @@ export function AdminDashboardClient({
               <div className="grid grid-cols-2 gap-2 text-center text-xs">
                 <div className="p-2.5 bg-white/10 rounded-xl border border-white/15">
                   <span className="text-[10px] text-blue-200 block font-bold">
-                    Clases Dictadas / Programadas
+                    Clases Dictadas
                   </span>
                   <span className="font-extrabold text-white text-sm">
-                    {prof.clasesDictadasMes} / {prof.clasesProgramadasMes}
+                    {prof.clasesDictadas}
                   </span>
                 </div>
 
@@ -312,14 +301,19 @@ export function AdminDashboardClient({
         </div>
       </section>
 
-      {/* SECCIÓN: GESTIÓN DE CLASES & HORARIOS */}
+      {/* SECCIÓN: CLASES REGISTRADAS DE LA ACADEMIA */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#0F3E86]" />
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Gestión de Horarios y Profesores Asignados
-            </h2>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                Clases Registradas de la Academia
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Clases y turnos para que cada Sensei dicte e inicie asistencia en tatami
+              </p>
+            </div>
           </div>
 
           <button
