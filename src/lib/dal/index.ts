@@ -37,26 +37,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 // Garantiza resiliencia 100% ante desconexiones, demo offline y pruebas inmediatas
 // ======================================================================================
 
-const SEED_USUARIOS: Usuario[] = [
-  {
-    id: "11111111-1111-1111-1111-111111111111",
-    email: "francisco.nievas@nievasacademia.com",
-    rol: "ADMIN",
-    nombre_completo: "Francisco Nievas",
-    telefono: "+54 9 11 5555-0101",
-    activo: true,
-    created_at: "2026-01-01T00:00:00Z",
-  },
-  {
-    id: "22222222-2222-2222-2222-222222222222",
-    email: "sensei.benitez@nievasacademia.com",
-    rol: "PROFESOR",
-    nombre_completo: "Sensei Lucas Benítez",
-    telefono: "+54 9 11 5555-0202",
-    activo: true,
-    created_at: "2026-01-01T00:00:00Z",
-  },
-];
+const SEED_USUARIOS: Usuario[] = [];
 
 const SEED_CLASES: Clase[] = [];
 
