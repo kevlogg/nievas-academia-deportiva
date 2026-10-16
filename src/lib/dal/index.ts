@@ -810,8 +810,16 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     const clases = dbClases || [];
     const inscripciones = dbInscripciones || [];
 
-    // Desempeño por profesor (calculado estrictamente sobre clases cerradas / dictadas)
-    const desempenoProfesores = profesores.map((prof: any) => {
+    // Desempeño por profesor (calculado estrictamente sobre docentes activos)
+    // Directores o administradores que no dictan clases no figuran como docentes.
+    const docentes = profesores.filter(
+      (prof: any) =>
+        prof.rol === "PROFESOR" ||
+        clases.some((c: any) => c.profesor_id === prof.id) ||
+        sesiones.some((s: any) => s.profesor_id === prof.id)
+    );
+
+    const desempenoProfesores = docentes.map((prof: any) => {
       const sesProf = sesiones.filter(
         (s: any) => s.profesor_id === prof.id || s.clase?.profesor_id === prof.id
       );
@@ -927,7 +935,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
 
     return {
       totalAlumnosActivos: totalAlumnosActivos || 0,
-      totalProfesoresActivos: profesores.length,
+      totalProfesoresActivos: docentes.length,
       totalClasesDictadas,
       clasesConMayorConvocatoria,
       clasesConMenorConvocatoria,
@@ -939,14 +947,18 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
   }
 
   // Fallback seguro en memoria (100% limpio en 0)
-  const profesores = dbState.usuarios.filter((u) => u.activo);
+  const docentes = dbState.usuarios.filter(
+    (u) =>
+      u.activo &&
+      (u.rol === "PROFESOR" || dbState.clases.some((c) => c.profesor_id === u.id))
+  );
   return {
     totalAlumnosActivos: dbState.alumnos.filter((a) => a.estado === "ACTIVO").length,
-    totalProfesoresActivos: profesores.length,
+    totalProfesoresActivos: docentes.length,
     totalClasesDictadas: dbState.sesiones.filter((s) => s.estado === "FINALIZADA").length,
     clasesConMayorConvocatoria: [],
     clasesConMenorConvocatoria: [],
-    desempenoProfesores: profesores.map((p) => ({
+    desempenoProfesores: docentes.map((p) => ({
       profesorId: p.id,
       nombre: p.nombre_completo,
       rol: p.rol,
@@ -1533,14 +1545,21 @@ export async function dalGetProfesores(): Promise<Usuario[]> {
   await requireAuth();
   try {
     const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase.from("usuarios").select("*").eq("activo", true);
-    if (!error && data && data.length > 0) {
-      return data as Usuario[];
+    const { data: dbUsuarios, error } = await supabase.from("usuarios").select("*").eq("activo", true);
+    const { data: dbClases } = await supabase.from("clases").select("profesor_id");
+    const profIdsConClases = new Set((dbClases || []).map((c: any) => c.profesor_id));
+
+    if (!error && dbUsuarios && dbUsuarios.length > 0) {
+      return (dbUsuarios as Usuario[]).filter(
+        (u) => u.rol === "PROFESOR" || profIdsConClases.has(u.id)
+      );
     }
   } catch (err) {
     console.error("Error in dalGetProfesores:", err);
   }
-  return dbState.usuarios.filter((u) => u.activo);
+  return dbState.usuarios.filter(
+    (u) => u.activo && (u.rol === "PROFESOR" || dbState.clases.some((c) => c.profesor_id === u.id))
+  );
 }
 
 /**

@@ -203,54 +203,61 @@ export function AdminDashboardClient({
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {metrics.desempenoProfesores.map((prof) => (
-            <div
-              key={prof.profesorId}
-              className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-white text-base">
-                    {prof.nombre}
-                  </h3>
-                  <p className="text-xs text-cyan-300 font-medium">
-                    {prof.rol === "ADMIN" ? "Dirección (Admin)" : "Sensei Profesor"}
-                  </p>
-                </div>
-                {prof.clasesDictadas > 0 ? (
-                  <span className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-700/60">
-                    {prof.retencionPorcentaje}% Retención
-                  </span>
-                ) : (
-                  <span className="text-xs font-semibold text-blue-200 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
-                    Sin clases dictadas
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="p-2.5 bg-white/10 rounded-xl border border-white/15">
-                  <span className="text-[10px] text-blue-200 block font-bold">
-                    Clases Dictadas
-                  </span>
-                  <span className="font-extrabold text-white text-sm">
-                    {prof.clasesDictadas}
-                  </span>
+        {metrics.desempenoProfesores.length === 0 ? (
+          <div className="p-5 bg-white rounded-2xl border border-slate-200 text-center py-8 text-xs text-slate-500 font-medium space-y-1">
+            <p className="font-bold text-slate-700 text-sm">Sin profesores docentes asignados</p>
+            <p>Aún no hay profesores con rol de Sensei o clases asignadas en el dojo.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {metrics.desempenoProfesores.map((prof) => (
+              <div
+                key={prof.profesorId}
+                className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-xl shadow-blue-950/15 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-white text-base">
+                      {prof.nombre}
+                    </h3>
+                    <p className="text-xs text-cyan-300 font-medium">
+                      {prof.rol === "ADMIN" ? "Dirección (Admin)" : "Sensei Profesor"}
+                    </p>
+                  </div>
+                  {prof.clasesDictadas > 0 ? (
+                    <span className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-700/60">
+                      {prof.retencionPorcentaje}% Retención
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-blue-200 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                      Sin clases dictadas
+                    </span>
+                  )}
                 </div>
 
-                <div className="p-2.5 bg-white/10 rounded-xl border border-white/15">
-                  <span className="text-[10px] text-blue-200 block font-bold">
-                    Promedio Alumnos / Clase
-                  </span>
-                  <span className="font-extrabold text-cyan-300 text-sm">
-                    {prof.promedioAlumnosPorClase}
-                  </span>
+                <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                  <div className="p-2.5 bg-white/10 rounded-xl border border-white/15">
+                    <span className="text-[10px] text-blue-200 block font-bold">
+                      Clases Dictadas
+                    </span>
+                    <span className="font-extrabold text-white text-sm">
+                      {prof.clasesDictadas}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 bg-white/10 rounded-xl border border-white/15">
+                    <span className="text-[10px] text-blue-200 block font-bold">
+                      Promedio Alumnos / Clase
+                    </span>
+                    <span className="font-extrabold text-cyan-300 text-sm">
+                      {prof.promedioAlumnosPorClase}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* SECCIÓN: CONVOCATORIA DE CLASES (Cards Azules #0F3E86) */}
