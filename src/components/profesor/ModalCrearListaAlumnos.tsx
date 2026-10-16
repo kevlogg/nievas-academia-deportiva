@@ -252,7 +252,7 @@ export function ModalCrearListaAlumnos({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl shadow-[#0F3E86]/40 overflow-hidden">
+      <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl w-full max-w-xl sm:max-w-2xl max-h-[92vh] flex flex-col shadow-2xl shadow-[#0F3E86]/40 overflow-hidden">
         {/* Cabecera Modal */}
         <div className="px-5 py-4 bg-[#0B2E63] border-b border-[#1E57A8] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -331,45 +331,51 @@ export function ModalCrearListaAlumnos({
               </span>
             </div>
 
-            {/* Pestañas / Chips */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#092652] rounded-2xl border border-[#2056A8]">
+            {/* Pestañas / Chips - Sin truncar texto */}
+            <div className="grid grid-cols-3 gap-1 sm:gap-2 p-1.5 bg-[#092652] rounded-2xl border border-[#2056A8]">
               <button
                 type="button"
                 onClick={() => setActiveTab("MIS_CLASES")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer text-center ${
                   activeTab === "MIS_CLASES"
                     ? "bg-white text-[#0F3E86] shadow-sm font-black"
-                    : "text-blue-200 hover:text-white"
+                    : "text-blue-200 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span className="truncate">Mis Clases ({misAlumnos.length})</span>
+                <UserCheck className="w-4 h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
+                  Mis Clases <span className="opacity-80 font-semibold">({misAlumnos.length})</span>
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("OTRO_SENSEI")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer text-center ${
                   activeTab === "OTRO_SENSEI"
                     ? "bg-white text-[#0F3E86] shadow-sm font-black"
-                    : "text-blue-200 hover:text-white"
+                    : "text-blue-200 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <Users className="w-3.5 h-3.5" />
-                <span className="truncate">Otro Sensei ({otrosSenseisAlumnos.length})</span>
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
+                  Otro Sensei <span className="opacity-80 font-semibold">({otrosSenseisAlumnos.length})</span>
+                </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("NUEVO_ALUMNO")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer text-center ${
                   activeTab === "NUEVO_ALUMNO"
                     ? "bg-white text-[#0F3E86] shadow-sm font-black"
-                    : "text-blue-200 hover:text-white"
+                    : "text-blue-200 hover:text-white hover:bg-white/5"
                 }`}
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span className="truncate">Alumno Nuevo</span>
+                <UserPlus className="w-4 h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
+                  Alumno Nuevo
+                </span>
               </button>
             </div>
 

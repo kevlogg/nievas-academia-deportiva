@@ -60,9 +60,14 @@ export const CrearClaseSchema = z.object({
   nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
   profesorId: z.string().optional(),
   listaAlumnosId: z.string().optional(),
+  fecha: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato AAAA-MM-DD")
+    .optional(),
   diasSemana: z
     .array(z.number().int().min(0).max(6))
-    .min(1, "Debe seleccionar al menos un día"),
+    .optional()
+    .default([]),
   horaInicio: z
     .string()
     .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM"),

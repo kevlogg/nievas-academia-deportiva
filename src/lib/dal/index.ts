@@ -1114,6 +1114,14 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
   const profesor = dbState.usuarios.find((u) => u.id === effectiveProfId);
   const now = new Date().toISOString();
   const hoyFecha = now.split("T")[0];
+  const fechaClase = data.fecha || hoyFecha;
+
+  // Si no se pasaron días de semana pero sí fecha, calcular el día de la semana
+  let diasSemana = data.diasSemana && data.diasSemana.length > 0 ? data.diasSemana : [];
+  if (diasSemana.length === 0 && fechaClase) {
+    const d = new Date(`${fechaClase}T12:00:00`).getDay();
+    diasSemana = [isNaN(d) ? new Date().getDay() : d];
+  }
 
   let nuevaClaseId = "c" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
   let nuevaSesionId = "s" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
@@ -1123,7 +1131,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     const { data: dbClase, error: errClase } = await supabase.from("clases").insert({
       nombre: data.nombre.trim(),
       profesor_id: effectiveProfId,
-      dias_semana: data.diasSemana,
+      dias_semana: diasSemana,
       hora_inicio: data.horaInicio,
       hora_fin: data.horaFin,
       cupo_maximo: data.cupoMaximo,
@@ -1145,7 +1153,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
           const inscRows = alumnosInscriptosIds.map((aId) => ({
             clase_id: dbClase.id,
             alumno_id: aId,
-            fecha_alta: hoyFecha,
+            fecha_alta: fechaClase,
             activo: true,
           }));
           await supabase.from("inscripciones").insert(inscRows);
@@ -1155,7 +1163,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
       const { data: dbSesion } = await supabase.from("sesiones_clase").insert({
         clase_id: dbClase.id,
         profesor_id: effectiveProfId,
-        fecha: hoyFecha,
+        fecha: fechaClase,
         hora_apertura: now,
         estado: "ABIERTA",
         observaciones: "Sesión creada al iniciar clase.",
@@ -1184,7 +1192,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     nombre: data.nombre.trim(),
     profesor_id: effectiveProfId,
     profesor_nombre: profesor ? profesor.nombre_completo : currentUser.nombre_completo,
-    dias_semana: data.diasSemana,
+    dias_semana: diasSemana,
     hora_inicio: data.horaInicio,
     hora_fin: data.horaFin,
     cupo_maximo: data.cupoMaximo,
@@ -1203,7 +1211,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
           id: "i" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
           clase_id: nuevaClase.id,
           alumno_id: alumnoId,
-          fecha_alta: hoyFecha,
+          fecha_alta: fechaClase,
           activo: true,
           created_at: now,
         });
@@ -1216,7 +1224,7 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     id: nuevaSesionId,
     clase_id: nuevaClase.id,
     profesor_id: effectiveProfId,
-    fecha: hoyFecha,
+    fecha: fechaClase,
     hora_apertura: now,
     estado: "ABIERTA",
     observaciones: "Sesión creada al iniciar clase.",

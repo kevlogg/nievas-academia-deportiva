@@ -32,8 +32,8 @@ export function ModalCrearClase({
     profesores[0]?.id || "22222222-2222-2222-2222-222222222222"
   );
   const [diasSemana, setDiasSemana] = useState<number[]>([1, 3, 5]);
-  const [horaInicio, setHoraInicio] = useState("18:00");
-  const [horaFin, setHoraFin] = useState("19:15");
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
   const [cupoMaximo, setCupoMaximo] = useState(25);
 
   const [isPending, startTransition] = useTransition();

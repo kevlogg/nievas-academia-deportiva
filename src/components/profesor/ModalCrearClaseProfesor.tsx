@@ -15,16 +15,6 @@ interface ModalCrearClaseProfesorProps {
   onClaseCreada?: (nuevaClase: Clase) => void;
 }
 
-const DIAS_SEMANA_OPCIONES = [
-  { val: 1, label: "Lun" },
-  { val: 2, label: "Mar" },
-  { val: 3, label: "Mié" },
-  { val: 4, label: "Jue" },
-  { val: 5, label: "Vie" },
-  { val: 6, label: "Sáb" },
-  { val: 0, label: "Dom" },
-];
-
 export function ModalCrearClaseProfesor({
   isOpen,
   onClose,
@@ -34,30 +24,25 @@ export function ModalCrearClaseProfesor({
   onClaseCreada,
 }: ModalCrearClaseProfesorProps) {
   const router = useRouter();
-  const hoyIndex = new Date().getDay();
 
   const [nombre, setNombre] = useState("");
   const [listaAlumnosId, setListaAlumnosId] = useState<string>(
     listasDisponibles.length > 0 ? listasDisponibles[0].id : ""
   );
-  const [horaInicio, setHoraInicio] = useState("18:00");
-  const [horaFin, setHoraFin] = useState("19:15");
-  const [diasSemana, setDiasSemana] = useState<number[]>([hoyIndex]);
+  const [fecha, setFecha] = useState(() => {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, "0");
+    const d = String(hoy.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
   const [cupoMaximo, setCupoMaximo] = useState<number>(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const toggleDia = (dia: number) => {
-    setDiasSemana((prev) =>
-      prev.includes(dia)
-        ? prev.length > 1
-          ? prev.filter((d) => d !== dia)
-          : prev
-        : [...prev, dia]
-    );
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,15 +54,27 @@ export function ModalCrearClaseProfesor({
       setError("Por favor selecciona una lista de alumnos para la clase");
       return;
     }
+    if (!fecha) {
+      setError("Por favor selecciona la fecha de la clase");
+      return;
+    }
+    if (!horaInicio || !horaFin) {
+      setError("Por favor completa los horarios de inicio y fin de la clase");
+      return;
+    }
 
     setLoading(true);
     setError(null);
+
+    const fechaObj = new Date(`${fecha}T12:00:00`);
+    const diaSemana = isNaN(fechaObj.getDay()) ? new Date().getDay() : fechaObj.getDay();
 
     const res = await crearClaseAction({
       nombre: nombre.trim(),
       profesorId: profesorId,
       listaAlumnosId: listaAlumnosId,
-      diasSemana: diasSemana,
+      fecha: fecha,
+      diasSemana: [diaSemana],
       horaInicio: `${horaInicio}:00`,
       horaFin: `${horaFin}:00`,
       cupoMaximo: cupoMaximo,
@@ -157,13 +154,6 @@ export function ModalCrearClaseProfesor({
                 <Users className="w-4 h-4 text-cyan-300" />
                 <span>Lista de Alumnos para esta Clase *</span>
               </label>
-              <button
-                type="button"
-                onClick={onOpenCrearLista}
-                className="text-xs font-bold text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <span>+ Crear nueva lista</span>
-              </button>
             </div>
 
             {listasDisponibles.length === 0 ? (
@@ -239,31 +229,19 @@ export function ModalCrearClaseProfesor({
             </div>
           </div>
 
-          {/* Días de la semana */}
+          {/* Fecha de la Clase */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-blue-100 uppercase tracking-wider flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-cyan-300" />
-              <span>Días de Entrenamiento</span>
+            <label className="text-xs font-bold text-blue-100 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-cyan-300" />
+              <span>Fecha de la Clase *</span>
             </label>
-            <div className="grid grid-cols-7 gap-1.5">
-              {DIAS_SEMANA_OPCIONES.map((dia) => {
-                const isSelected = diasSemana.includes(dia.val);
-                return (
-                  <button
-                    key={dia.val}
-                    type="button"
-                    onClick={() => toggleDia(dia.val)}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
-                      isSelected
-                        ? "bg-white text-[#0F3E86] shadow-md font-extrabold"
-                        : "bg-[#0A2E65] text-blue-200 border border-[#2056A8] hover:bg-[#144EAA] hover:text-white"
-                    }`}
-                  >
-                    {dia.label}
-                  </button>
-                );
-              })}
-            </div>
+            <input
+              type="date"
+              required
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-white text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white transition-all cursor-pointer"
+            />
           </div>
 
           {/* Botones de Acción */}
