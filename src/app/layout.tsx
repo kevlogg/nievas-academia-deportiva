@@ -2,16 +2,24 @@ import type { Metadata, Viewport } from "next";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Navbar } from "@/components/navigation/Navbar";
 import { BottomBar } from "@/components/navigation/BottomBar";
+import { PwaManager } from "@/components/pwa/PwaManager";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Nievas Academia Deportiva | Karate Tradicional",
   description:
     "Sistema oficial de gestión de asistencia en tatami, métricas deportivas y seguimiento de graduaciones para Nievas Academia Deportiva.",
-  applicationName: "Nievas Karate Tatami",
+  applicationName: "Nievas Tatami",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/logo.jpg" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -43,6 +51,7 @@ export default async function RootLayout({
           {children}
         </main>
         <BottomBar userRole={currentUser?.rol} />
+        <PwaManager />
       </body>
     </html>
   );

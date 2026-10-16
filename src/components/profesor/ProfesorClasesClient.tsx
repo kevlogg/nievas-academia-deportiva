@@ -36,6 +36,7 @@ import {
   Edit2,
   Trash2,
   Menu,
+  User,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -229,6 +230,15 @@ export function ProfesorClasesClient({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                       <span>{item.presentesCount} presentes</span>
                     </span>
+                    {item.clase.profesor_nombre && (
+                      <>
+                        <span className="text-blue-300/40 hidden xs:inline">•</span>
+                        <span className="flex items-center gap-1 text-[11px] text-cyan-200 bg-[#082552] px-2 py-0.5 rounded-md border border-[#2056A8]">
+                          <User className="w-3 h-3 text-cyan-300 shrink-0" />
+                          <span>Sensei: {item.clase.profesor_nombre}</span>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 

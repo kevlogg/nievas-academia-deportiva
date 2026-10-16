@@ -1627,6 +1627,9 @@ export async function dalGetClasesAbiertas(
 
     const { data, error } = await query;
     if (!error && data) {
+      const { data: dbUsuarios } = await supabase.from("usuarios").select("id, nombre_completo");
+      const userMap = new Map((dbUsuarios || []).map((u: any) => [u.id, u.nombre_completo]));
+
       const items: ClaseAbiertaItem[] = [];
       for (const row of data) {
         const sesion: SesionClase = {
@@ -1641,11 +1644,16 @@ export async function dalGetClasesAbiertas(
           clase_nombre: (row.clase as any)?.nombre || "Clase Tatami",
         };
 
+        const profId = row.profesor_id || (row.clase as any)?.profesor_id;
+        const profNombre =
+          userMap.get(profId) ||
+          (profId === currentUser.id ? currentUser.nombre_completo : "Sensei");
+
         const clase: Clase = {
           id: (row.clase as any)?.id || row.clase_id,
           nombre: (row.clase as any)?.nombre || "Clase Tatami",
-          profesor_id: (row.clase as any)?.profesor_id || row.profesor_id,
-          profesor_nombre: currentUser.nombre_completo,
+          profesor_id: profId,
+          profesor_nombre: profNombre,
           dias_semana: (row.clase as any)?.dias_semana || [1, 3, 5],
           hora_inicio: (row.clase as any)?.hora_inicio || "18:00:00",
           hora_fin: (row.clase as any)?.hora_fin || "19:15:00",
