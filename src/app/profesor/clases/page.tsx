@@ -1,5 +1,5 @@
 import React from "react";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireProfesor } from "@/lib/auth/session";
 import {
   dalGetUltimasClasesProfesor,
   dalGetListasAlumnos,
@@ -11,7 +11,7 @@ import { ProfesorClasesClient } from "@/components/profesor/ProfesorClasesClient
 export const dynamic = "force-dynamic";
 
 export default async function ProfesorClasesPage() {
-  const currentUser = await getCurrentUser();
+  const currentUser = await requireProfesor();
   const ultimasClases = await dalGetUltimasClasesProfesor(
     currentUser.rol === "ADMIN" ? undefined : currentUser.id,
     3

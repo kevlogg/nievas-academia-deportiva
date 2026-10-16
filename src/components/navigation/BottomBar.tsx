@@ -8,11 +8,16 @@ import { cn } from "@/lib/utils";
 import { UserRole } from "@/types";
 
 interface BottomBarProps {
-  userRole: UserRole;
+  userRole?: UserRole;
 }
 
 export function BottomBar({ userRole }: BottomBarProps) {
   const pathname = usePathname();
+
+  if (!userRole || pathname === "/login" || pathname === "/setup") {
+    return null;
+  }
+
   const isAdmin = userRole === "ADMIN";
 
   const navItems = [

@@ -1,5 +1,5 @@
 import React from "react";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireProfesor } from "@/lib/auth/session";
 import {
   dalGetProfesorMetricasCompletas,
   dalGetDojoMetricasCompletas,
@@ -9,7 +9,7 @@ import { ProfesorMetricasClient } from "@/components/profesor/ProfesorMetricasCl
 export const dynamic = "force-dynamic";
 
 export default async function ProfesorMetricasPage() {
-  const currentUser = await getCurrentUser();
+  const currentUser = await requireProfesor();
   const isAdmin = currentUser.rol === "ADMIN";
 
   const [metricasCompletas, dojoData] = await Promise.all([

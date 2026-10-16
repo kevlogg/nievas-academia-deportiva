@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
+import { requireProfesor } from "@/lib/auth/session";
 import {
   dalGetClaseById,
   dalGetOrCreateSesionClase,
@@ -20,7 +20,7 @@ export default async function AsistenciaTatamiPage({
   params,
 }: AsistenciaPageProps) {
   const { id: claseId } = await params;
-  const currentUser = await getCurrentUser();
+  const currentUser = await requireProfesor();
 
   const clase = await dalGetClaseById(claseId);
   if (!clase) {

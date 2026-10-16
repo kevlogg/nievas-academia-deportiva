@@ -42,7 +42,7 @@ export default async function RootLayout({
         <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-24 md:pb-8">
           {children}
         </main>
-        <BottomBar userRole={currentUser.rol} />
+        <BottomBar userRole={currentUser?.rol} />
       </body>
     </html>
   );
