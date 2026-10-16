@@ -9,7 +9,7 @@ export const DEMO_USERS: Record<UserRole, Usuario> = {
     id: "11111111-1111-1111-1111-111111111111",
     email: "francisco.nievas@nievasacademia.com",
     rol: "ADMIN",
-    nombre_completo: "Francisco Nievas (SuperAdmin)",
+    nombre_completo: "Francisco Nievas",
     telefono: "+54 9 11 5555-0101",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
@@ -18,7 +18,7 @@ export const DEMO_USERS: Record<UserRole, Usuario> = {
     id: "22222222-2222-2222-2222-222222222222",
     email: "sensei.benitez@nievasacademia.com",
     rol: "PROFESOR",
-    nombre_completo: "Sensei Lucas Benítez (Admin)",
+    nombre_completo: "Sensei Lucas Benítez",
     telefono: "+54 9 11 5555-0202",
     activo: true,
     created_at: "2026-01-01T00:00:00Z",
@@ -40,8 +40,8 @@ export async function getCurrentUser(): Promise<Usuario> {
     }
   }
 
-  // Por defecto en desarrollo / tatami táctil iniciamos con el profesor asignado al tatami
-  return DEMO_USERS.PROFESOR;
+  // Por defecto iniciamos con Francisco Nievas (Dirección / Headmaster)
+  return DEMO_USERS.ADMIN;
 }
 
 export async function requireAuth(): Promise<Usuario> {

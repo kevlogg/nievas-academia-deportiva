@@ -42,7 +42,7 @@ export function SetupWizardClient() {
 
   const handleCopySql = () => {
     const sqlText = `-- NIEVAS ACADEMIA DEPORTIVA - SCHEMA SQL
--- Ejecuta este script en: https://supabase.com/dashboard/project/oetagnusdhbqrznugwuo/sql/new
+-- Ejecuta este script en: https://supabase.com/dashboard/project/ydophhbpkfurlspxczug/sql/new
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -256,7 +256,7 @@ CREATE POLICY "Gestion graduaciones" ON public.historial_graduaciones FOR ALL US
               <div className="flex justify-between text-blue-200">
                 <span>Proyecto Supabase:</span>
                 <span className="font-mono text-cyan-300 font-bold truncate max-w-[180px]">
-                  oetagnusdhbqrznugwuo
+                  ydophhbpkfurlspxczug
                 </span>
               </div>
               <div className="flex justify-between text-blue-200">
@@ -284,7 +284,7 @@ CREATE POLICY "Gestion graduaciones" ON public.historial_graduaciones FOR ALL US
             </button>
 
             <a
-              href="https://supabase.com/dashboard/project/oetagnusdhbqrznugwuo/sql/new"
+              href="https://supabase.com/dashboard/project/ydophhbpkfurlspxczug/sql/new"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-2 bg-white/10 hover:bg-white/20 text-cyan-300 font-bold text-xs rounded-xl border border-white/20 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

@@ -57,468 +57,15 @@ const SEED_USUARIOS: Usuario[] = [
   },
 ];
 
-const SEED_CLASES: Clase[] = [
-  {
-    id: "c1111111-1111-1111-1111-111111111111",
-    nombre: "Infantiles Kumite (6-12 años)",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    profesor_nombre: "Sensei Lucas Benítez (Admin)",
-    dias_semana: [1, 3, 5], // Lun, Mié, Vie
-    hora_inicio: "18:00:00",
-    hora_fin: "19:15:00",
-    cupo_maximo: 25,
-    activa: true,
-    created_at: "2026-01-01T00:00:00Z",
-    total_inscriptos: 5,
-  },
-  {
-    id: "c2222222-2222-2222-2222-222222222222",
-    nombre: "Juveniles Kata & Bunkai",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    profesor_nombre: "Sensei Lucas Benítez (Admin)",
-    dias_semana: [2, 4], // Mar, Jue
-    hora_inicio: "19:30:00",
-    hora_fin: "21:00:00",
-    cupo_maximo: 20,
-    activa: true,
-    created_at: "2026-01-01T00:00:00Z",
-    total_inscriptos: 2,
-  },
-  {
-    id: "c3333333-3333-3333-3333-333333333333",
-    nombre: "Adultos Tradicional y Dan",
-    profesor_id: "11111111-1111-1111-1111-111111111111",
-    profesor_nombre: "Francisco Nievas (SuperAdmin)",
-    dias_semana: [1, 3, 5], // Lun, Mié, Vie
-    hora_inicio: "20:30:00",
-    hora_fin: "22:00:00",
-    cupo_maximo: 30,
-    activa: true,
-    created_at: "2026-01-01T00:00:00Z",
-    total_inscriptos: 4,
-  },
-];
+const SEED_CLASES: Clase[] = [];
 
-const SEED_ALUMNOS: Alumno[] = [
-  {
-    id: "a1111111-1111-1111-1111-111111111111",
-    nombre: "Joaquín",
-    apellido: "Martínez",
-    fecha_nacimiento: "2014-05-12",
-    telefono_contacto: "+54 9 11 4444-1111",
-    contacto_emergencia: "Madre: Mariana +54 9 11 4444-1112",
-    cinturon_actual: "Amarillo",
-    estado: "ACTIVO",
-    notas_privadas: "Asmático leve, lleva inhalador en su bolso.",
-    created_at: "2026-01-15T00:00:00Z",
-  },
-  {
-    id: "a2222222-2222-2222-2222-222222222222",
-    nombre: "Sofía",
-    apellido: "Gómez",
-    fecha_nacimiento: "2013-09-20",
-    telefono_contacto: "+54 9 11 4444-2221",
-    contacto_emergencia: "Padre: Roberto +54 9 11 4444-2222",
-    cinturon_actual: "Naranja",
-    estado: "ACTIVO",
-    notas_privadas: "Excelente rendimiento técnico. Candidata a torneo regional.",
-    created_at: "2026-01-15T00:00:00Z",
-  },
-  {
-    id: "a3333333-3333-3333-3333-333333333333",
-    nombre: "Mateo",
-    apellido: "Rossi",
-    fecha_nacimiento: "2012-02-14",
-    telefono_contacto: "+54 9 11 4444-3331",
-    contacto_emergencia: "Tutor: Claudio +54 9 11 4444-3332",
-    cinturon_actual: "Verde",
-    estado: "ACTIVO",
-    notas_privadas: "Requiere seguimiento en guardias altas y disciplina.",
-    created_at: "2026-02-01T00:00:00Z",
-  },
-  {
-    id: "a4444444-4444-4444-4444-444444444444",
-    nombre: "Valentina",
-    apellido: "Díaz",
-    fecha_nacimiento: "2015-11-03",
-    telefono_contacto: "+54 9 11 4444-4441",
-    contacto_emergencia: "Madre: Patricia +54 9 11 4444-4442",
-    cinturon_actual: "Blanco",
-    estado: "ACTIVO",
-    notas_privadas: "Hermana menor de Mateo Díaz. Asistencia regular.",
-    created_at: "2026-03-01T00:00:00Z",
-  },
-  {
-    id: "a5555555-5555-5555-5555-555555555555",
-    nombre: "Facundo",
-    apellido: "Fernández",
-    fecha_nacimiento: "2011-07-29",
-    telefono_contacto: "+54 9 11 4444-5551",
-    contacto_emergencia: "Padre: Gabriel +54 9 11 4444-5552",
-    cinturon_actual: "Azul",
-    estado: "ACTIVO",
-    notas_privadas: "Alerta deserción: 3 faltas consecutivas por viaje y salud.",
-    created_at: "2026-01-10T00:00:00Z",
-  },
-  {
-    id: "a6666666-6666-6666-6666-666666666666",
-    nombre: "Camila",
-    apellido: "López",
-    fecha_nacimiento: "2010-04-18",
-    telefono_contacto: "+54 9 11 4444-6661",
-    contacto_emergencia: "Madre: Elena +54 9 11 4444-6662",
-    cinturon_actual: "Marrón",
-    estado: "ACTIVO",
-    notas_privadas: "Preparándose para examen Shodan (Cinturón Negro) a fin de año.",
-    created_at: "2026-01-10T00:00:00Z",
-  },
-  {
-    id: "a7777777-7777-7777-7777-777777777777",
-    nombre: "Agustín",
-    apellido: "Pérez",
-    fecha_nacimiento: "2008-01-10",
-    telefono_contacto: "+54 9 11 4444-7771",
-    contacto_emergencia: "Padre: Juan +54 9 11 4444-7772",
-    cinturon_actual: "Blanco/Amarillo",
-    estado: "ACTIVO",
-    notas_privadas: "Atento a puntualidad, viene en colectivo desde zona oeste.",
-    created_at: "2026-02-15T00:00:00Z",
-  },
-  {
-    id: "a8888888-8888-8888-8888-888888888888",
-    nombre: "Santiago",
-    apellido: "Nievas",
-    fecha_nacimiento: "1998-03-22",
-    telefono_contacto: "+54 9 11 4444-8881",
-    contacto_emergencia: "Hermana: Lucía +54 9 11 4444-8882",
-    cinturon_actual: "Negro",
-    estado: "ACTIVO",
-    notas_privadas: "Instructor asistente en kumite de adultos.",
-    created_at: "2025-01-01T00:00:00Z",
-  },
-];
+const SEED_ALUMNOS: Alumno[] = [];
+const SEED_INSCRIPCIONES: Inscripcion[] = [];
+const SEED_GRADUACIONES: HistorialGraduacion[] = [];
+const SEED_SESIONES: SesionClase[] = [];
+const SEED_ASISTENCIAS: Asistencia[] = [];
+const SEED_LISTAS_ALUMNOS: ListaAlumnos[] = [];
 
-const SEED_INSCRIPCIONES: Inscripcion[] = [
-  {
-    id: "i1111111-1111-1111-1111-111111111111",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    alumno_id: "a1111111-1111-1111-1111-111111111111",
-    fecha_alta: "2026-01-15",
-    activo: true,
-    created_at: "2026-01-15T00:00:00Z",
-  },
-  {
-    id: "i2222222-2222-2222-2222-222222222222",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    alumno_id: "a2222222-2222-2222-2222-222222222222",
-    fecha_alta: "2026-01-15",
-    activo: true,
-    created_at: "2026-01-15T00:00:00Z",
-  },
-  {
-    id: "i3333333-3333-3333-3333-333333333333",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    alumno_id: "a3333333-3333-3333-3333-333333333333",
-    fecha_alta: "2026-02-01",
-    activo: true,
-    created_at: "2026-02-01T00:00:00Z",
-  },
-  {
-    id: "i4444444-4444-4444-4444-444444444444",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    alumno_id: "a4444444-4444-4444-4444-444444444444",
-    fecha_alta: "2026-03-01",
-    activo: true,
-    created_at: "2026-03-01T00:00:00Z",
-  },
-  {
-    id: "i5555555-5555-5555-5555-555555555555",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    alumno_id: "a5555555-5555-5555-5555-555555555555",
-    fecha_alta: "2026-01-10",
-    activo: true,
-    created_at: "2026-01-10T00:00:00Z",
-  },
-  {
-    id: "i6666666-6666-6666-6666-666666666666",
-    clase_id: "c2222222-2222-2222-2222-222222222222",
-    alumno_id: "a6666666-6666-6666-6666-666666666666",
-    fecha_alta: "2026-01-10",
-    activo: true,
-    created_at: "2026-01-10T00:00:00Z",
-  },
-  {
-    id: "i7777777-7777-7777-7777-777777777777",
-    clase_id: "c2222222-2222-2222-2222-222222222222",
-    alumno_id: "a7777777-7777-7777-7777-777777777777",
-    fecha_alta: "2026-02-15",
-    activo: true,
-    created_at: "2026-02-15T00:00:00Z",
-  },
-  {
-    id: "i8888888-8888-8888-8888-888888888888",
-    clase_id: "c3333333-3333-3333-3333-333333333333",
-    alumno_id: "a8888888-8888-8888-8888-888888888888",
-    fecha_alta: "2026-01-01",
-    activo: true,
-    created_at: "2026-01-01T00:00:00Z",
-  },
-];
-
-// Historial de Graduaciones de ejemplo
-const SEED_GRADUACIONES: HistorialGraduacion[] = [
-  {
-    id: "g1111111-1111-1111-1111-111111111111",
-    alumno_id: "a1111111-1111-1111-1111-111111111111",
-    cinturon: "Amarillo",
-    fecha_graduacion: "2026-06-15",
-    graduado_por: "11111111-1111-1111-1111-111111111111",
-    graduado_por_nombre: "Sensei Marcos Nievas",
-    observaciones: "Excelente técnica básica en Heian Shodan.",
-    created_at: "2026-06-15T00:00:00Z",
-  },
-  {
-    id: "g2222222-2222-2222-2222-222222222222",
-    alumno_id: "a2222222-2222-2222-2222-222222222222",
-    cinturon: "Naranja",
-    fecha_graduacion: "2026-07-20",
-    graduado_por: "22222222-2222-2222-2222-222222222222",
-    graduado_por_nombre: "Sensei Lucas Benítez",
-    observaciones: "Gran actitud y postura en kiba dachi.",
-    created_at: "2026-07-20T00:00:00Z",
-  },
-  {
-    id: "g3333333-3333-3333-3333-333333333333",
-    alumno_id: "a6666666-6666-6666-6666-666666666666",
-    cinturon: "Marrón",
-    fecha_graduacion: "2026-05-10",
-    graduado_por: "11111111-1111-1111-1111-111111111111",
-    graduado_por_nombre: "Sensei Marcos Nievas",
-    observaciones: "Aprobada con honores en Kata Kanku Dai y Jiyu Kumite.",
-    created_at: "2026-05-10T00:00:00Z",
-  },
-];
-
-// Sesiones de Clase y Asistencias
-const SEED_SESIONES: SesionClase[] = [
-  {
-    id: "s1111111-1111-1111-1111-111111111111",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    fecha: new Date().toISOString().split("T")[0],
-    hora_apertura: new Date().toISOString(),
-    estado: "ABIERTA",
-    observaciones: "Entrenamiento de patadas y desplazamientos básicos.",
-    created_at: new Date().toISOString(),
-    clase_nombre: "Infantiles Kumite (6-12 años)",
-  },
-  {
-    id: "s2222222-2222-2222-2222-222222222222",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    fecha: new Date(Date.now() - 5 * 86400000).toISOString().split("T")[0],
-    hora_apertura: new Date(Date.now() - 5 * 86400000).toISOString(),
-    estado: "FINALIZADA",
-    observaciones: "Práctica de guardias y combinaciones.",
-    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-    clase_nombre: "Infantiles Kumite (6-12 años)",
-  },
-  {
-    id: "s3333333-3333-3333-3333-333333333333",
-    clase_id: "c2222222-2222-2222-2222-222222222222",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    fecha: new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0],
-    hora_apertura: new Date(Date.now() - 14 * 86400000).toISOString(),
-    estado: "FINALIZADA",
-    observaciones: "Kata Bassai Dai y bunkai básico.",
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-    clase_nombre: "Juveniles Kata & Bunkai",
-  },
-  {
-    id: "s4444444-4444-4444-4444-444444444444",
-    clase_id: "c1111111-1111-1111-1111-111111111111",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    fecha: new Date(Date.now() - 45 * 86400000).toISOString().split("T")[0],
-    hora_apertura: new Date(Date.now() - 45 * 86400000).toISOString(),
-    estado: "FINALIZADA",
-    observaciones: "Kihon Ippon Kumite.",
-    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-    clase_nombre: "Infantiles Kumite (6-12 años)",
-  },
-  {
-    id: "s5555555-5555-5555-5555-555555555555",
-    clase_id: "c2222222-2222-2222-2222-222222222222",
-    profesor_id: "22222222-2222-2222-2222-222222222222",
-    fecha: new Date(Date.now() - 75 * 86400000).toISOString().split("T")[0],
-    hora_apertura: new Date(Date.now() - 75 * 86400000).toISOString(),
-    estado: "FINALIZADA",
-    observaciones: "Evaluación técnica de posiciones.",
-    created_at: new Date(Date.now() - 75 * 86400000).toISOString(),
-    clase_nombre: "Juveniles Kata & Bunkai",
-  },
-];
-
-const SEED_ASISTENCIAS: Asistencia[] = [
-  // Sesion 1 (Hoy)
-  {
-    id: "as111111-1111-1111-1111-111111111111",
-    sesion_id: "s1111111-1111-1111-1111-111111111111",
-    alumno_id: "a1111111-1111-1111-1111-111111111111",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "as222222-2222-2222-2222-222222222222",
-    sesion_id: "s1111111-1111-1111-1111-111111111111",
-    alumno_id: "a2222222-2222-2222-2222-222222222222",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "as333333-3333-3333-3333-333333333333",
-    sesion_id: "s1111111-1111-1111-1111-111111111111",
-    alumno_id: "a3333333-3333-3333-3333-333333333333",
-    estado: "TARDE",
-    es_recuperacion: false,
-    marcado_en: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "as444444-4444-4444-4444-444444444444",
-    sesion_id: "s1111111-1111-1111-1111-111111111111",
-    alumno_id: "a5555555-5555-5555-5555-555555555555",
-    estado: "AUSENTE",
-    es_recuperacion: false,
-    marcado_en: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  // Sesion 2 (Hace 5 días)
-  {
-    id: "as211111-1111-1111-1111-111111111111",
-    sesion_id: "s2222222-2222-2222-2222-222222222222",
-    alumno_id: "a1111111-1111-1111-1111-111111111111",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: "as222222-1111-1111-1111-111111111111",
-    sesion_id: "s2222222-2222-2222-2222-222222222222",
-    alumno_id: "a2222222-2222-2222-2222-222222222222",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: "as233333-1111-1111-1111-111111111111",
-    sesion_id: "s2222222-2222-2222-2222-222222222222",
-    alumno_id: "a3333333-3333-3333-3333-333333333333",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 5 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  // Sesion 3 (Hace 14 días)
-  {
-    id: "as311111-1111-1111-1111-111111111111",
-    sesion_id: "s3333333-3333-3333-3333-333333333333",
-    alumno_id: "a6666666-6666-6666-6666-666666666666",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 14 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-  },
-  {
-    id: "as322222-1111-1111-1111-111111111111",
-    sesion_id: "s3333333-3333-3333-3333-333333333333",
-    alumno_id: "a7777777-7777-7777-7777-777777777777",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 14 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
-  },
-  // Sesion 4 (Hace 45 días)
-  {
-    id: "as411111-1111-1111-1111-111111111111",
-    sesion_id: "s4444444-4444-4444-4444-444444444444",
-    alumno_id: "a1111111-1111-1111-1111-111111111111",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 45 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-  },
-  {
-    id: "as422222-1111-1111-1111-111111111111",
-    sesion_id: "s4444444-4444-4444-4444-444444444444",
-    alumno_id: "a2222222-2222-2222-2222-222222222222",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 45 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-  },
-  // Sesion 5 (Hace 75 días)
-  {
-    id: "as511111-1111-1111-1111-111111111111",
-    sesion_id: "s5555555-5555-5555-5555-555555555555",
-    alumno_id: "a6666666-6666-6666-6666-666666666666",
-    estado: "PRESENTE",
-    es_recuperacion: false,
-    marcado_en: new Date(Date.now() - 75 * 86400000).toISOString(),
-    created_at: new Date(Date.now() - 75 * 86400000).toISOString(),
-  },
-];
-
-// Listas de Alumnos preconfiguradas
-const SEED_LISTAS_ALUMNOS: ListaAlumnos[] = [
-  {
-    id: "l1111111-1111-1111-1111-111111111111",
-    nombre: "Infantiles Kumite & Básico (6-12 años)",
-    descripcion: "Alumnos cinturón blanco a verde turno tarde",
-    alumnos_ids: [
-      "a1111111-1111-1111-1111-111111111111", // Joaquín Martínez (Amarillo)
-      "a2222222-2222-2222-2222-222222222222", // Sofía Gómez (Naranja)
-      "a3333333-3333-3333-3333-333333333333", // Mateo Rossi (Verde)
-      "a4444444-4444-4444-4444-444444444444", // Valentina Díaz (Blanco)
-      "a5555555-5555-5555-5555-555555555555", // Facundo Fernández (Azul)
-    ],
-    creado_por_id: "22222222-2222-2222-2222-222222222222",
-    creado_por_nombre: "Sensei Lucas Benítez",
-    created_at: "2026-01-10T00:00:00Z",
-  },
-  {
-    id: "l2222222-2222-2222-2222-222222222222",
-    nombre: "Juveniles Kata & Bunkai (13-17 años)",
-    descripcion: "Alumnos de práctica técnica avanzada",
-    alumnos_ids: [
-      "a2222222-2222-2222-2222-222222222222", // Sofía Gómez
-      "a6666666-6666-6666-6666-666666666666", // Camila López (Marrón)
-      "a7777777-7777-7777-7777-777777777777", // Agustín Pérez (Blanco/Amarillo)
-    ],
-    creado_por_id: "22222222-2222-2222-2222-222222222222",
-    creado_por_nombre: "Sensei Lucas Benítez",
-    created_at: "2026-01-12T00:00:00Z",
-  },
-  {
-    id: "l3333333-3333-3333-3333-333333333333",
-    nombre: "Adultos & Graduados Shodan",
-    descripcion: "Alumnos de alta graduación y combate tradicional",
-    alumnos_ids: [
-      "a6666666-6666-6666-6666-666666666666", // Camila López
-      "a8888888-8888-8888-8888-888888888888", // Santiago Nievas (Negro)
-    ],
-    creado_por_id: "11111111-1111-1111-1111-111111111111",
-    creado_por_nombre: "Sensei Marcos Nievas (Headmaster)",
-    created_at: "2026-01-15T00:00:00Z",
-  },
-];
-
-// Variables en memoria mutables de la aplicación
 const dbState = {
   usuarios: [...SEED_USUARIOS],
   clases: [...SEED_CLASES],
@@ -1336,6 +883,40 @@ export async function dalGetAdminAlumnos(
 ): Promise<Alumno[]> {
   await requireAdmin();
 
+  try {
+    const supabase = await createServerSupabaseClient();
+    let query = supabase.from("alumnos").select("*").order("apellido", { ascending: true });
+
+    if (beltFilter && beltFilter !== "TODOS") {
+      query = query.eq("cinturon_actual", beltFilter);
+    }
+
+    if (search && search.trim() !== "") {
+      const q = `%${search.trim()}%`;
+      query = query.or(`nombre.ilike.${q},apellido.ilike.${q},telefono_contacto.ilike.${q}`);
+    }
+
+    const { data: alumnos, error } = await query;
+    if (!error && alumnos) {
+      return alumnos.map((a: any) => ({
+        id: a.id,
+        nombre: a.nombre,
+        apellido: a.apellido,
+        fecha_nacimiento: a.fecha_nacimiento,
+        telefono_contacto: a.telefono_contacto,
+        contacto_emergencia: a.contacto_emergencia,
+        cinturon_actual: a.cinturon_actual,
+        estado: a.estado,
+        notas_privadas: a.notas_privadas,
+        profesores_ids: [],
+        profesores_nombres: [],
+        created_at: a.created_at,
+      }));
+    }
+  } catch (err) {
+    console.error("Error in dalGetAdminAlumnos Supabase:", err);
+  }
+
   let list = dbState.alumnos.map((a) => {
     const { ids, nombres } = getProfesoresForAlumno(a.id);
     return {
@@ -1431,8 +1012,72 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
   const now = new Date().toISOString();
   const hoyFecha = now.split("T")[0];
 
+  let nuevaClaseId = "c" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+  let nuevaSesionId = "s" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbClase, error: errClase } = await supabase.from("clases").insert({
+      nombre: data.nombre.trim(),
+      profesor_id: effectiveProfId,
+      dias_semana: data.diasSemana,
+      hora_inicio: data.horaInicio,
+      hora_fin: data.horaFin,
+      cupo_maximo: data.cupoMaximo,
+      activa: true,
+    }).select().single();
+
+    if (!errClase && dbClase) {
+      nuevaClaseId = dbClase.id;
+
+      let alumnosInscriptosIds: string[] = [];
+      if (data.listaAlumnosId) {
+        const { data: items } = await supabase
+          .from("lista_alumnos_items")
+          .select("alumno_id")
+          .eq("lista_id", data.listaAlumnosId);
+
+        if (items && items.length > 0) {
+          alumnosInscriptosIds = items.map((it: any) => it.alumno_id);
+          const inscRows = alumnosInscriptosIds.map((aId) => ({
+            clase_id: dbClase.id,
+            alumno_id: aId,
+            fecha_alta: hoyFecha,
+            activo: true,
+          }));
+          await supabase.from("inscripciones").insert(inscRows);
+        }
+      }
+
+      const { data: dbSesion } = await supabase.from("sesiones_clase").insert({
+        clase_id: dbClase.id,
+        profesor_id: effectiveProfId,
+        fecha: hoyFecha,
+        hora_apertura: now,
+        estado: "ABIERTA",
+        observaciones: "Sesión creada al iniciar clase.",
+      }).select().single();
+
+      if (dbSesion) {
+        nuevaSesionId = dbSesion.id;
+        if (alumnosInscriptosIds.length > 0) {
+          const asistRows = alumnosInscriptosIds.map((aId) => ({
+            sesion_id: dbSesion.id,
+            alumno_id: aId,
+            estado: "AUSENTE",
+            es_recuperacion: false,
+            marcado_en: now,
+          }));
+          await supabase.from("asistencias").insert(asistRows);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error creating clase in Supabase:", err);
+  }
+
   const nuevaClase: Clase = {
-    id: "c" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: nuevaClaseId,
     nombre: data.nombre.trim(),
     profesor_id: effectiveProfId,
     profesor_nombre: profesor ? profesor.nombre_completo : currentUser.nombre_completo,
@@ -1447,7 +1092,6 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
 
   dbState.clases.push(nuevaClase);
 
-  // Si se seleccionó una lista de alumnos, inscribir automáticamente a todos los alumnos de la lista
   if (data.listaAlumnosId) {
     const lista = dbState.listas_alumnos.find((l) => l.id === data.listaAlumnosId);
     if (lista && lista.alumnos_ids.length > 0) {
@@ -1465,9 +1109,8 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     }
   }
 
-  // Crear de inmediato la sesión de clase para el día de hoy
   const nuevaSesion: SesionClase = {
-    id: "s" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: nuevaSesionId,
     clase_id: nuevaClase.id,
     profesor_id: effectiveProfId,
     fecha: hoyFecha,
@@ -1479,7 +1122,6 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
   };
   dbState.sesiones.push(nuevaSesion);
 
-  // Inicializar asistencias en ausente por defecto para los alumnos inscriptos
   const inscriptos = dbState.inscripciones.filter(
     (ins) => ins.clase_id === nuevaClase.id && ins.activo
   );
@@ -1503,6 +1145,36 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
  */
 export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
   await requireProfesor();
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: listas, error } = await supabase
+      .from("listas_alumnos")
+      .select(`
+        id,
+        nombre,
+        descripcion,
+        creado_por,
+        created_at,
+        creado_por_usuario:usuarios(nombre_completo),
+        items:lista_alumnos_items(alumno_id)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (!error && listas) {
+      return listas.map((l: any) => ({
+        id: l.id,
+        nombre: l.nombre,
+        descripcion: l.descripcion || "",
+        alumnos_ids: (l.items || []).map((i: any) => i.alumno_id),
+        creado_por_id: l.creado_por,
+        creado_por_nombre: l.creado_por_usuario?.nombre_completo || "Sensei",
+        created_at: l.created_at,
+        total_alumnos: (l.items || []).length,
+      }));
+    }
+  } catch (err) {
+    console.error("Error in dalGetListasAlumnos:", err);
+  }
   return dbState.listas_alumnos.map((lista) => ({
     ...lista,
     total_alumnos: lista.alumnos_ids.length,
@@ -1518,8 +1190,32 @@ export async function dalCrearListaAlumnos(
   const currentUser = await requireProfesor();
   const now = new Date().toISOString();
 
+  let generatedId = "l" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.from("listas_alumnos").insert({
+      nombre: input.nombre.trim(),
+      descripcion: input.descripcion?.trim() || "",
+      creado_por: currentUser.id,
+    }).select().single();
+
+    if (!error && data) {
+      generatedId = data.id;
+      if (input.alumnosIds && input.alumnosIds.length > 0) {
+        const items = input.alumnosIds.map((aId) => ({
+          lista_id: data.id,
+          alumno_id: aId,
+        }));
+        await supabase.from("lista_alumnos_items").insert(items);
+      }
+    }
+  } catch (err) {
+    console.error("Error in dalCrearListaAlumnos Supabase:", err);
+  }
+
   const nuevaLista: ListaAlumnos = {
-    id: "l" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: generatedId,
     nombre: input.nombre.trim(),
     descripcion: input.descripcion?.trim() || "",
     alumnos_ids: input.alumnosIds,
@@ -1574,7 +1270,35 @@ export async function dalEliminarListaAlumnos(
  * Obtener todos los alumnos activos para selección en listas
  */
 export async function dalGetTodosAlumnos(): Promise<Alumno[]> {
-  await requireProfesor();
+  const currentUser = await requireProfesor();
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: alumnos, error } = await supabase
+      .from("alumnos")
+      .select("*")
+      .eq("estado", "ACTIVO")
+      .order("apellido", { ascending: true });
+
+    if (!error && alumnos) {
+      return alumnos.map((a: any) => ({
+        id: a.id,
+        nombre: a.nombre,
+        apellido: a.apellido,
+        fecha_nacimiento: a.fecha_nacimiento,
+        telefono_contacto: a.telefono_contacto,
+        contacto_emergencia: a.contacto_emergencia,
+        cinturon_actual: a.cinturon_actual,
+        estado: a.estado,
+        notas_privadas: null,
+        profesores_ids: [currentUser.id],
+        profesores_nombres: [currentUser.nombre_completo],
+        created_at: a.created_at,
+      }));
+    }
+  } catch (err) {
+    console.error("Error in dalGetTodosAlumnos Supabase:", err);
+  }
+
   return dbState.alumnos
     .filter((a) => a.estado === "ACTIVO")
     .map((a) => {
@@ -1600,8 +1324,29 @@ export async function dalCrearAlumnoRapido(input: {
   const currentUser = await requireProfesor();
   const now = new Date().toISOString();
 
+  let generatedId = "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.from("alumnos").insert({
+      nombre: input.nombre.trim(),
+      apellido: input.apellido.trim(),
+      cinturon_actual: input.cinturonActual || "Blanco",
+      telefono_contacto: input.telefonoContacto?.trim() || "Sin registrar",
+      contacto_emergencia: input.contactoEmergencia?.trim() || "Sin registrar",
+      estado: "ACTIVO",
+      fecha_nacimiento: "2015-01-01",
+    }).select().single();
+
+    if (!error && data) {
+      generatedId = data.id;
+    }
+  } catch (err) {
+    console.error("Error creating alumno in Supabase:", err);
+  }
+
   const nuevoAlumno: Alumno = {
-    id: "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: generatedId,
     nombre: input.nombre.trim(),
     apellido: input.apellido.trim(),
     fecha_nacimiento: "2015-01-01",
@@ -1694,6 +1439,15 @@ export async function dalGetHistorialClasesProfesor(
  */
 export async function dalGetProfesores(): Promise<Usuario[]> {
   await requireAuth();
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase.from("usuarios").select("*").eq("activo", true);
+    if (!error && data && data.length > 0) {
+      return data as Usuario[];
+    }
+  } catch (err) {
+    console.error("Error in dalGetProfesores:", err);
+  }
   return dbState.usuarios.filter((u) => u.activo);
 }
 
@@ -1737,7 +1491,88 @@ export async function dalGetClasesAbiertas(
   const effectiveProfId =
     currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
 
-  // Buscar sesiones en estado ABIERTA
+  try {
+    const supabase = await createServerSupabaseClient();
+    let query = supabase
+      .from("sesiones_clase")
+      .select(`
+        id,
+        clase_id,
+        profesor_id,
+        fecha,
+        hora_apertura,
+        estado,
+        observaciones,
+        created_at,
+        clase:clases(id, nombre, profesor_id, dias_semana, hora_inicio, hora_fin, cupo_maximo, activa, created_at)
+      `)
+      .eq("estado", "ABIERTA");
+
+    if (currentUser.rol === "PROFESOR") {
+      query = query.eq("profesor_id", currentUser.id);
+    } else if (profesorId && profesorId !== currentUser.id) {
+      query = query.eq("profesor_id", profesorId);
+    }
+
+    const { data, error } = await query;
+    if (!error && data) {
+      const items: ClaseAbiertaItem[] = [];
+      for (const row of data) {
+        const sesion: SesionClase = {
+          id: row.id,
+          clase_id: row.clase_id,
+          profesor_id: row.profesor_id,
+          fecha: row.fecha,
+          hora_apertura: row.hora_apertura,
+          estado: row.estado,
+          observaciones: row.observaciones,
+          created_at: row.created_at,
+          clase_nombre: (row.clase as any)?.nombre || "Clase Tatami",
+        };
+
+        const clase: Clase = {
+          id: (row.clase as any)?.id || row.clase_id,
+          nombre: (row.clase as any)?.nombre || "Clase Tatami",
+          profesor_id: (row.clase as any)?.profesor_id || row.profesor_id,
+          profesor_nombre: currentUser.nombre_completo,
+          dias_semana: (row.clase as any)?.dias_semana || [1, 3, 5],
+          hora_inicio: (row.clase as any)?.hora_inicio || "18:00:00",
+          hora_fin: (row.clase as any)?.hora_fin || "19:15:00",
+          cupo_maximo: (row.clase as any)?.cupo_maximo || 30,
+          activa: (row.clase as any)?.activa ?? true,
+          created_at: (row.clase as any)?.created_at || row.created_at,
+          total_inscriptos: 0,
+        };
+
+        const { data: asistData } = await supabase
+          .from("asistencias")
+          .select("estado")
+          .eq("sesion_id", row.id);
+
+        const { count: inscriptosCount } = await supabase
+          .from("inscripciones")
+          .select("id", { count: "exact", head: true })
+          .eq("clase_id", row.clase_id)
+          .eq("activo", true);
+
+        const presentesCount = (asistData || []).filter(
+          (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+        ).length;
+
+        items.push({
+          sesion,
+          clase,
+          presentesCount,
+          totalCount: inscriptosCount || (asistData || []).length || 0,
+        });
+      }
+      return items;
+    }
+  } catch (err) {
+    console.error("Error in dalGetClasesAbiertas Supabase:", err);
+  }
+
+  // Memory fallback
   let sesionesAbiertas = dbState.sesiones.filter((s) => s.estado === "ABIERTA");
   if (currentUser.rol === "PROFESOR") {
     sesionesAbiertas = sesionesAbiertas.filter(
@@ -1750,7 +1585,6 @@ export async function dalGetClasesAbiertas(
   }
 
   const items: ClaseAbiertaItem[] = [];
-
   for (const sesion of sesionesAbiertas) {
     const clase = dbState.clases.find((c) => c.id === sesion.clase_id);
     if (!clase) continue;
