@@ -58,7 +58,9 @@ export function ModalCrearListaAlumnos({
   const [editingBeltAlumnoId, setEditingBeltAlumnoId] = useState<string | null>(null);
 
   // Modo de Selección de Alumnos (Pestañas)
-  const [activeTab, setActiveTab] = useState<TabModo>("MIS_CLASES");
+  const [activeTab, setActiveTab] = useState<TabModo>(
+    alumnosDisponibles.length === 0 ? "NUEVO_ALUMNO" : "MIS_CLASES"
+  );
 
   // Formulario de Alumno Nuevo
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -331,8 +333,25 @@ export function ModalCrearListaAlumnos({
               </span>
             </div>
 
-            {/* Pestañas / Chips - Sin truncar texto */}
+            {/* Pestañas / Chips - "Alumno Nuevo" primero a la izquierda */}
             <div className="grid grid-cols-3 gap-1 sm:gap-2 p-1.5 bg-[#092652] rounded-2xl border border-[#2056A8]">
+              {/* 1. Alumno Nuevo */}
+              <button
+                type="button"
+                onClick={() => setActiveTab("NUEVO_ALUMNO")}
+                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer text-center ${
+                  activeTab === "NUEVO_ALUMNO"
+                    ? "bg-white text-[#0F3E86] shadow-sm font-black"
+                    : "text-blue-200 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <UserPlus className="w-4 h-4 shrink-0" />
+                <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
+                  Alumno Nuevo
+                </span>
+              </button>
+
+              {/* 2. Mis Clases */}
               <button
                 type="button"
                 onClick={() => setActiveTab("MIS_CLASES")}
@@ -348,6 +367,7 @@ export function ModalCrearListaAlumnos({
                 </span>
               </button>
 
+              {/* 3. Otro Sensei */}
               <button
                 type="button"
                 onClick={() => setActiveTab("OTRO_SENSEI")}
@@ -360,21 +380,6 @@ export function ModalCrearListaAlumnos({
                 <Users className="w-4 h-4 shrink-0" />
                 <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
                   Otro Sensei <span className="opacity-80 font-semibold">({otrosSenseisAlumnos.length})</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("NUEVO_ALUMNO")}
-                className={`px-1.5 sm:px-3 py-2 sm:py-2.5 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer text-center ${
-                  activeTab === "NUEVO_ALUMNO"
-                    ? "bg-white text-[#0F3E86] shadow-sm font-black"
-                    : "text-blue-200 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <UserPlus className="w-4 h-4 shrink-0" />
-                <span className="text-[11px] sm:text-xs leading-tight font-extrabold whitespace-normal text-center">
-                  Alumno Nuevo
                 </span>
               </button>
             </div>
