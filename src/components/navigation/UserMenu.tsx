@@ -3,7 +3,7 @@
 import React, { useTransition } from "react";
 import { Usuario } from "@/types";
 import { logoutAction } from "@/lib/actions/auth.actions";
-import { Shield, User, LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserMenuProps {
@@ -36,23 +36,25 @@ export function UserMenu({ currentUser }: UserMenuProps) {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Badge de Usuario Logueado */}
-      <div className="flex items-center gap-2 px-2.5 py-1 bg-white/10 border border-white/20 rounded-xl shadow-inner text-xs">
-        {/* Avatar Circular con Iniciales */}
+      {/* Badge de Usuario Logueado (Misma altura h-14 mobile / h-12 desktop y rounded-2xl que el logo) */}
+      <div
+        className="w-14 h-14 sm:w-auto sm:h-12 sm:px-3 bg-white/10 hover:bg-white/15 border border-white/20 rounded-2xl shadow-sm flex items-center justify-center sm:justify-start gap-2.5 text-xs transition-all shrink-0"
+        title={`Conectado como: ${currentUser.nombre_completo} (${isAdmin ? "Dirección" : "Profesor"})`}
+      >
+        {/* Avatar Circular/Rounded con Iniciales */}
         <div
           className={cn(
-            "w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs shrink-0 shadow-sm",
+            "w-9 h-9 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shrink-0 shadow-sm",
             isAdmin
               ? "bg-amber-400 text-slate-950 border border-amber-300"
               : "bg-blue-500 text-white border border-blue-400"
           )}
-          title={`Conectado como: ${currentUser.nombre_completo}`}
         >
           {initials}
         </div>
 
-        {/* Nombre y Rol (Oculto en móviles chicos para ahorrar espacio) */}
-        <div className="hidden sm:flex flex-col text-left">
+        {/* Nombre y Rol (Oculto en móvil chico para mantener el cuadrado perfecto, visible en desktop) */}
+        <div className="hidden sm:flex flex-col text-left justify-center pr-1">
           <span className="font-bold text-white leading-tight truncate max-w-[130px]">
             {currentUser.nombre_completo}
           </span>
@@ -67,19 +69,19 @@ export function UserMenu({ currentUser }: UserMenuProps) {
         </div>
       </div>
 
-      {/* Botón Cerrar Sesión */}
+      {/* Botón Cerrar Sesión (Misma altura h-14 mobile / h-12 desktop y rounded-2xl que el logo) */}
       <button
         onClick={handleLogout}
         disabled={isPending}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 hover:text-white rounded-xl text-xs font-semibold transition-all touch-target-safe cursor-pointer shrink-0"
+        className="w-14 h-14 sm:w-auto sm:h-12 sm:px-3.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 hover:text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer shrink-0 shadow-sm"
         title="Cerrar sesión para cambiar de usuario"
       >
         {isPending ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <Loader2 className="w-5 h-5 animate-spin" />
         ) : (
-          <LogOut className="w-3.5 h-3.5" />
+          <LogOut className="w-5 h-5 sm:w-4 sm:h-4" />
         )}
-        <span className="hidden sm:inline">Salir</span>
+        <span className="hidden sm:inline font-bold">Salir</span>
       </button>
     </div>
   );

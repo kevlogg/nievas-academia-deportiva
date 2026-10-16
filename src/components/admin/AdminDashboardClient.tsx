@@ -135,51 +135,63 @@ export function AdminDashboardClient({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {metrics.alertasDesercion.map((alerta) => (
-            <div
-              key={alerta.alumno.id}
-              className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400 rounded-2xl shadow-xl shadow-blue-950/15 space-y-3 relative overflow-hidden"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white text-base">
-                      {alerta.alumno.nombre} {alerta.alumno.apellido}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white uppercase">
-                      {alerta.ausenciasConsecutivas} Ausencias
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-200 font-medium mt-0.5">
-                    Cinturón: {alerta.alumno.cinturon_actual} • Última asistencia:{" "}
-                    {alerta.ultimaClaseAsistida || "Sin registro reciente"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Contacto de Emergencia */}
-              <div className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between gap-2 text-xs">
-                <div>
-                  <p className="text-[10px] text-blue-200 uppercase font-bold">
-                    Contacto / Tutor
-                  </p>
-                  <p className="font-bold text-white">
-                    {alerta.contactoEmergencia}
-                  </p>
-                </div>
-
-                <a
-                  href={`tel:${alerta.telefonoContacto}`}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm touch-target-safe cursor-pointer transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>Llamar</span>
-                </a>
-              </div>
+        {metrics.alertasDesercion.length === 0 ? (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-sm shadow-xs">
+            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="font-bold">Sin alertas de deserción activas</p>
+              <p className="text-xs text-emerald-700">
+                Ningún alumno activo acumula 3 o más ausencias consecutivas en clases cerradas.
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {metrics.alertasDesercion.map((alerta) => (
+              <div
+                key={alerta.alumno.id}
+                className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400 rounded-2xl shadow-xl shadow-blue-950/15 space-y-3 relative overflow-hidden"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-base">
+                        {alerta.alumno.nombre} {alerta.alumno.apellido}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white uppercase">
+                        {alerta.ausenciasConsecutivas} Ausencias
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-200 font-medium mt-0.5">
+                      Cinturón: {alerta.alumno.cinturon_actual} • Última asistencia:{" "}
+                      {alerta.ultimaClaseAsistida || "Sin registro reciente"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Contacto de Emergencia */}
+                <div className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] text-blue-200 uppercase font-bold">
+                      Contacto / Tutor
+                    </p>
+                    <p className="font-bold text-white">
+                      {alerta.contactoEmergencia}
+                    </p>
+                  </div>
+
+                  <a
+                    href={`tel:${alerta.telefonoContacto}`}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm touch-target-safe cursor-pointer transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Llamar</span>
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* SECCIÓN: DESEMPEÑO POR PROFESOR (Cards Azules #0F3E86) */}
@@ -187,7 +199,7 @@ export function AdminDashboardClient({
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-[#0F3E86]" />
           <h2 className="text-base font-bold text-slate-900 tracking-tight">
-            Desempeño y Cumplimiento de Profesores (Admins)
+            Desempeño y Cumplimiento de Profesores
           </h2>
         </div>
 
@@ -203,12 +215,18 @@ export function AdminDashboardClient({
                     {prof.nombre}
                   </h3>
                   <p className="text-xs text-cyan-300 font-medium">
-                    Sensei Profesor (Admin)
+                    {prof.rol === "ADMIN" ? "Dirección (Admin)" : "Sensei Profesor"}
                   </p>
                 </div>
-                <span className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-700/60">
-                  {prof.retencionPorcentaje}% Retención
-                </span>
+                {prof.clasesDictadas > 0 ? (
+                  <span className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-700/60">
+                    {prof.retencionPorcentaje}% Retención
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-blue-200 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                    Sin clases dictadas
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-center text-xs">
@@ -253,22 +271,28 @@ export function AdminDashboardClient({
             </div>
 
             <div className="space-y-2">
-              {metrics.clasesConMayorConvocatoria.map((c) => (
-                <div
-                  key={c.claseId}
-                  className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between text-xs"
-                >
-                  <span className="font-bold text-white">{c.nombre}</span>
-                  <div className="text-right">
-                    <span className="font-extrabold text-emerald-300 block">
-                      {c.promedioAsistencias} prom.
-                    </span>
-                    <span className="text-[10px] text-blue-200 font-medium">
-                      {c.inscriptos} inscriptos
-                    </span>
+              {metrics.clasesConMayorConvocatoria.length === 0 ? (
+                <p className="text-xs text-blue-200/80 py-2">
+                  Aún no hay clases cerradas con registro de asistencia.
+                </p>
+              ) : (
+                metrics.clasesConMayorConvocatoria.map((c) => (
+                  <div
+                    key={c.claseId}
+                    className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between text-xs"
+                  >
+                    <span className="font-bold text-white">{c.nombre}</span>
+                    <div className="text-right">
+                      <span className="font-extrabold text-emerald-300 block">
+                        {c.promedioAsistencias} prom.
+                      </span>
+                      <span className="text-[10px] text-blue-200 font-medium">
+                        {c.inscriptos} inscriptos
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -280,22 +304,28 @@ export function AdminDashboardClient({
             </div>
 
             <div className="space-y-2">
-              {metrics.clasesConMenorConvocatoria.map((c) => (
-                <div
-                  key={c.claseId}
-                  className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between text-xs"
-                >
-                  <span className="font-bold text-white">{c.nombre}</span>
-                  <div className="text-right">
-                    <span className="font-extrabold text-cyan-300 block">
-                      {c.promedioAsistencias} prom.
-                    </span>
-                    <span className="text-[10px] text-blue-200 font-medium">
-                      {c.inscriptos} inscriptos
-                    </span>
+              {metrics.clasesConMenorConvocatoria.length === 0 ? (
+                <p className="text-xs text-blue-200/80 py-2">
+                  Aún no hay clases cerradas con registro de asistencia.
+                </p>
+              ) : (
+                metrics.clasesConMenorConvocatoria.map((c) => (
+                  <div
+                    key={c.claseId}
+                    className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between text-xs"
+                  >
+                    <span className="font-bold text-white">{c.nombre}</span>
+                    <div className="text-right">
+                      <span className="font-extrabold text-cyan-300 block">
+                        {c.promedioAsistencias} prom.
+                      </span>
+                      <span className="text-[10px] text-blue-200 font-medium">
+                        {c.inscriptos} inscriptos
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

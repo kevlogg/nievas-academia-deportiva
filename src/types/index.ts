@@ -275,6 +275,7 @@ export interface AdminDashboardMetricsData {
   desempenoProfesores: Array<{
     profesorId: string;
     nombre: string;
+    rol?: UserRole;
     clasesDictadas: number;
     retencionPorcentaje: number;
     promedioAlumnosPorClase: number;

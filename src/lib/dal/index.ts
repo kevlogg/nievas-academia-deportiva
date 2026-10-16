@@ -23,6 +23,7 @@ import {
   ListaAlumnos,
   ClaseHistorialItem,
   ClaseAbiertaItem,
+  AlertaDesercion,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -782,95 +783,197 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
 export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetricsData> {
   await requireAdmin();
 
-  const totalAlumnosActivos = dbState.alumnos.filter(
-    (a) => a.estado === "ACTIVO"
-  ).length;
+  try {
+    const supabase = await createServerSupabaseClient();
 
-  const totalProfesoresActivos = dbState.usuarios.filter((u) => u.activo).length;
-  const totalClasesDictadas = dbState.sesiones.length;
+    // 1. Alumnos activos
+    const { count: totalAlumnosActivos } = await supabase
+      .from("alumnos")
+      .select("id", { count: "exact", head: true })
+      .eq("estado", "ACTIVO");
 
-  // Desempeño por clase
-  const clasesConvocatoria = dbState.clases.map((clase) => {
-    const sesionesClase = dbState.sesiones.filter((s) => s.clase_id === clase.id);
-    const sIds = new Set(sesionesClase.map((s) => s.id));
-    const asistenciasClase = dbState.asistencias.filter((a) =>
-      sIds.has(a.sesion_id)
+    // 2. Profesores activos
+    const { data: dbProfesores } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("activo", true);
+
+    // 3. Clases dictadas: ÚNICAMENTE sesiones CERRADAS / FINALIZADAS
+    const { data: dbSesionesFinalizadas } = await supabase
+      .from("sesiones_clase")
+      .select("*, clase:clases(id, nombre, profesor_id)")
+      .eq("estado", "FINALIZADA");
+
+    const totalClasesDictadas = dbSesionesFinalizadas?.length || 0;
+
+    // 4. Todas las asistencias registradas
+    const { data: dbAsistencias } = await supabase
+      .from("asistencias")
+      .select("*");
+
+    // 5. Clases activas
+    const { data: dbClases } = await supabase
+      .from("clases")
+      .select("*")
+      .eq("activa", true);
+
+    // 6. Inscripciones activas
+    const { data: dbInscripciones } = await supabase
+      .from("inscripciones")
+      .select("*")
+      .eq("activo", true);
+
+    const profesores = dbProfesores || dbState.usuarios.filter((u) => u.activo);
+    const sesiones = dbSesionesFinalizadas || [];
+    const asistencias = dbAsistencias || [];
+    const clases = dbClases || [];
+    const inscripciones = dbInscripciones || [];
+
+    // Desempeño por profesor (calculado estrictamente sobre clases cerradas / dictadas)
+    const desempenoProfesores = profesores.map((prof: any) => {
+      const sesProf = sesiones.filter(
+        (s: any) => s.profesor_id === prof.id || s.clase?.profesor_id === prof.id
+      );
+      const sIds = new Set(sesProf.map((s: any) => s.id));
+      const asProf = asistencias.filter((a: any) => sIds.has(a.sesion_id));
+      const pres = asProf.filter(
+        (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+
+      // Retención real: Si no dictó clases o no hay asistencias, 0%. Nunca inventar números.
+      const retencion =
+        sesProf.length > 0 && asProf.length > 0
+          ? Math.round((pres / asProf.length) * 100)
+          : 0;
+
+      return {
+        profesorId: prof.id,
+        nombre: prof.nombre_completo,
+        rol: prof.rol,
+        clasesDictadas: sesProf.length,
+        retencionPorcentaje: retencion,
+        promedioAlumnosPorClase:
+          sesProf.length > 0 ? Math.round((pres / sesProf.length) * 10) / 10 : 0,
+      };
+    });
+
+    // Convocatoria por clase (solo sobre clases cerradas)
+    const clasesConvocatoria = clases.map((clase: any) => {
+      const sesClase = sesiones.filter((s: any) => s.clase_id === clase.id);
+      const sIds = new Set(sesClase.map((s: any) => s.id));
+      const asClase = asistencias.filter((a: any) => sIds.has(a.sesion_id));
+      const pres = asClase.filter(
+        (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+      const prom =
+        sesClase.length > 0 ? Math.round((pres / sesClase.length) * 10) / 10 : 0;
+      const inscriptos = inscripciones.filter(
+        (i: any) => i.clase_id === clase.id && i.activo
+      ).length;
+
+      return {
+        claseId: clase.id,
+        nombre: clase.nombre,
+        promedioAsistencias: prom,
+        inscriptos,
+      };
+    });
+
+    const clasesSorted = [...clasesConvocatoria].sort(
+      (a, b) => b.promedioAsistencias - a.promedioAsistencias
     );
-    const pres = asistenciasClase.filter(
-      (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
-    ).length;
-    const prom =
-      sesionesClase.length > 0
-        ? Math.round((pres / sesionesClase.length) * 10) / 10
-        : 0;
+    const clasesConMayorConvocatoria =
+      totalClasesDictadas > 0 ? clasesSorted.slice(0, 3) : [];
+    const clasesConMenorConvocatoria =
+      totalClasesDictadas > 0 ? [...clasesSorted].reverse().slice(0, 3) : [];
 
-    const inscriptos = dbState.inscripciones.filter(
-      (i) => i.clase_id === clase.id && i.activo
-    ).length;
+    // Alertas de Deserción:
+    // Un alumno activo entra en alerta ÚNICAMENTE si acumula 3 o más AUSENTE
+    // consecutivas en clases que ya han sido CERRADAS (FINALIZADA).
+    const { data: dbAlumnos } = await supabase
+      .from("alumnos")
+      .select("*")
+      .eq("estado", "ACTIVO");
+
+    const alumnos = dbAlumnos || dbState.alumnos.filter((a) => a.estado === "ACTIVO");
+    const alertasDesercion: AlertaDesercion[] = [];
+
+    // Solo se evalúan si efectivamente existen clases finalizadas en el sistema
+    if (sesiones.length >= 3 && alumnos.length > 0) {
+      for (const al of alumnos) {
+        const asistenciasAlumnoEnCerradas = asistencias
+          .filter((a: any) => a.alumno_id === al.id)
+          .map((a: any) => {
+            const ses = sesiones.find((s: any) => s.id === a.sesion_id);
+            return {
+              sesionId: a.sesion_id,
+              fecha: ses?.fecha || a.created_at.split("T")[0],
+              estado: a.estado,
+            };
+          })
+          .filter((item: any) => sesiones.some((s: any) => s.id === item.sesionId))
+          .sort((x: any, y: any) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime());
+
+        if (asistenciasAlumnoEnCerradas.length === 0) continue;
+
+        let ausenciasConsecutivas = 0;
+        let ultimaFechaAsistida: string | null = null;
+
+        for (const reg of asistenciasAlumnoEnCerradas) {
+          if (reg.estado === "AUSENTE") {
+            if (ultimaFechaAsistida === null) {
+              ausenciasConsecutivas++;
+            }
+          } else if (reg.estado === "PRESENTE" || reg.estado === "TARDE") {
+            if (ultimaFechaAsistida === null) {
+              ultimaFechaAsistida = reg.fecha;
+            }
+            break; // Racha de ausencias interrumpida
+          }
+        }
+
+        if (ausenciasConsecutivas >= 3) {
+          alertasDesercion.push({
+            alumno: al,
+            ausenciasConsecutivas,
+            ultimaClaseAsistida: ultimaFechaAsistida,
+            telefonoContacto: al.telefono_contacto || "Sin registrar",
+            contactoEmergencia: al.contacto_emergencia || "Sin registrar",
+          });
+        }
+      }
+    }
 
     return {
-      claseId: clase.id,
-      nombre: clase.nombre,
-      promedioAsistencias: prom,
-      inscriptos,
+      totalAlumnosActivos: totalAlumnosActivos || 0,
+      totalProfesoresActivos: profesores.length,
+      totalClasesDictadas,
+      clasesConMayorConvocatoria,
+      clasesConMenorConvocatoria,
+      desempenoProfesores,
+      alertasDesercion,
     };
-  });
+  } catch (err) {
+    console.error("Error in dalGetAdminDashboardMetrics Supabase:", err);
+  }
 
-  const clasesSorted = [...clasesConvocatoria].sort(
-    (a, b) => b.promedioAsistencias - a.promedioAsistencias
-  );
-
-  const clasesConMayorConvocatoria = clasesSorted.slice(0, 3);
-  const clasesConMenorConvocatoria = [...clasesSorted].reverse().slice(0, 3);
-
-  // Desempeño por profesor (solo clases reales dictadas en tatami)
+  // Fallback seguro en memoria (100% limpio en 0)
   const profesores = dbState.usuarios.filter((u) => u.activo);
-  const desempenoProfesores = profesores.map((prof) => {
-    const clasesProf = dbState.clases.filter((c) => c.profesor_id === prof.id);
-    const cIds = new Set(clasesProf.map((c) => c.id));
-    const ses = dbState.sesiones.filter((s) => cIds.has(s.clase_id));
-    const sIds = new Set(ses.map((s) => s.id));
-    const as = dbState.asistencias.filter((a) => sIds.has(a.sesion_id));
-    const pres = as.filter(
-      (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
-    ).length;
-
-    return {
-      profesorId: prof.id,
-      nombre: prof.nombre_completo,
-      clasesDictadas: ses.length,
-      retencionPorcentaje: 92,
-      promedioAlumnosPorClase:
-        ses.length > 0 ? Math.round((pres / ses.length) * 10) / 10 : 0,
-    };
-  });
-
-  // Alertas de deserción: 3 o más ausencias consecutivas
-  const alertasDesercion = [
-    {
-      alumno: dbState.alumnos.find((a) => a.id === "a5555555-5555-5555-5555-555555555555")!,
-      ausenciasConsecutivas: 3,
-      ultimaClaseAsistida: "2026-09-28",
-      telefonoContacto: "+54 9 11 4444-5551",
-      contactoEmergencia: "Padre: Gabriel +54 9 11 4444-5552",
-    },
-    {
-      alumno: dbState.alumnos.find((a) => a.id === "a4444444-4444-4444-4444-444444444444")!,
-      ausenciasConsecutivas: 3,
-      ultimaClaseAsistida: "2026-10-02",
-      telefonoContacto: "+54 9 11 4444-4441",
-      contactoEmergencia: "Madre: Patricia +54 9 11 4444-4442",
-    },
-  ].filter((item) => item.alumno !== undefined);
-
   return {
-    totalAlumnosActivos,
-    totalProfesoresActivos,
-    totalClasesDictadas,
-    clasesConMayorConvocatoria,
-    clasesConMenorConvocatoria,
-    desempenoProfesores,
-    alertasDesercion,
+    totalAlumnosActivos: dbState.alumnos.filter((a) => a.estado === "ACTIVO").length,
+    totalProfesoresActivos: profesores.length,
+    totalClasesDictadas: dbState.sesiones.filter((s) => s.estado === "FINALIZADA").length,
+    clasesConMayorConvocatoria: [],
+    clasesConMenorConvocatoria: [],
+    desempenoProfesores: profesores.map((p) => ({
+      profesorId: p.id,
+      nombre: p.nombre_completo,
+      rol: p.rol,
+      clasesDictadas: 0,
+      retencionPorcentaje: 0,
+      promedioAlumnosPorClase: 0,
+    })),
+    alertasDesercion: [],
   };
 }
 
