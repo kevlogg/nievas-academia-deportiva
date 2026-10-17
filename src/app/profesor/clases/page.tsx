@@ -5,6 +5,7 @@ import {
   dalGetListasAlumnos,
   dalGetTodosAlumnos,
   dalGetClasesAbiertas,
+  dalGetProfesores,
 } from "@/lib/dal";
 import { ProfesorClasesClient } from "@/components/profesor/ProfesorClasesClient";
 
@@ -21,6 +22,7 @@ export default async function ProfesorClasesPage() {
   const clasesAbiertas = await dalGetClasesAbiertas(
     currentUser.rol === "ADMIN" ? undefined : currentUser.id
   );
+  const profesores = await dalGetProfesores();
 
   return (
     <ProfesorClasesClient
@@ -29,6 +31,7 @@ export default async function ProfesorClasesPage() {
       initialListasAlumnos={listasAlumnos}
       alumnosDisponibles={todosAlumnos}
       initialClasesAbiertas={clasesAbiertas}
+      profesoresDisponibles={profesores}
     />
   );
 }

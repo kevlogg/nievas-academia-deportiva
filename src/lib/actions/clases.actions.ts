@@ -131,3 +131,39 @@ export async function eliminarListaAlumnosAction(
     return { success: false, error: msg };
   }
 }
+
+export async function editarClaseHistorialAction(
+  formData: Record<string, unknown>
+): Promise<ActionResponse<Clase>> {
+  try {
+    const { EditarClaseHistorialSchema } = await import("@/schemas");
+    const { dalEditarClaseHistorial } = await import("@/lib/dal");
+
+    const parseResult = EditarClaseHistorialSchema.safeParse(formData);
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: "Datos de edición de clase inválidos",
+        validationErrors: parseResult.error.flatten().fieldErrors,
+      };
+    }
+
+    const claseActualizada = await dalEditarClaseHistorial(parseResult.data);
+
+    revalidatePath("/admin/historial");
+    revalidatePath("/profesor/historial");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/profesor/clases");
+
+    return {
+      success: true,
+      data: claseActualizada,
+      message: "Clase actualizada exitosamente",
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al actualizar la clase";
+    return { success: false, error: msg };
+  }
+}
+

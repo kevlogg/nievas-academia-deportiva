@@ -57,7 +57,7 @@ export const ActualizarNotaPrivadaSchema = z.object({
 });
 
 export const CrearClaseSchema = z.object({
-  nombre: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
+  nombre: z.string().optional(),
   profesorId: z.string().optional(),
   listaAlumnosId: z.string().optional(),
   fecha: z
@@ -70,10 +70,12 @@ export const CrearClaseSchema = z.object({
     .default([]),
   horaInicio: z
     .string()
-    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM"),
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM")
+    .optional(),
   horaFin: z
     .string()
-    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM"),
+    .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato de hora HH:MM")
+    .optional(),
   cupoMaximo: z.coerce.number().int().positive().default(30),
 });
 
@@ -81,6 +83,17 @@ export const CrearListaAlumnosSchema = z.object({
   nombre: z.string().min(3, "El nombre de la lista debe tener al menos 3 caracteres"),
   descripcion: z.string().optional(),
   alumnosIds: z.array(z.string()).min(1, "Debe seleccionar al menos un alumno"),
+  profesoresIds: z.array(z.string()).optional(),
+});
+
+export const EditarClaseHistorialSchema = z.object({
+  claseId: z.string().min(1, "ID de clase requerido"),
+  sesionId: z.string().optional(),
+  nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato AAAA-MM-DD"),
+  horaInicio: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato HH:MM"),
+  horaFin: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Formato HH:MM"),
+  profesorId: z.string().min(1, "Profesor requerido"),
 });
 
 export const IniciarSesionSchema = z.object({
@@ -100,4 +113,5 @@ export type ActualizarNotaPrivadaInput = z.infer<
 >;
 export type CrearClaseInput = z.infer<typeof CrearClaseSchema>;
 export type CrearListaAlumnosInput = z.infer<typeof CrearListaAlumnosSchema>;
+export type EditarClaseHistorialInput = z.infer<typeof EditarClaseHistorialSchema>;
 export type IniciarSesionInput = z.infer<typeof IniciarSesionSchema>;

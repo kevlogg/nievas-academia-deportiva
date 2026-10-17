@@ -118,14 +118,115 @@ export async function dalGetProfesorClases(profesorId?: string): Promise<Clase[]
 }
 
 /**
+ * Helper para extraer profesores de la descripción: "[PROFS:id1,id2] Mi descripción"
+ */
+function parseProfesoresFromDescripcion(desc?: string | null): {
+  profesoresIds: string[];
+  cleanDescripcion: string;
+} {
+  if (!desc) return { profesoresIds: [], cleanDescripcion: "" };
+  const match = desc.match(/^\[PROFS:([^\]]+)\]\s*([\s\S]*)$/i);
+  if (match) {
+    const ids = match[1].split(",").map((s) => s.trim()).filter(Boolean);
+    return { profesoresIds: ids, cleanDescripcion: match[2].trim() };
+  }
+  return { profesoresIds: [], cleanDescripcion: desc.trim() };
+}
+
+/**
+ * Helper para verificar si un profesor tiene acceso a una clase (como creador o asignado a la lista)
+ */
+async function checkProfesorAccessToClase(
+  supabase: any,
+  profesorId: string,
+  claseId: string,
+  claseProfesorId: string,
+  claseNombre?: string
+): Promise<boolean> {
+  if (claseProfesorId === profesorId) return true;
+  try {
+    if (claseNombre) {
+      const { data: matchedList } = await supabase
+        .from("listas_alumnos")
+        .select("descripcion")
+        .eq("nombre", claseNombre)
+        .maybeSingle();
+      if (matchedList?.descripcion) {
+        const { profesoresIds } = parseProfesoresFromDescripcion(matchedList.descripcion);
+        if (profesoresIds.includes(profesorId)) return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+/**
  * Obtener detalle de una clase específica
  */
 export async function dalGetClaseById(claseId: string): Promise<Clase | null> {
   const currentUser = await requireProfesor();
+
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbClase, error } = await supabase
+      .from("clases")
+      .select("*, profesor:usuarios(nombre_completo)")
+      .eq("id", claseId)
+      .maybeSingle();
+
+    if (!error && dbClase) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbClase.id,
+          dbClase.profesor_id,
+          dbClase.nombre
+        );
+        if (!hasAccess) {
+          throw new Error("No tienes permisos para ver esta clase");
+        }
+      }
+
+      const { count: inscriptosCount } = await supabase
+        .from("inscripciones")
+        .select("*", { count: "exact", head: true })
+        .eq("clase_id", claseId)
+        .eq("activo", true);
+
+      const claseObj: Clase = {
+        id: dbClase.id,
+        nombre: dbClase.nombre,
+        profesor_id: dbClase.profesor_id,
+        profesor_nombre:
+          (dbClase.profesor as any)?.nombre_completo || currentUser.nombre_completo,
+        dias_semana: dbClase.dias_semana || [1, 3, 5],
+        hora_inicio: dbClase.hora_inicio || "18:00:00",
+        hora_fin: dbClase.hora_fin || "19:00:00",
+        cupo_maximo: dbClase.cupo_maximo || 30,
+        activa: dbClase.activa ?? true,
+        created_at: dbClase.created_at,
+        total_inscriptos: inscriptosCount || 0,
+      };
+
+      if (!dbState.clases.some((c) => c.id === claseObj.id)) {
+        dbState.clases.push(claseObj);
+      }
+
+      return claseObj;
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No tienes permisos")) {
+      throw err;
+    }
+    console.error("Error in dalGetClaseById Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const clase = dbState.clases.find((c) => c.id === claseId);
   if (!clase) return null;
 
-  // Verificación RBAC: Si es profesor, solo puede ver su clase
   if (currentUser.rol === "PROFESOR" && clase.profesor_id !== currentUser.id) {
     throw new Error("No tienes permisos para ver esta clase");
   }
@@ -142,7 +243,142 @@ export async function dalGetOrCreateSesionClase(
 ): Promise<SesionClase> {
   const currentUser = await requireProfesor();
   const targetFecha = fecha || new Date().toISOString().split("T")[0];
+  const now = new Date().toISOString();
 
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbClase } = await supabase
+      .from("clases")
+      .select("*, profesor:usuarios(nombre_completo)")
+      .eq("id", claseId)
+      .maybeSingle();
+
+    if (dbClase) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbClase.id,
+          dbClase.profesor_id,
+          dbClase.nombre
+        );
+        if (!hasAccess) {
+          throw new Error("Solo el profesor asignado o un admin pueden iniciar esta clase");
+        }
+      }
+
+      // Buscar sesión ABIERTA existente para esta clase
+      const { data: existingSesion } = await supabase
+        .from("sesiones_clase")
+        .select("*")
+        .eq("clase_id", claseId)
+        .eq("estado", "ABIERTA")
+        .order("hora_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSesion) {
+        const sesionObj: SesionClase = {
+          id: existingSesion.id,
+          clase_id: existingSesion.clase_id,
+          profesor_id: existingSesion.profesor_id,
+          fecha: existingSesion.fecha,
+          hora_apertura: existingSesion.hora_apertura,
+          estado: existingSesion.estado,
+          observaciones: existingSesion.observaciones,
+          created_at: existingSesion.created_at,
+          clase_nombre: dbClase.nombre,
+        };
+        if (!dbState.sesiones.some((s) => s.id === sesionObj.id)) {
+          dbState.sesiones.push(sesionObj);
+        }
+        return sesionObj;
+      }
+
+      // Buscar sesión de la fecha objetivo
+      const { data: dateSesion } = await supabase
+        .from("sesiones_clase")
+        .select("*")
+        .eq("clase_id", claseId)
+        .eq("fecha", targetFecha)
+        .order("hora_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (dateSesion) {
+        const sesionObj: SesionClase = {
+          id: dateSesion.id,
+          clase_id: dateSesion.clase_id,
+          profesor_id: dateSesion.profesor_id,
+          fecha: dateSesion.fecha,
+          hora_apertura: dateSesion.hora_apertura,
+          estado: dateSesion.estado,
+          observaciones: dateSesion.observaciones,
+          created_at: dateSesion.created_at,
+          clase_nombre: dbClase.nombre,
+        };
+        if (!dbState.sesiones.some((s) => s.id === sesionObj.id)) {
+          dbState.sesiones.push(sesionObj);
+        }
+        return sesionObj;
+      }
+
+      // Crear nueva sesión en Supabase
+      const { data: newSesion, error: errNew } = await supabase
+        .from("sesiones_clase")
+        .insert({
+          clase_id: claseId,
+          profesor_id: dbClase.profesor_id || currentUser.id,
+          fecha: targetFecha,
+          hora_apertura: now,
+          estado: "ABIERTA",
+          observaciones: "Sesión iniciada en tatami.",
+        })
+        .select()
+        .single();
+
+      if (!errNew && newSesion) {
+        const { data: inscriptos } = await supabase
+          .from("inscripciones")
+          .select("alumno_id")
+          .eq("clase_id", claseId)
+          .eq("activo", true);
+
+        if (inscriptos && inscriptos.length > 0) {
+          const asistRows = inscriptos.map((ins: any) => ({
+            sesion_id: newSesion.id,
+            alumno_id: ins.alumno_id,
+            estado: "AUSENTE",
+            es_recuperacion: false,
+            marcado_en: now,
+          }));
+          await supabase.from("asistencias").insert(asistRows);
+        }
+
+        const sesionObj: SesionClase = {
+          id: newSesion.id,
+          clase_id: newSesion.clase_id,
+          profesor_id: newSesion.profesor_id,
+          fecha: newSesion.fecha,
+          hora_apertura: newSesion.hora_apertura,
+          estado: newSesion.estado,
+          observaciones: newSesion.observaciones,
+          created_at: newSesion.created_at,
+          clase_nombre: dbClase.nombre,
+        };
+        dbState.sesiones.push(sesionObj);
+        return sesionObj;
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Solo el profesor asignado")) {
+      throw err;
+    }
+    console.error("Error in dalGetOrCreateSesionClase Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const clase = dbState.clases.find((c) => c.id === claseId);
   if (!clase) {
     throw new Error("Clase no encontrada");
@@ -152,7 +388,6 @@ export async function dalGetOrCreateSesionClase(
     throw new Error("Solo el profesor asignado o un admin pueden iniciar esta clase");
   }
 
-  // Buscar si ya existe sesión para esta clase y fecha
   let sesion = dbState.sesiones.find(
     (s) => s.clase_id === claseId && s.fecha === targetFecha
   );
@@ -163,15 +398,14 @@ export async function dalGetOrCreateSesionClase(
       clase_id: claseId,
       profesor_id: currentUser.id,
       fecha: targetFecha,
-      hora_apertura: new Date().toISOString(),
+      hora_apertura: now,
       estado: "ABIERTA",
       observaciones: "",
-      created_at: new Date().toISOString(),
+      created_at: now,
       clase_nombre: clase.nombre,
     };
     dbState.sesiones.push(sesion);
 
-    // Inicializar asistencias por defecto para todos los alumnos inscriptos
     const inscriptos = dbState.inscripciones.filter(
       (ins) => ins.clase_id === claseId && ins.activo
     );
@@ -181,10 +415,10 @@ export async function dalGetOrCreateSesionClase(
         id: "as" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
         sesion_id: sesion.id,
         alumno_id: ins.alumno_id,
-        estado: "AUSENTE", // Por defecto ausente hasta que el profesor toque
+        estado: "AUSENTE",
         es_recuperacion: false,
-        marcado_en: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+        marcado_en: now,
+        created_at: now,
       });
     }
   }
@@ -204,6 +438,155 @@ export async function dalGetSesionDetalle(
   isAdmin: boolean;
 }> {
   const currentUser = await requireProfesor();
+
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbSesion } = await supabase
+      .from("sesiones_clase")
+      .select("*, clase:clases(*)")
+      .eq("id", sesionId)
+      .maybeSingle();
+
+    if (dbSesion && dbSesion.clase) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbSesion.clase_id,
+          dbSesion.profesor_id,
+          (dbSesion.clase as any)?.nombre || ""
+        );
+        if (!hasAccess) {
+          throw new Error("No tienes permisos para gestionar la sesión de otro profesor");
+        }
+      }
+
+      const sesionObj: SesionClase = {
+        id: dbSesion.id,
+        clase_id: dbSesion.clase_id,
+        profesor_id: dbSesion.profesor_id,
+        fecha: dbSesion.fecha,
+        hora_apertura: dbSesion.hora_apertura,
+        estado: dbSesion.estado,
+        observaciones: dbSesion.observaciones,
+        created_at: dbSesion.created_at,
+        clase_nombre: dbSesion.clase.nombre,
+      };
+
+      const claseObj: Clase = {
+        id: dbSesion.clase.id,
+        nombre: dbSesion.clase.nombre,
+        profesor_id: dbSesion.clase.profesor_id,
+        profesor_nombre: currentUser.nombre_completo,
+        dias_semana: dbSesion.clase.dias_semana || [1, 3, 5],
+        hora_inicio: dbSesion.clase.hora_inicio || "18:00:00",
+        hora_fin: dbSesion.clase.hora_fin || "19:00:00",
+        cupo_maximo: dbSesion.clase.cupo_maximo || 30,
+        activa: dbSesion.clase.activa ?? true,
+        created_at: dbSesion.clase.created_at,
+      };
+
+      // Traer asistencias de la sesión
+      const { data: dbAsistencias } = await supabase
+        .from("asistencias")
+        .select(`
+          id,
+          sesion_id,
+          alumno_id,
+          estado,
+          es_recuperacion,
+          marcado_en,
+          created_at,
+          alumno:alumnos(*)
+        `)
+        .eq("sesion_id", sesionId);
+
+      let asistList = dbAsistencias || [];
+
+      // Si no hay asistencias creadas aún, asociar alumnos inscriptos
+      if (asistList.length === 0) {
+        const { data: inscriptos } = await supabase
+          .from("inscripciones")
+          .select("alumno_id, alumno:alumnos(*)")
+          .eq("clase_id", dbSesion.clase_id)
+          .eq("activo", true);
+
+        if (inscriptos && inscriptos.length > 0) {
+          const now = new Date().toISOString();
+          const rowsToInsert = inscriptos.map((ins: any) => ({
+            sesion_id: sesionId,
+            alumno_id: ins.alumno_id,
+            estado: "AUSENTE",
+            es_recuperacion: false,
+            marcado_en: now,
+          }));
+          const { data: inserted } = await supabase
+            .from("asistencias")
+            .insert(rowsToInsert)
+            .select("*, alumno:alumnos(*)");
+          if (inserted) {
+            asistList = inserted;
+          }
+        }
+      }
+
+      const items: AlumnoSesionItem[] = [];
+      for (const a of asistList) {
+        const rawAlumno = (a as any).alumno;
+        if (rawAlumno) {
+          const alumno: Alumno = {
+            id: rawAlumno.id,
+            nombre: rawAlumno.nombre,
+            apellido: rawAlumno.apellido,
+            fecha_nacimiento: rawAlumno.fecha_nacimiento,
+            telefono_contacto: rawAlumno.telefono_contacto,
+            contacto_emergencia: rawAlumno.contacto_emergencia,
+            cinturon_actual: rawAlumno.cinturon_actual,
+            estado: rawAlumno.estado,
+            notas_privadas: currentUser.rol === "ADMIN" ? rawAlumno.notas_privadas : null,
+            created_at: rawAlumno.created_at,
+          };
+
+          const { count: clasesEnCinto } = await supabase
+            .from("asistencias")
+            .select("*", { count: "exact", head: true })
+            .eq("alumno_id", alumno.id)
+            .in("estado", ["PRESENTE", "TARDE"]);
+
+          items.push({
+            alumno,
+            asistenciaId: a.id,
+            estado: a.estado as AsistenciaEstado,
+            es_recuperacion: a.es_recuperacion || false,
+            marcado_en: a.marcado_en,
+            clases_en_cinturon: clasesEnCinto || 0,
+          });
+        }
+      }
+
+      if (!dbState.sesiones.some((s) => s.id === sesionObj.id)) {
+        dbState.sesiones.push(sesionObj);
+      }
+      if (!dbState.clases.some((c) => c.id === claseObj.id)) {
+        dbState.clases.push(claseObj);
+      }
+
+      return {
+        sesion: sesionObj,
+        clase: claseObj,
+        items,
+        isAdmin: currentUser.rol === "ADMIN",
+      };
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No tienes permisos")) {
+      throw err;
+    }
+    console.error("Error in dalGetSesionDetalle Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");
@@ -218,7 +601,6 @@ export async function dalGetSesionDetalle(
     throw new Error("No tienes permisos para gestionar la sesión de otro profesor");
   }
 
-  // Obtener asistencias de la sesión
   const sessionAsistencias = dbState.asistencias.filter(
     (a) => a.sesion_id === sesionId
   );
@@ -228,14 +610,12 @@ export async function dalGetSesionDetalle(
   for (const a of sessionAsistencias) {
     const rawAlumno = dbState.alumnos.find((al) => al.id === a.alumno_id);
     if (rawAlumno) {
-      // Regla de RBAC: El profesor NO puede ver notas_privadas
       const alumno: Alumno = {
         ...rawAlumno,
         notas_privadas:
           currentUser.rol === "ADMIN" ? rawAlumno.notas_privadas : null,
       };
 
-      // Calcular clases acumuladas en su cinturón actual
       const graduacionActual = dbState.graduaciones
         .filter(
           (g) =>
@@ -275,6 +655,7 @@ export async function dalGetSesionDetalle(
 
 /**
  * Marcar asistencia táctil de 1-tap (PRESENTE / AUSENTE / TARDE)
+ * Persiste inmediatamente en la base de datos Supabase
  */
 export async function dalMarcarAsistencia(
   sesionId: string,
@@ -283,6 +664,84 @@ export async function dalMarcarAsistencia(
   esRecuperacion: boolean = false
 ): Promise<Asistencia> {
   const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  // 1. Intentar en Supabase (UPSERT inmediato en tiempo real)
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbSesion } = await supabase
+      .from("sesiones_clase")
+      .select("id, clase_id, profesor_id, clase:clases(nombre)")
+      .eq("id", sesionId)
+      .maybeSingle();
+
+    if (dbSesion) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbSesion.clase_id,
+          dbSesion.profesor_id,
+          (dbSesion.clase as any)?.nombre || ""
+        );
+        if (!hasAccess) {
+          throw new Error("No tienes permisos para marcar asistencia en esta sesión");
+        }
+      }
+
+      const { data: updatedAsist, error: errUpsert } = await supabase
+        .from("asistencias")
+        .upsert(
+          {
+            sesion_id: sesionId,
+            alumno_id: alumnoId,
+            estado,
+            es_recuperacion: esRecuperacion,
+            marcado_en: now,
+          },
+          { onConflict: "sesion_id,alumno_id" }
+        )
+        .select()
+        .single();
+
+      if (!errUpsert && updatedAsist) {
+        let memAsist = dbState.asistencias.find(
+          (a) => a.sesion_id === sesionId && a.alumno_id === alumnoId
+        );
+        if (memAsist) {
+          memAsist.estado = estado;
+          memAsist.marcado_en = now;
+        } else {
+          dbState.asistencias.push({
+            id: updatedAsist.id,
+            sesion_id: sesionId,
+            alumno_id: alumnoId,
+            estado,
+            es_recuperacion: esRecuperacion,
+            marcado_en: now,
+            created_at: now,
+          });
+        }
+
+        return {
+          id: updatedAsist.id,
+          sesion_id: sesionId,
+          alumno_id: alumnoId,
+          estado: updatedAsist.estado as AsistenciaEstado,
+          es_recuperacion: updatedAsist.es_recuperacion,
+          marcado_en: updatedAsist.marcado_en,
+          created_at: updatedAsist.created_at,
+        };
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No tienes permisos")) {
+      throw err;
+    }
+    console.error("Error in dalMarcarAsistencia Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");
@@ -295,8 +754,6 @@ export async function dalMarcarAsistencia(
   let asistencia = dbState.asistencias.find(
     (a) => a.sesion_id === sesionId && a.alumno_id === alumnoId
   );
-
-  const now = new Date().toISOString();
 
   if (asistencia) {
     asistencia.estado = estado;
@@ -429,18 +886,7 @@ export async function dalInscribirAlumnoRapido(
  * Finalizar sesión de tatami
  */
 export async function dalFinalizarSesion(sesionId: string): Promise<SesionClase> {
-  const currentUser = await requireProfesor();
-  const sesion = dbState.sesiones.find((s) => s.id === sesionId);
-  if (!sesion) {
-    throw new Error("Sesión no encontrada");
-  }
-
-  if (currentUser.rol === "PROFESOR" && sesion.profesor_id !== currentUser.id) {
-    throw new Error("No tienes permisos para cerrar esta sesión");
-  }
-
-  sesion.estado = "FINALIZADA";
-  return sesion;
+  return dalCerrarSesionClase(sesionId);
 }
 
 /**
@@ -1116,18 +1562,53 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     diasSemana = [isNaN(d) ? new Date().getDay() : d];
   }
 
+  // Horarios automáticos si no se especificaron
+  const horaActual = now.split("T")[1]?.substring(0, 8) || "18:00:00";
+  const horaInicio = data.horaInicio || horaActual;
+  let horaFin = data.horaFin;
+  if (!horaFin) {
+    const [hh, mm, ss] = horaInicio.split(":").map(Number);
+    const nextH = (hh + 1) % 24;
+    horaFin = `${String(nextH).padStart(2, "0")}:${String(mm || 0).padStart(2, "0")}:${String(ss || 0).padStart(2, "0")}`;
+  }
+
+  // Si no se pasó nombre manual, tomar el nombre de la lista de alumnos
+  let nombreClase = data.nombre?.trim();
+  if (!nombreClase && data.listaAlumnosId) {
+    try {
+      const supabase = await createServerSupabaseClient();
+      const { data: listData } = await supabase
+        .from("listas_alumnos")
+        .select("nombre")
+        .eq("id", data.listaAlumnosId)
+        .maybeSingle();
+      if (listData?.nombre) {
+        nombreClase = listData.nombre;
+      }
+    } catch {}
+    if (!nombreClase) {
+      const listMem = dbState.listas_alumnos.find((l) => l.id === data.listaAlumnosId);
+      if (listMem?.nombre) {
+        nombreClase = listMem.nombre;
+      }
+    }
+  }
+  if (!nombreClase) {
+    nombreClase = "Clase Tatami";
+  }
+
   let nuevaClaseId = "c" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
   let nuevaSesionId = "s" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
 
   try {
     const supabase = await createServerSupabaseClient();
     const { data: dbClase, error: errClase } = await supabase.from("clases").insert({
-      nombre: data.nombre.trim(),
+      nombre: nombreClase,
       profesor_id: effectiveProfId,
       dias_semana: diasSemana,
-      hora_inicio: data.horaInicio,
-      hora_fin: data.horaFin,
-      cupo_maximo: data.cupoMaximo,
+      hora_inicio: horaInicio,
+      hora_fin: horaFin,
+      cupo_maximo: data.cupoMaximo || 30,
       activa: true,
     }).select().single();
 
@@ -1182,17 +1663,18 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
 
   const nuevaClase: Clase = {
     id: nuevaClaseId,
-    nombre: data.nombre.trim(),
+    nombre: nombreClase,
     profesor_id: effectiveProfId,
     profesor_nombre: profesor ? profesor.nombre_completo : currentUser.nombre_completo,
     dias_semana: diasSemana,
-    hora_inicio: data.horaInicio,
-    hora_fin: data.horaFin,
-    cupo_maximo: data.cupoMaximo,
+    hora_inicio: horaInicio,
+    hora_fin: horaFin,
+    cupo_maximo: data.cupoMaximo || 30,
     activa: true,
     created_at: now,
     total_inscriptos: 0,
   };
+  (nuevaClase as any).sesion_id = nuevaSesionId;
 
   dbState.clases.push(nuevaClase);
 
@@ -1245,10 +1727,12 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
 }
 
 /**
+
+/**
  * Obtener listas de alumnos disponibles
  */
 export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
-  await requireProfesor();
+  const currentUser = await requireProfesor();
   try {
     const supabase = await createServerSupabaseClient();
     const { data: listas, error } = await supabase
@@ -1265,42 +1749,86 @@ export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
       .order("created_at", { ascending: false });
 
     if (!error && listas) {
-      return listas.map((l: any) => ({
-        id: l.id,
-        nombre: l.nombre,
-        descripcion: l.descripcion || "",
-        alumnos_ids: (l.items || []).map((i: any) => i.alumno_id),
-        creado_por_id: l.creado_por,
-        creado_por_nombre: l.creado_por_usuario?.nombre_completo || "Sensei",
-        created_at: l.created_at,
-        total_alumnos: (l.items || []).length,
-      }));
+      // Obtener todos los usuarios profesores/admins para resolver nombres
+      const { data: usuarios } = await supabase
+        .from("usuarios")
+        .select("id, nombre_completo");
+      const userMap = new Map((usuarios || []).map((u: any) => [u.id, u.nombre_completo]));
+
+      const mappedListas: ListaAlumnos[] = listas.map((l: any) => {
+        const { profesoresIds, cleanDescripcion } = parseProfesoresFromDescripcion(l.descripcion);
+        const profesoresNombres = profesoresIds
+          .map((id) => userMap.get(id))
+          .filter(Boolean) as string[];
+
+        return {
+          id: l.id,
+          nombre: l.nombre,
+          descripcion: cleanDescripcion,
+          alumnos_ids: (l.items || []).map((i: any) => i.alumno_id),
+          profesores_ids: profesoresIds,
+          profesores_nombres: profesoresNombres,
+          creado_por_id: l.creado_por,
+          creado_por_nombre: l.creado_por_usuario?.nombre_completo || "Sensei",
+          created_at: l.created_at,
+          total_alumnos: (l.items || []).length,
+        };
+      });
+
+      // Si es PROFESOR regular (no admin), filtrar listas donde está asignado o es el creador
+      if (currentUser.rol === "PROFESOR") {
+        return mappedListas.filter((l) => {
+          if (l.creado_por_id === currentUser.id) return true;
+          if (l.profesores_ids && l.profesores_ids.includes(currentUser.id)) return true;
+          // Si no tiene ningún profesor específico asignado, es una lista general visible
+          if (!l.profesores_ids || l.profesores_ids.length === 0) return true;
+          return false;
+        });
+      }
+
+      // ADMIN (Dirección) ve todas las listas
+      return mappedListas;
     }
   } catch (err) {
     console.error("Error in dalGetListasAlumnos:", err);
   }
-  return dbState.listas_alumnos.map((lista) => ({
-    ...lista,
-    total_alumnos: lista.alumnos_ids.length,
-  }));
+
+  // Fallback memoria
+  return dbState.listas_alumnos
+    .filter((l) => {
+      if (currentUser.rol === "ADMIN") return true;
+      if (l.creado_por_id === currentUser.id) return true;
+      if (l.profesores_ids && l.profesores_ids.includes(currentUser.id)) return true;
+      return !l.profesores_ids || l.profesores_ids.length === 0;
+    })
+    .map((lista) => ({
+      ...lista,
+      total_alumnos: lista.alumnos_ids.length,
+    }));
 }
 
 /**
- * Crear nueva lista de alumnos
+ * Crear nueva lista de alumnos con asignación de uno o múltiples profesores
  */
 export async function dalCrearListaAlumnos(
-  input: CrearListaAlumnosInput
+  input: CrearListaAlumnosInput & { profesoresIds?: string[] }
 ): Promise<ListaAlumnos> {
   const currentUser = await requireProfesor();
   const now = new Date().toISOString();
 
   let generatedId = "l" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
 
+  let rawDesc = input.descripcion?.trim() || "";
+  const profs = input.profesoresIds || [];
+  if (profs.length > 0) {
+    rawDesc = `[PROFS:${profs.join(",")}] ${rawDesc}`.trim();
+  }
+
   try {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase.from("listas_alumnos").insert({
       nombre: input.nombre.trim(),
-      descripcion: input.descripcion?.trim() || "",
+      descripcion: rawDesc,
       creado_por: currentUser.id,
     }).select().single();
 
@@ -1318,11 +1846,14 @@ export async function dalCrearListaAlumnos(
     console.error("Error in dalCrearListaAlumnos Supabase:", err);
   }
 
+  const { cleanDescripcion } = parseProfesoresFromDescripcion(rawDesc);
+
   const nuevaLista: ListaAlumnos = {
     id: generatedId,
     nombre: input.nombre.trim(),
-    descripcion: input.descripcion?.trim() || "",
+    descripcion: cleanDescripcion,
     alumnos_ids: input.alumnosIds,
+    profesores_ids: profs,
     creado_por_id: currentUser.id,
     creado_por_nombre: currentUser.nombre_completo,
     created_at: now,
@@ -1334,40 +1865,298 @@ export async function dalCrearListaAlumnos(
 }
 
 /**
- * Actualizar lista de alumnos existente
+ * Actualizar lista de alumnos existente con sincronización directa en Supabase
  */
 export async function dalActualizarListaAlumnos(
   listaId: string,
-  input: CrearListaAlumnosInput
+  input: CrearListaAlumnosInput & { profesoresIds?: string[] }
 ): Promise<ListaAlumnos> {
-  await requireProfesor();
+  const currentUser = await requireProfesor();
+
+  let rawDesc = input.descripcion?.trim() || "";
+  const profs = input.profesoresIds || [];
+  if (profs.length > 0) {
+    rawDesc = `[PROFS:${profs.join(",")}] ${rawDesc}`.trim();
+  }
+
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: updatedDb, error: errUp } = await supabase
+      .from("listas_alumnos")
+      .update({
+        nombre: input.nombre.trim(),
+        descripcion: rawDesc,
+      })
+      .eq("id", listaId)
+      .select()
+      .maybeSingle();
+
+    if (!errUp && updatedDb) {
+      // Sincronizar items de alumnos
+      await supabase.from("lista_alumnos_items").delete().eq("lista_id", listaId);
+
+      if (input.alumnosIds && input.alumnosIds.length > 0) {
+        const items = input.alumnosIds.map((aId) => ({
+          lista_id: listaId,
+          alumno_id: aId,
+        }));
+        await supabase.from("lista_alumnos_items").insert(items);
+      }
+
+      const { cleanDescripcion } = parseProfesoresFromDescripcion(rawDesc);
+
+      const updatedObj: ListaAlumnos = {
+        id: updatedDb.id,
+        nombre: updatedDb.nombre,
+        descripcion: cleanDescripcion,
+        alumnos_ids: input.alumnosIds,
+        profesores_ids: profs,
+        creado_por_id: updatedDb.creado_por,
+        creado_por_nombre: currentUser.nombre_completo,
+        created_at: updatedDb.created_at,
+        total_alumnos: input.alumnosIds.length,
+      };
+
+      // Sincronizar memoria
+      const memIndex = dbState.listas_alumnos.findIndex((l) => l.id === listaId);
+      if (memIndex !== -1) {
+        dbState.listas_alumnos[memIndex] = updatedObj;
+      } else {
+        dbState.listas_alumnos.push(updatedObj);
+      }
+
+      return updatedObj;
+    }
+  } catch (err) {
+    console.error("Error in dalActualizarListaAlumnos Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const lista = dbState.listas_alumnos.find((l) => l.id === listaId);
   if (!lista) {
-    throw new Error("Lista de alumnos no encontrada");
+    const newMemObj: ListaAlumnos = {
+      id: listaId,
+      nombre: input.nombre.trim(),
+      descripcion: input.descripcion?.trim() || "",
+      alumnos_ids: input.alumnosIds,
+      profesores_ids: profs,
+      creado_por_id: currentUser.id,
+      creado_por_nombre: currentUser.nombre_completo,
+      created_at: new Date().toISOString(),
+      total_alumnos: input.alumnosIds.length,
+    };
+    dbState.listas_alumnos.push(newMemObj);
+    return newMemObj;
   }
 
   lista.nombre = input.nombre.trim();
   lista.descripcion = input.descripcion?.trim() || "";
   lista.alumnos_ids = input.alumnosIds;
+  lista.profesores_ids = profs;
   lista.total_alumnos = input.alumnosIds.length;
 
   return lista;
 }
 
 /**
- * Eliminar lista de alumnos
+ * Eliminar lista de alumnos en Supabase y memoria
  */
 export async function dalEliminarListaAlumnos(
   listaId: string
 ): Promise<{ id: string }> {
   await requireProfesor();
-  const index = dbState.listas_alumnos.findIndex((l) => l.id === listaId);
-  if (index === -1) {
-    throw new Error("Lista de alumnos no encontrada");
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from("listas_alumnos").delete().eq("id", listaId);
+  } catch (err) {
+    console.error("Error in dalEliminarListaAlumnos Supabase:", err);
   }
 
-  dbState.listas_alumnos.splice(index, 1);
+  const index = dbState.listas_alumnos.findIndex((l) => l.id === listaId);
+  if (index !== -1) {
+    dbState.listas_alumnos.splice(index, 1);
+  }
   return { id: listaId };
+}
+
+/**
+ * Importar alumnos en lote desde archivo CSV (Solo ADMIN / Dirección)
+ */
+export async function dalImportarAlumnosCsv(
+  alumnosNuevos: Array<{
+    nombre: string;
+    apellido: string;
+    cinturonActual?: KarateBelt;
+    telefonoContacto?: string;
+    contactoEmergencia?: string;
+    fechaNacimiento?: string;
+  }>
+): Promise<{ totalImportados: number; erroresCount: number }> {
+  await requireAdmin();
+  const now = new Date().toISOString();
+
+  const rows = alumnosNuevos.map((a) => ({
+    nombre: a.nombre.trim(),
+    apellido: a.apellido.trim(),
+    cinturon_actual: a.cinturonActual || "Blanco",
+    telefono_contacto: a.telefonoContacto?.trim() || "Sin registrar",
+    contacto_emergencia: a.contactoEmergencia?.trim() || "Sin registrar",
+    fecha_nacimiento: a.fechaNacimiento || "2015-01-01",
+    estado: "ACTIVO",
+  }));
+
+  let totalImportados = 0;
+  let erroresCount = 0;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: inserted, error } = await supabase
+      .from("alumnos")
+      .insert(rows)
+      .select();
+
+    if (!error && inserted) {
+      totalImportados = inserted.length;
+
+      // Sync memoria
+      for (const ins of inserted) {
+        dbState.alumnos.push({
+          id: ins.id,
+          nombre: ins.nombre,
+          apellido: ins.apellido,
+          fecha_nacimiento: ins.fecha_nacimiento,
+          telefono_contacto: ins.telefono_contacto,
+          contacto_emergencia: ins.contacto_emergencia,
+          cinturon_actual: ins.cinturon_actual,
+          estado: ins.estado,
+          created_at: ins.created_at,
+        });
+      }
+
+      return { totalImportados, erroresCount: 0 };
+    } else if (error) {
+      console.error("Error in dalImportarAlumnosCsv Supabase:", error);
+      erroresCount = rows.length;
+    }
+  } catch (err) {
+    console.error("Error in dalImportarAlumnosCsv:", err);
+    erroresCount = rows.length;
+  }
+
+  // Fallback memoria
+  for (const r of rows) {
+    dbState.alumnos.push({
+      id: "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+      nombre: r.nombre,
+      apellido: r.apellido,
+      fecha_nacimiento: r.fecha_nacimiento,
+      telefono_contacto: r.telefono_contacto,
+      contacto_emergencia: r.contacto_emergencia,
+      cinturon_actual: r.cinturon_actual as KarateBelt,
+      estado: "ACTIVO",
+      created_at: now,
+    });
+    totalImportados++;
+  }
+
+  return { totalImportados, erroresCount };
+}
+
+/**
+ * Editar clase histórica (Solo ADMIN / Dirección)
+ */
+export async function dalEditarClaseHistorial(input: {
+  claseId: string;
+  sesionId?: string;
+  nombre: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  profesorId: string;
+}): Promise<Clase> {
+  await requireAdmin();
+
+  const horaInicioFormatted = input.horaInicio.length === 5 ? `${input.horaInicio}:00` : input.horaInicio;
+  const horaFinFormatted = input.horaFin.length === 5 ? `${input.horaFin}:00` : input.horaFin;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Actualizar clase
+    const { data: updatedClase, error: errClase } = await supabase
+      .from("clases")
+      .update({
+        nombre: input.nombre.trim(),
+        profesor_id: input.profesorId,
+        hora_inicio: horaInicioFormatted,
+        hora_fin: horaFinFormatted,
+      })
+      .eq("id", input.claseId)
+      .select("*, profesor:usuarios(nombre_completo)")
+      .maybeSingle();
+
+    // Actualizar fecha y profesor en la sesión si existe
+    if (input.sesionId) {
+      await supabase
+        .from("sesiones_clase")
+        .update({
+          fecha: input.fecha,
+          profesor_id: input.profesorId,
+        })
+        .eq("id", input.sesionId);
+    } else {
+      // Actualizar todas las sesiones vinculadas a esa clase
+      await supabase
+        .from("sesiones_clase")
+        .update({
+          fecha: input.fecha,
+          profesor_id: input.profesorId,
+        })
+        .eq("clase_id", input.claseId);
+    }
+
+    if (!errClase && updatedClase) {
+      const resultClase: Clase = {
+        id: updatedClase.id,
+        nombre: updatedClase.nombre,
+        profesor_id: updatedClase.profesor_id,
+        profesor_nombre: (updatedClase.profesor as any)?.nombre_completo || "Sensei",
+        dias_semana: updatedClase.dias_semana || [1, 3, 5],
+        hora_inicio: updatedClase.hora_inicio,
+        hora_fin: updatedClase.hora_fin,
+        cupo_maximo: updatedClase.cupo_maximo || 30,
+        activa: updatedClase.activa ?? true,
+        created_at: updatedClase.created_at,
+      };
+
+      // Sync memoria
+      const memC = dbState.clases.find((c) => c.id === input.claseId);
+      if (memC) {
+        memC.nombre = resultClase.nombre;
+        memC.profesor_id = resultClase.profesor_id;
+        memC.profesor_nombre = resultClase.profesor_nombre;
+        memC.hora_inicio = resultClase.hora_inicio;
+        memC.hora_fin = resultClase.hora_fin;
+      }
+      return resultClase;
+    }
+  } catch (err) {
+    console.error("Error in dalEditarClaseHistorial Supabase:", err);
+  }
+
+  // Fallback memoria
+  const cMem = dbState.clases.find((c) => c.id === input.claseId);
+  if (!cMem) {
+    throw new Error("Clase no encontrada");
+  }
+  cMem.nombre = input.nombre.trim();
+  cMem.profesor_id = input.profesorId;
+  cMem.hora_inicio = horaInicioFormatted;
+  cMem.hora_fin = horaFinFormatted;
+
+  return cMem;
 }
 
 /**
@@ -1545,20 +2334,22 @@ export async function dalGetProfesores(): Promise<Usuario[]> {
   await requireAuth();
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: dbUsuarios, error } = await supabase.from("usuarios").select("*").eq("activo", true);
-    const { data: dbClases } = await supabase.from("clases").select("profesor_id");
-    const profIdsConClases = new Set((dbClases || []).map((c: any) => c.profesor_id));
+    const { data: dbUsuarios, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("activo", true)
+      .order("nombre_completo", { ascending: true });
 
     if (!error && dbUsuarios && dbUsuarios.length > 0) {
       return (dbUsuarios as Usuario[]).filter(
-        (u) => u.rol === "PROFESOR" || profIdsConClases.has(u.id)
+        (u) => u.rol === "PROFESOR" || u.rol === "ADMIN"
       );
     }
   } catch (err) {
     console.error("Error in dalGetProfesores:", err);
   }
   return dbState.usuarios.filter(
-    (u) => u.activo && (u.rol === "PROFESOR" || dbState.clases.some((c) => c.profesor_id === u.id))
+    (u) => u.activo && (u.rol === "PROFESOR" || u.rol === "ADMIN")
   );
 }
 
@@ -1738,6 +2529,67 @@ export async function dalCerrarSesionClase(
   sesionId: string
 ): Promise<SesionClase> {
   const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbSesion, error: errFetch } = await supabase
+      .from("sesiones_clase")
+      .select("*, clase:clases(id, nombre, hora_inicio)")
+      .eq("id", sesionId)
+      .maybeSingle();
+
+    if (!errFetch && dbSesion) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbSesion.clase_id,
+          dbSesion.profesor_id,
+          (dbSesion.clase as any)?.nombre || ""
+        );
+        if (!hasAccess) {
+          throw new Error("No tienes permisos para cerrar la sesión de otro profesor");
+        }
+      }
+
+      await supabase
+        .from("sesiones_clase")
+        .update({ estado: "FINALIZADA" })
+        .eq("id", sesionId);
+
+      // Registrar hora_fin actual si la clase aún no tenía hora de cierre
+      const horaActual = now.split("T")[1]?.substring(0, 8) || "19:00:00";
+      await supabase
+        .from("clases")
+        .update({ hora_fin: horaActual })
+        .eq("id", dbSesion.clase_id);
+
+      // Sincronizar estado en memoria
+      const sMem = dbState.sesiones.find((s) => s.id === sesionId);
+      if (sMem) sMem.estado = "FINALIZADA";
+
+      return {
+        id: dbSesion.id,
+        clase_id: dbSesion.clase_id,
+        profesor_id: dbSesion.profesor_id,
+        fecha: dbSesion.fecha,
+        hora_apertura: dbSesion.hora_apertura,
+        estado: "FINALIZADA",
+        observaciones: dbSesion.observaciones,
+        created_at: dbSesion.created_at,
+        clase_nombre: (dbSesion.clase as any)?.nombre || "Clase",
+      };
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No tienes permisos")) {
+      throw err;
+    }
+    console.error("Error in dalCerrarSesionClase Supabase:", err);
+  }
+
+  // 2. Fallback memoria
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");

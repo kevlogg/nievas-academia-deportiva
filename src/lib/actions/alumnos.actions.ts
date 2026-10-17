@@ -178,4 +178,42 @@ export async function crearAlumnoRapidoAction(input: {
   }
 }
 
+/**
+ * Importar alumnos masivamente desde CSV (Solo Dirección / Admin)
+ */
+export async function importarAlumnosCsvAction(
+  alumnos: Array<{
+    nombre: string;
+    apellido: string;
+    cinturonActual?: KarateBelt;
+    telefonoContacto?: string;
+    contactoEmergencia?: string;
+    fechaNacimiento?: string;
+  }>
+): Promise<ActionResponse<{ totalImportados: number; erroresCount: number }>> {
+  try {
+    if (!alumnos || alumnos.length === 0) {
+      return { success: false, error: "No se proporcionaron alumnos para importar" };
+    }
+
+    const { dalImportarAlumnosCsv } = await import("@/lib/dal");
+    const result = await dalImportarAlumnosCsv(alumnos);
+
+    revalidatePath("/admin/alumnos");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/profesor/clases");
+
+    return {
+      success: true,
+      data: result,
+      message: `¡${result.totalImportados} alumnos importados y guardados con éxito en la base de datos!`,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al importar alumnos desde CSV";
+    return { success: false, error: msg };
+  }
+}
+
+
 

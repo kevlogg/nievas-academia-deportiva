@@ -134,6 +134,8 @@ export interface ListaAlumnos {
   nombre: string;
   descripcion?: string;
   alumnos_ids: string[];
+  profesores_ids?: string[];
+  profesores_nombres?: string[];
   creado_por_id: string;
   creado_por_nombre?: string;
   created_at: string;

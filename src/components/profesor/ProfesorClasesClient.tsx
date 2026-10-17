@@ -45,6 +45,7 @@ interface ProfesorClasesClientProps {
   initialListasAlumnos: ListaAlumnos[];
   alumnosDisponibles: Alumno[];
   initialClasesAbiertas?: ClaseAbiertaItem[];
+  profesoresDisponibles?: Usuario[];
 }
 
 export function ProfesorClasesClient({
@@ -53,6 +54,7 @@ export function ProfesorClasesClient({
   initialListasAlumnos,
   alumnosDisponibles,
   initialClasesAbiertas = [],
+  profesoresDisponibles = [],
 }: ProfesorClasesClientProps) {
   const [ultimasClases, setUltimasClases] =
     useState<ClaseHistorialItem[]>(initialUltimasClases);
@@ -124,10 +126,11 @@ export function ProfesorClasesClient({
     };
     setUltimasClases((prev) => [nuevoItem, ...prev.slice(0, 2)]);
 
-    // Agregar a la lista de clases abiertas parpadeando
+    // Agregar a la lista de clases abiertas parpadeando con ID real
+    const realSesionId = (nuevaClase as any).sesion_id || "s" + Date.now().toString(36);
     const nuevaAbierta: ClaseAbiertaItem = {
       sesion: {
-        id: "s" + Date.now().toString(36),
+        id: realSesionId,
         clase_id: nuevaClase.id,
         profesor_id: currentUser.id,
         fecha: new Date().toISOString().split("T")[0],
@@ -572,6 +575,7 @@ export function ProfesorClasesClient({
         onClose={() => setIsCrearListaOpen(false)}
         alumnosDisponibles={alumnosDisponibles}
         currentUser={currentUser}
+        profesoresDisponibles={profesoresDisponibles}
         onListaCreada={(nuevaLista) => {
           handleListaCreada(nuevaLista);
           setIsCrearClaseOpen(true);
@@ -596,6 +600,7 @@ export function ProfesorClasesClient({
         lista={listaParaEditar}
         alumnosDisponibles={alumnosDisponibles}
         currentUser={currentUser}
+        profesoresDisponibles={profesoresDisponibles}
         onClose={() => setListaParaEditar(null)}
         onListaActualizada={(listaActualizada) => {
           handleListaActualizada(listaActualizada);

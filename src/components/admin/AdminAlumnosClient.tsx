@@ -7,6 +7,7 @@ import { Alumno, KarateBelt, Usuario } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import { ModalGraduacion } from "./ModalGraduacion";
 import { ModalNotaPrivada } from "./ModalNotaPrivada";
+import { ModalImportarAlumnosCsv } from "./ModalImportarAlumnosCsv";
 import { actualizarCinturonAction } from "@/lib/actions/alumnos.actions";
 import {
   Users,
@@ -17,6 +18,7 @@ import {
   ArrowLeft,
   Calendar,
   Check,
+  FileSpreadsheet,
 } from "lucide-react";
 
 interface AdminAlumnosClientProps {
@@ -68,6 +70,7 @@ export function AdminAlumnosClient({
   const [graduandoAlumno, setGraduandoAlumno] = useState<Alumno | null>(null);
   const [editandoNotaAlumno, setEditandoNotaAlumno] = useState<Alumno | null>(null);
   const [cambiandoCintoId, setCambiandoCintoId] = useState<string | null>(null);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   const filteredAlumnos = alumnos.filter((a) => {
     // 1. Filtro de alcance: Mis Alumnos vs Todo el Dojo
@@ -158,6 +161,16 @@ export function AdminAlumnosClient({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsCsvModalOpen(true)}
+            className="px-3 py-1.5 bg-white hover:bg-blue-50 active:scale-95 text-[#0F3E86] font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Importar alumnos masivamente desde CSV"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-[#0F3E86]" />
+            <span>Cargar CSV</span>
+          </button>
+
           <div className="text-[11px] font-bold text-cyan-300 bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
             <Award className="w-3.5 h-3.5 text-amber-300" />
             <span>{filteredAlumnos.length} de {alumnos.length} Alumnos</span>
@@ -382,6 +395,12 @@ export function AdminAlumnosClient({
           }
           setEditandoNotaAlumno(null);
         }}
+      />
+
+      <ModalImportarAlumnosCsv
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onImportadoExitoso={() => window.location.reload()}
       />
     </div>
   );

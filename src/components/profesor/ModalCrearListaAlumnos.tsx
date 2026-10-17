@@ -25,6 +25,7 @@ interface ModalCrearListaAlumnosProps {
   onClose: () => void;
   alumnosDisponibles: Alumno[];
   currentUser?: Usuario;
+  profesoresDisponibles?: Usuario[];
   onListaCreada: (nuevaLista: ListaAlumnos) => void;
 }
 
@@ -46,12 +47,16 @@ export function ModalCrearListaAlumnos({
   onClose,
   alumnosDisponibles,
   currentUser,
+  profesoresDisponibles = [],
   onListaCreada,
 }: ModalCrearListaAlumnosProps) {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [alumnos, setAlumnos] = useState<Alumno[]>(alumnosDisponibles);
   const [selectedAlumnoIds, setSelectedAlumnoIds] = useState<string[]>([]);
+  const [selectedProfesorIds, setSelectedProfesorIds] = useState<string[]>(() =>
+    currentUser?.id ? [currentUser.id] : []
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +184,14 @@ export function ModalCrearListaAlumnos({
     setTimeout(() => setMensajeExitoAlumno(null), 4000);
   };
 
+  const toggleProfesor = (profId: string) => {
+    setSelectedProfesorIds((prev) =>
+      prev.includes(profId)
+        ? prev.filter((id) => id !== profId)
+        : [...prev, profId]
+    );
+  };
+
   // Crear Alumno Nuevo y agregarlo de inmediato
   const handleCrearAlumnoNuevo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,30 +203,34 @@ export function ModalCrearListaAlumnos({
     setCreandoAlumno(true);
     setError(null);
 
-    const res = await crearAlumnoRapidoAction({
-      nombre: nuevoNombre.trim(),
-      apellido: nuevoApellido.trim(),
-      cinturonActual: nuevoCinturon,
-      telefonoContacto: nuevoTelefono.trim() || undefined,
-      contactoEmergencia: nuevoEmergencia.trim() || undefined,
-    });
+    try {
+      const res = await crearAlumnoRapidoAction({
+        nombre: nuevoNombre.trim(),
+        apellido: nuevoApellido.trim(),
+        cinturonActual: nuevoCinturon,
+        telefonoContacto: nuevoTelefono.trim() || undefined,
+        contactoEmergencia: nuevoEmergencia.trim() || undefined,
+      });
 
-    setCreandoAlumno(false);
-
-    if (res.success) {
-      const created = res.data;
-      setAlumnos((prev) => [created, ...prev]);
-      setSelectedAlumnoIds((prev) => [...prev, created.id]);
-      setMensajeExitoAlumno(
-        `¡${created.nombre} ${created.apellido} registrado y añadido a la lista!`
-      );
-      setNuevoNombre("");
-      setNuevoApellido("");
-      setNuevoTelefono("");
-      setNuevoEmergencia("");
-      setTimeout(() => setMensajeExitoAlumno(null), 4000);
-    } else {
-      setError(res.error || "No se pudo registrar el nuevo alumno");
+      if (res.success) {
+        const created = res.data;
+        setAlumnos((prev) => [created, ...prev]);
+        setSelectedAlumnoIds((prev) => [...prev, created.id]);
+        setMensajeExitoAlumno(
+          `¡${created.nombre} ${created.apellido} registrado y añadido a la lista!`
+        );
+        setNuevoNombre("");
+        setNuevoApellido("");
+        setNuevoTelefono("");
+        setNuevoEmergencia("");
+        setTimeout(() => setMensajeExitoAlumno(null), 4000);
+      } else {
+        setError(res.error || "No se pudo registrar el nuevo alumno");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al registrar alumno");
+    } finally {
+      setCreandoAlumno(false);
     }
   };
 
@@ -231,24 +248,34 @@ export function ModalCrearListaAlumnos({
     setLoading(true);
     setError(null);
 
-    const res = await crearListaAlumnosAction({
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim(),
-      alumnosIds: selectedAlumnoIds,
-    });
+    try {
+      const res = await crearListaAlumnosAction({
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        alumnosIds: selectedAlumnoIds,
+        profesoresIds:
+          selectedProfesorIds.length > 0
+            ? selectedProfesorIds
+            : currentUser?.id
+            ? [currentUser.id]
+            : undefined,
+      });
 
-    setLoading(false);
-
-    if (res.success) {
-      if (res.data) {
-        onListaCreada(res.data);
+      if (res.success) {
+        if (res.data) {
+          onListaCreada(res.data);
+        }
+        onClose();
+        setNombre("");
+        setDescripcion("");
+        setSelectedAlumnoIds([]);
+      } else {
+        setError(res.error || "No se pudo crear la lista de alumnos");
       }
-      onClose();
-      setNombre("");
-      setDescripcion("");
-      setSelectedAlumnoIds([]);
-    } else {
-      setError(res.error || "No se pudo crear la lista de alumnos");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al crear la lista de alumnos");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -321,6 +348,55 @@ export function ModalCrearListaAlumnos({
               className="w-full px-3.5 py-2 bg-[#0B2E63] border border-[#2056A8] rounded-xl text-white placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-white text-xs font-medium transition-all"
             />
           </div>
+
+          {/* Asignar Profesores a cargo (Dirección) */}
+          {currentUser?.rol === "ADMIN" && profesoresDisponibles && profesoresDisponibles.length > 0 && (
+            <div className="space-y-2 p-3.5 bg-[#092652] rounded-2xl border border-[#2056A8]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-blue-100 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-cyan-300" />
+                  <span>Asignar Profesores / Dirección a cargo *</span>
+                </label>
+                <span className="text-[11px] text-cyan-300 font-bold bg-cyan-950/70 border border-cyan-600/50 px-2 py-0.5 rounded-full">
+                  {selectedProfesorIds.length} seleccionados
+                </span>
+              </div>
+              <p className="text-[11px] text-blue-200">
+                Selecciona uno o más profesores/directores que podrán ver esta lista y dictar clases en tatami:
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {profesoresDisponibles.map((prof) => {
+                  const isSelected = selectedProfesorIds.includes(prof.id);
+                  return (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => toggleProfesor(prof.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                        isSelected
+                          ? "bg-white text-[#0F3E86] border-white shadow-sm font-black"
+                          : "bg-white/10 text-blue-100 border-white/20 hover:bg-white/20"
+                      }`}
+                    >
+                      <div
+                        className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                          isSelected
+                            ? "bg-[#0F3E86] border-[#0F3E86] text-white"
+                            : "border-blue-300/50"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-2.5 h-2.5" />}
+                      </div>
+                      <span>
+                        {prof.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()}
+                      </span>
+                      <span className="text-[10px] opacity-75 font-mono">({prof.rol})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Selector de Pestañas de Alumnos: 3 Fuentes Claras */}
           <div className="pt-2 border-t border-[#1E57A8] space-y-3">

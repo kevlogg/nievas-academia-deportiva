@@ -17,19 +17,25 @@ import {
   ArrowLeft,
   ClipboardCheck,
   CalendarDays,
+  Edit2,
 } from "lucide-react";
+import { ModalEditarClaseHistorial } from "./ModalEditarClaseHistorial";
 
 interface HistorialClasesClientProps {
   currentUser: Usuario;
   historialItems: ClaseHistorialItem[];
+  profesoresDisponibles?: Usuario[];
 }
 
 export function HistorialClasesClient({
   currentUser,
   historialItems,
+  profesoresDisponibles = [],
 }: HistorialClasesClientProps) {
+  const [items, setItems] = useState<ClaseHistorialItem[]>(historialItems);
   const [search, setSearch] = useState("");
   const [filterEstado, setFilterEstado] = useState<string>("TODAS");
+  const [claseParaEditar, setClaseParaEditar] = useState<ClaseHistorialItem | null>(null);
 
   const isAdmin = currentUser.rol === "ADMIN";
 
@@ -38,7 +44,13 @@ export function HistorialClasesClient({
     .replace(/\s*\((admin|superadmin|profesor)\)/gi, "")
     .trim();
 
-  const filteredItems = historialItems.filter((item) => {
+  const handleClaseActualizada = (itemActualizado: ClaseHistorialItem) => {
+    setItems((prev) =>
+      prev.map((it) => (it.clase.id === itemActualizado.clase.id ? itemActualizado : it))
+    );
+  };
+
+  const filteredItems = items.filter((item) => {
     const matchSearch =
       item.clase.nombre.toLowerCase().includes(search.toLowerCase()) ||
       (item.clase.profesor_nombre &&
@@ -217,19 +229,41 @@ export function HistorialClasesClient({
                   </div>
                 </div>
 
-                {/* Botón para Abrir Asistencia */}
-                <Link
-                  href={`/profesor/clases/${item.clase.id}/asistencia`}
-                  className="w-full py-3 px-3 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
-                >
-                  <ClipboardCheck className="w-4 h-4 text-[#0F3E86]" />
-                  <span>VER / GESTIONAR ASISTENCIA</span>
-                </Link>
+                {/* Botones de Acción */}
+                <div className="space-y-2 pt-1">
+                  <Link
+                    href={`/profesor/clases/${item.clase.id}/asistencia`}
+                    className="w-full py-2.5 px-3 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
+                  >
+                    <ClipboardCheck className="w-4 h-4 text-[#0F3E86]" />
+                    <span>VER / GESTIONAR ASISTENCIA</span>
+                  </Link>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setClaseParaEditar(item)}
+                      className="w-full py-2 px-3 bg-white/10 hover:bg-white/20 active:scale-98 text-cyan-200 hover:text-white border border-cyan-400/30 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-cyan-300" />
+                      <span>EDITAR REGISTRO DE CLASE</span>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Modal de Edición de Historial para Dirección */}
+      <ModalEditarClaseHistorial
+        isOpen={!!claseParaEditar}
+        onClose={() => setClaseParaEditar(null)}
+        item={claseParaEditar}
+        profesoresDisponibles={profesoresDisponibles}
+        onClaseActualizada={handleClaseActualizada}
+      />
     </div>
   );
 }
