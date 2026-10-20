@@ -71,6 +71,7 @@ export function ModalEditarClaseHistorial({
     try {
       const res = await editarClaseHistorialAction({
         claseId: item.clase.id,
+        sesionId: item.sesion?.id,
         nombre: nombre.trim(),
         fecha: fecha,
         horaInicio: `${horaInicio}:00`,

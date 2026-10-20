@@ -14,7 +14,7 @@ interface BottomBarProps {
 export function BottomBar({ userRole }: BottomBarProps) {
   const pathname = usePathname();
 
-  if (!userRole || pathname === "/login" || pathname === "/setup") {
+  if (!userRole || pathname === "/login" || pathname === "/setup" || pathname === "/terminal") {
     return null;
   }
 

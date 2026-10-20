@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Usuario,
   ClaseHistorialItem,
@@ -16,6 +17,8 @@ import { ModalCrearListaAlumnos } from "./ModalCrearListaAlumnos";
 import { ModalVerListaAlumnos } from "./ModalVerListaAlumnos";
 import { ModalEditarListaAlumnos } from "./ModalEditarListaAlumnos";
 import { ModalVerClaseInfo } from "./ModalVerClaseInfo";
+import { ModalEditarClaseHistorial } from "./ModalEditarClaseHistorial";
+import { TerminalSessionWatcher } from "@/components/terminal/TerminalSessionWatcher";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import { cerrarClaseAction } from "@/lib/actions/asistencia.actions";
 import { eliminarListaAlumnosAction } from "@/lib/actions/clases.actions";
@@ -37,6 +40,8 @@ import {
   Trash2,
   Menu,
   User,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -56,6 +61,8 @@ export function ProfesorClasesClient({
   initialClasesAbiertas = [],
   profesoresDisponibles = [],
 }: ProfesorClasesClientProps) {
+  const router = useRouter();
+
   const [ultimasClases, setUltimasClases] =
     useState<ClaseHistorialItem[]>(initialUltimasClases);
   const [listasAlumnos, setListasAlumnos] =
@@ -73,9 +80,19 @@ export function ProfesorClasesClient({
   const [eliminandoListaId, setEliminandoListaId] = useState<string | null>(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
 
-  // Estados para Ver Info y Menú de Clases del Historial
+  // Estados para Ver Info, Editar Horario y Menú de Clases del Historial
   const [claseParaVerInfo, setClaseParaVerInfo] = useState<ClaseHistorialItem | null>(null);
+  const [claseParaEditar, setClaseParaEditar] = useState<ClaseHistorialItem | null>(null);
   const [menuClaseAbiertoId, setMenuClaseAbiertoId] = useState<string | null>(null);
+
+  // Sincronizar ultimasClases y clasesAbiertas cuando las props del servidor cambien
+  React.useEffect(() => {
+    setUltimasClases(initialUltimasClases);
+  }, [initialUltimasClases]);
+
+  React.useEffect(() => {
+    setClasesAbiertas(initialClasesAbiertas);
+  }, [initialClasesAbiertas]);
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser.nombre_completo
@@ -116,16 +133,6 @@ export function ProfesorClasesClient({
   };
 
   const handleClaseCreada = (nuevaClase: Clase) => {
-    const nuevoItem: ClaseHistorialItem = {
-      clase: nuevaClase,
-      fecha: new Date().toISOString().split("T")[0],
-      totalInscriptos: nuevaClase.total_inscriptos || 0,
-      totalPresentes: 0,
-      totalAusentes: nuevaClase.total_inscriptos || 0,
-      totalTardes: 0,
-    };
-    setUltimasClases((prev) => [nuevoItem, ...prev.slice(0, 2)]);
-
     // Agregar a la lista de clases abiertas parpadeando con ID real
     const realSesionId = (nuevaClase as any).sesion_id || "s" + Date.now().toString(36);
     const nuevaAbierta: ClaseAbiertaItem = {
@@ -142,9 +149,12 @@ export function ProfesorClasesClient({
       },
       clase: nuevaClase,
       presentesCount: 0,
+      tardesCount: 0,
+      ausentesCount: nuevaClase.total_inscriptos || 0,
       totalCount: nuevaClase.total_inscriptos || 0,
     };
     setClasesAbiertas((prev) => [nuevaAbierta, ...prev]);
+    router.refresh();
   };
 
   const handleCerrarClase = async (sesionId: string) => {
@@ -155,7 +165,33 @@ export function ProfesorClasesClient({
     try {
       const res = await cerrarClaseAction(sesionId);
       if (res.success) {
+        // Encontrar los datos de la sesión abierta que se cerró
+        const sesionCerrada = clasesAbiertas.find((it) => it.sesion.id === sesionId);
         setClasesAbiertas((prev) => prev.filter((item) => item.sesion.id !== sesionId));
+
+        if (sesionCerrada) {
+          const pres = sesionCerrada.presentesCount || 0;
+          const tard = sesionCerrada.tardesCount || 0;
+          const tot = sesionCerrada.totalCount || 0;
+          const aus = sesionCerrada.ausentesCount ?? Math.max(0, tot - pres);
+
+          const itemHistorial: ClaseHistorialItem = {
+            clase: sesionCerrada.clase,
+            sesion: { ...sesionCerrada.sesion, estado: "FINALIZADA" },
+            fecha: sesionCerrada.sesion.fecha || new Date().toISOString().split("T")[0],
+            totalInscriptos: tot,
+            totalPresentes: pres,
+            totalAusentes: aus,
+            totalTardes: tard,
+          };
+
+          setUltimasClases((prev) => {
+            const filtered = prev.filter((it) => it.sesion?.id !== sesionId);
+            return [itemHistorial, ...filtered.slice(0, 2)];
+          });
+        }
+
+        router.refresh();
       } else {
         alert(res.error || "No se pudo cerrar la clase");
       }
@@ -168,6 +204,9 @@ export function ProfesorClasesClient({
 
   return (
     <div className="space-y-6">
+      {/* Componente Centinela de Modo Terminal / Kiosk (Sede Central) */}
+      <TerminalSessionWatcher currentUser={currentUser} />
+
       {/* 1. Banner Principal del Sensei - Card Reducida y Compacta en Azul Oficial #0F3E86 */}
       <div className="p-3.5 sm:p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md shadow-blue-950/15">
         <div className="flex items-center gap-3 min-w-0">
@@ -229,9 +268,19 @@ export function ProfesorClasesClient({
                       <span>{item.totalCount} alumnos</span>
                     </span>
                     <span className="text-blue-300/40 hidden xs:inline">•</span>
-                    <span className="text-emerald-300 font-bold text-[11px] flex items-center gap-1 bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-500/40">
+                    <span className="text-emerald-300 font-bold text-[11px] flex items-center gap-1 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/40">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                       <span>{item.presentesCount} presentes</span>
+                    </span>
+                    {typeof item.tardesCount === "number" && item.tardesCount > 0 && (
+                      <span className="text-amber-300 font-bold text-[11px] flex items-center gap-1 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/40">
+                        <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span>{item.tardesCount} tardes</span>
+                      </span>
+                    )}
+                    <span className="text-rose-300 font-semibold text-[11px] flex items-center gap-1 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-500/30">
+                      <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                      <span>{item.ausentesCount ?? Math.max(0, item.totalCount - item.presentesCount - (item.tardesCount || 0))} ausentes</span>
                     </span>
                     {item.clase.profesor_nombre && (
                       <>
@@ -248,7 +297,7 @@ export function ProfesorClasesClient({
                 {/* Botones de Acción Alineados */}
                 <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto pt-1 lg:pt-0">
                   <Link
-                    href={`/profesor/clases/${item.clase.id}/asistencia`}
+                    href={`/profesor/clases/${item.clase.id}/asistencia?sesionId=${item.sesion.id}`}
                     className="flex-1 lg:flex-initial py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all touch-target-safe cursor-pointer"
                   >
                     <ClipboardCheck className="w-4 h-4 text-slate-950 shrink-0" />
@@ -508,12 +557,24 @@ export function ProfesorClasesClient({
                             <span>Ver Info</span>
                           </button>
 
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuClaseAbiertoId(null);
+                              setClaseParaEditar(item);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                          >
+                            <Clock className="w-4 h-4 text-amber-300 shrink-0" />
+                            <span>Editar Horario / Clase</span>
+                          </button>
+
                           <Link
-                            href={`/profesor/clases/${item.clase.id}/asistencia`}
+                            href={`/profesor/clases/${item.clase.id}/asistencia${item.sesion?.id ? `?sesionId=${item.sesion.id}` : ""}`}
                             onClick={() => setMenuClaseAbiertoId(null)}
                             className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
                           >
-                            <Edit2 className="w-4 h-4 text-blue-300 shrink-0" />
+                            <Edit2 className="w-4 h-4 text-emerald-300 shrink-0" />
                             <span>Editar Asistencia</span>
                           </Link>
                         </div>
@@ -523,11 +584,17 @@ export function ProfesorClasesClient({
 
                   {/* Fila Inferior: Conteo de Asistencia Limpio y Compacto */}
                   <div className="flex items-center justify-between text-xs pt-2.5 border-t border-white/15">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="flex items-center gap-1 text-emerald-300 font-bold text-xs">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                         <span>{item.totalPresentes} presentes</span>
                       </span>
+                      {item.totalTardes > 0 && (
+                        <span className="flex items-center gap-1 text-amber-300 font-bold text-xs bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/40">
+                          <Clock className="w-3 h-3 text-amber-400" />
+                          <span>({item.totalTardes} tarde)</span>
+                        </span>
+                      )}
                       <span className="text-blue-200/90 text-xs font-medium">
                         {item.totalAusentes} ausentes
                       </span>
@@ -613,6 +680,23 @@ export function ProfesorClasesClient({
         isOpen={!!claseParaVerInfo}
         item={claseParaVerInfo}
         onClose={() => setClaseParaVerInfo(null)}
+      />
+
+      {/* Modal para Editar Horario/Datos de Clase del Historial */}
+      <ModalEditarClaseHistorial
+        isOpen={!!claseParaEditar}
+        item={claseParaEditar}
+        profesoresDisponibles={profesoresDisponibles}
+        onClose={() => setClaseParaEditar(null)}
+        onClaseActualizada={(itemActualizado) => {
+          setUltimasClases((prev) =>
+            prev.map((it) =>
+              it.clase.id === itemActualizado.clase.id ? itemActualizado : it
+            )
+          );
+          setClaseParaEditar(null);
+          router.refresh();
+        }}
       />
     </div>
   );

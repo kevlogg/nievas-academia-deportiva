@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfesorHistorialPage() {
   const currentUser = await requireProfesor();
-  const historialItems = await dalGetHistorialClasesProfesor(currentUser.id);
+  const historialItems = await dalGetHistorialClasesProfesor(
+    currentUser.rol === "ADMIN" ? undefined : currentUser.id
+  );
   const profesores = await dalGetProfesores();
 
   return (

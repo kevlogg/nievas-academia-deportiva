@@ -215,15 +215,17 @@ export function HistorialClasesClient({
                     <div className="flex items-center justify-between text-[11px] font-semibold pt-1">
                       <span className="text-emerald-300 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                        {item.totalPresentes} Presentes
+                        <span>{item.totalPresentes} Presentes</span>
                       </span>
-                      <span className="text-amber-300 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-amber-400" />
-                        {item.totalTardes} Tardes
-                      </span>
+                      {item.totalTardes > 0 && (
+                        <span className="text-amber-300 flex items-center gap-1 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/40">
+                          <Clock className="w-3 h-3 text-amber-400" />
+                          <span>({item.totalTardes} Tarde)</span>
+                        </span>
+                      )}
                       <span className="text-rose-300 flex items-center gap-1">
                         <XCircle className="w-3 h-3 text-rose-400" />
-                        {item.totalAusentes} Ausentes
+                        <span>{item.totalAusentes} Ausentes</span>
                       </span>
                     </div>
                   </div>
@@ -232,7 +234,7 @@ export function HistorialClasesClient({
                 {/* Botones de Acción */}
                 <div className="space-y-2 pt-1">
                   <Link
-                    href={`/profesor/clases/${item.clase.id}/asistencia`}
+                    href={`/profesor/clases/${item.clase.id}/asistencia${item.sesion?.id ? `?sesionId=${item.sesion.id}` : ""}`}
                     className="w-full py-2.5 px-3 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
                   >
                     <ClipboardCheck className="w-4 h-4 text-[#0F3E86]" />

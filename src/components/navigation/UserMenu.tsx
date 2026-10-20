@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { Usuario } from "@/types";
 import { logoutAction } from "@/lib/actions/auth.actions";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ModalMiPin } from "@/components/navigation/ModalMiPin";
 
 interface UserMenuProps {
   currentUser: Usuario | null;
@@ -12,6 +13,7 @@ interface UserMenuProps {
 
 export function UserMenu({ currentUser }: UserMenuProps) {
   const [isPending, startTransition] = useTransition();
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
 
   if (!currentUser) {
     return null;
@@ -35,12 +37,15 @@ export function UserMenu({ currentUser }: UserMenuProps) {
     .join("");
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Badge de Usuario Logueado (Misma altura h-14 mobile / h-12 desktop y rounded-2xl que el logo) */}
-      <div
-        className="w-14 h-14 sm:w-auto sm:h-12 sm:px-3 bg-white/10 hover:bg-white/15 border border-white/20 rounded-2xl shadow-sm flex items-center justify-center sm:justify-start gap-2.5 text-xs transition-all shrink-0"
-        title={`Conectado como: ${currentUser.nombre_completo} (${isAdmin ? "Dirección" : "Profesor"})`}
-      >
+    <>
+      <div className="flex items-center gap-2">
+        {/* Badge de Usuario Logueado (Clickeable para abrir Mi PIN) */}
+        <button
+          type="button"
+          onClick={() => setIsPinModalOpen(true)}
+          className="w-14 h-14 sm:w-auto sm:h-12 sm:px-3 bg-white/10 hover:bg-white/15 active:scale-95 border border-white/20 rounded-2xl shadow-sm flex items-center justify-center sm:justify-start gap-2.5 text-xs transition-all shrink-0 cursor-pointer"
+          title="Ver mi perfil y configurar mi PIN de tatami"
+        >
         {/* Avatar Circular/Rounded con Iniciales */}
         <div
           className={cn(
@@ -67,7 +72,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
             {isAdmin ? "Dirección" : "Profesor"}
           </span>
         </div>
-      </div>
+      </button>
 
       {/* Botón Cerrar Sesión (Misma altura h-14 mobile / h-12 desktop y rounded-2xl que el logo) */}
       <button
@@ -84,5 +89,13 @@ export function UserMenu({ currentUser }: UserMenuProps) {
         <span className="hidden sm:inline font-bold">Salir</span>
       </button>
     </div>
+
+    {/* Modal para que el usuario configure/cambie su propio PIN */}
+    <ModalMiPin
+      isOpen={isPinModalOpen}
+      onClose={() => setIsPinModalOpen(false)}
+      currentUser={currentUser}
+    />
+  </>
   );
 }

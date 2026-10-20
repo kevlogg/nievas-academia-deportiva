@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AdminDashboardMetricsData, Clase, Usuario } from "@/types";
 import { ModalCrearClase } from "./ModalCrearClase";
+import { ModalGestionarPinProfesor } from "./ModalGestionarPinProfesor";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import {
   Users,
@@ -19,6 +20,8 @@ import {
   CheckCircle,
   ShieldCheck,
   History,
+  Tablet,
+  KeyRound,
 } from "lucide-react";
 
 interface AdminDashboardClientProps {
@@ -35,6 +38,7 @@ export function AdminDashboardClient({
   profesores,
 }: AdminDashboardClientProps) {
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
+  const [profesorParaPin, setProfesorParaPin] = useState<Usuario | null>(null);
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser?.nombre_completo
@@ -66,6 +70,15 @@ export function AdminDashboardClient({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/terminal"
+            className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 shrink-0"
+            title="Activar Modo Terminal en la tablet fija del dojo"
+          >
+            <Tablet className="w-4 h-4 text-slate-950" />
+            <span>Fijar Modo Tablet</span>
+          </Link>
+
           <button
             onClick={() => setIsCrearClaseOpen(true)}
             className="px-3.5 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-sm flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 shrink-0"
@@ -387,6 +400,52 @@ export function AdminDashboardClient({
         </div>
       </section>
 
+      {/* SECCIÓN: EQUIPO DOCENTE & PINS DE TABLET */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-5 h-5 text-amber-500" />
+            <div>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                Equipo Docente & PINs de Tablet
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Gestiona los PINs de acceso rápido para que los Senseis desbloqueen el tatami en la tablet
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {profesores.map((prof) => (
+            <div
+              key={prof.id}
+              className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl flex items-center justify-between gap-3 shadow-md"
+            >
+              <div className="min-w-0 flex-1">
+                <h4 className="font-bold text-sm text-white truncate">
+                  {prof.nombre_completo}
+                </h4>
+                <p className="text-[11px] text-blue-200 truncate">{prof.email}</p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-blue-100">
+                    {prof.rol === "ADMIN" ? "Dirección" : "Profesor"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setProfesorParaPin(prof)}
+                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-transform active:scale-95 cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Gestionar PIN</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Modal para Crear Nueva Clase */}
       <ModalCrearClase
         isOpen={isCrearClaseOpen}
@@ -394,6 +453,16 @@ export function AdminDashboardClient({
         profesores={profesores}
         onClaseCreada={() => {
           setIsCrearClaseOpen(false);
+          window.location.reload();
+        }}
+      />
+
+      {/* Modal para Gestionar PIN de Profesor */}
+      <ModalGestionarPinProfesor
+        isOpen={!!profesorParaPin}
+        onClose={() => setProfesorParaPin(null)}
+        profesor={profesorParaPin}
+        onPinActualizado={() => {
           window.location.reload();
         }}
       />

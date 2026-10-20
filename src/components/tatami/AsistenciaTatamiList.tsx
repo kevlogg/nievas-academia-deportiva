@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useTransition, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Alumno,
   AlumnoSesionItem,
@@ -18,6 +19,7 @@ import {
   iniciarSesionClaseAction,
   marcarAsistenciaAction,
   sincronizarAsistenciasOfflineAction,
+  guardarAsistenciaSesionCompletaAction,
 } from "@/lib/actions/asistencia.actions";
 import {
   Play,
@@ -33,6 +35,7 @@ import {
   RefreshCw,
   Phone,
   ShieldAlert,
+  Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,6 +71,9 @@ export function AsistenciaTatamiList({
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
 
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState<boolean>(false);
 
   // Helper para haptic feedback en dispositivos táctiles
   const triggerHaptic = useCallback((type: "tap" | "success" | "warn") => {
@@ -77,6 +83,43 @@ export function AsistenciaTatamiList({
       else if (type === "warn") navigator.vibrate([100, 50, 100]);
     }
   }, []);
+
+  // Guardar cambios masivos y explícitos en Supabase
+  const handleGuardarCambios = async (volverAClases: boolean = false) => {
+    if (!sesion) return;
+    setIsSaving(true);
+    triggerHaptic("tap");
+
+    try {
+      const payload = items.map((it) => ({
+        alumnoId: it.alumno.id,
+        estado: it.estado,
+        esRecuperacion: it.es_recuperacion,
+      }));
+
+      const res = await guardarAsistenciaSesionCompletaAction(sesion.id, payload);
+      if (res.success) {
+        setHasPendingChanges(false);
+        triggerHaptic("success");
+        setBannerNotice("¡Asistencia guardada y confirmada con éxito en la base de datos!");
+        setTimeout(() => setBannerNotice(null), 4000);
+
+        if (volverAClases) {
+          const isKiosk = typeof window !== "undefined" && localStorage.getItem("nievas_kiosk_mode") === "true";
+          router.push(isKiosk ? "/terminal" : "/profesor/clases");
+          router.refresh();
+        } else {
+          router.refresh();
+        }
+      } else {
+        alert(res.error || "No se pudo guardar la asistencia");
+      }
+    } catch {
+      alert("Error al conectar con el servidor para guardar los cambios");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Sincronizar cola offline con el servidor
   const syncOfflineQueue = useCallback(async () => {
@@ -187,6 +230,7 @@ export function AsistenciaTatamiList({
     if (!sesion) return;
 
     triggerHaptic("tap");
+    setHasPendingChanges(true);
 
     // 1. Actualización optimista inmediata en UI
     setItems((prevItems) =>
@@ -318,6 +362,7 @@ export function AsistenciaTatamiList({
   const presentesCount = items.filter(
     (i) => i.estado === "PRESENTE" || i.estado === "TARDE"
   ).length;
+  const tardesCount = items.filter((i) => i.estado === "TARDE").length;
   const ausentesCount = items.filter((i) => i.estado === "AUSENTE").length;
   const recuperacionesCount = items.filter((i) => i.es_recuperacion).length;
   const totalCount = items.length;
@@ -443,7 +488,7 @@ export function AsistenciaTatamiList({
                 </span>
               </div>
 
-              {sesion.estado === "ABIERTA" && (
+              {sesion.estado === "ABIERTA" ? (
                 <button
                   onClick={handleFinalizarClase}
                   disabled={isPending}
@@ -451,6 +496,27 @@ export function AsistenciaTatamiList({
                 >
                   Finalizar Clase
                 </button>
+              ) : (
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    onClick={() => handleGuardarCambios(false)}
+                    disabled={isPending || isSaving}
+                    className={cn(
+                      "px-3.5 py-1.5 text-xs font-black rounded-xl border transition-all active:scale-95 touch-target-safe cursor-pointer flex items-center gap-1.5 shadow-sm",
+                      hasPendingChanges
+                        ? "bg-emerald-500 hover:bg-emerald-400 text-white border-emerald-300 animate-pulse"
+                        : "bg-white/15 hover:bg-white/25 text-white border-white/30"
+                    )}
+                    title="Guardar cambios de asistencia"
+                  >
+                    {isSaving ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isSaving ? "Guardando..." : "Guardar Cambios"}</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -467,6 +533,12 @@ export function AsistenciaTatamiList({
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>{presentesCount}</span>
                   <span className="text-[11px] text-emerald-400/80 font-normal hidden xs:inline">presentes</span>
+                  {tardesCount > 0 && (
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30 flex items-center gap-0.5 font-bold">
+                      <Clock className="w-2.5 h-2.5" />
+                      <span>{tardesCount} tarde</span>
+                    </span>
+                  )}
                 </span>
 
                 <span className="bg-[#0A2E65] border border-rose-500/40 px-2.5 py-1 rounded-lg text-rose-300 font-bold flex items-center gap-1.5">
@@ -665,6 +737,53 @@ export function AsistenciaTatamiList({
               })
             )}
           </div>
+
+          {/* Barra Inferior Destacada de Guardar Cambios para Sesiones Finalizadas */}
+          {sesion && sesion.estado === "FINALIZADA" && (
+            <div className="sticky bottom-4 z-30 p-4 bg-[#0A2E65] text-white border-2 border-emerald-400/60 rounded-2xl shadow-2xl shadow-blue-950/80 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 shrink-0">
+                  <Save className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Registro de Clase Cerrada</span>
+                    {hasPendingChanges && (
+                      <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.5 rounded font-black uppercase">
+                        Cambios pendientes
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-blue-200">
+                    Guarda la información editada para sincronizarla en el historial y base de datos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => handleGuardarCambios(false)}
+                  disabled={isPending || isSaving}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-950/40 border border-emerald-300 flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
+                >
+                  {isSaving ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  <span>{isSaving ? "GUARDANDO..." : "GUARDAR CAMBIOS"}</span>
+                </button>
+
+                <button
+                  onClick={() => handleGuardarCambios(true)}
+                  disabled={isPending || isSaving}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 bg-white hover:bg-blue-50 active:scale-95 text-[#0F3E86] font-black text-xs rounded-xl shadow-lg border border-white flex items-center justify-center gap-2 transition-all touch-target-safe cursor-pointer"
+                >
+                  <span>GUARDAR Y SALIR</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

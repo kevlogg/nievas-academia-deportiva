@@ -54,6 +54,8 @@ export async function marcarAsistenciaAction(
 
     revalidatePath(`/profesor/clases`);
     revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+    revalidatePath(`/profesor/historial`);
+    revalidatePath(`/admin/historial`);
     revalidatePath(`/profesor/metricas`);
     revalidatePath(`/admin/dashboard`);
 
@@ -64,6 +66,44 @@ export async function marcarAsistenciaAction(
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Error al registrar asistencia";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Guardar y confirmar de forma completa la asistencia de una sesión de tatami
+ * (Ideal para clases cerradas o tras modificaciones manuales)
+ */
+export async function guardarAsistenciaSesionCompletaAction(
+  sesionId: string,
+  asistencias: {
+    alumnoId: string;
+    estado: AsistenciaEstado;
+    esRecuperacion?: boolean;
+  }[]
+): Promise<ActionResponse<{ totalGuardadas: number }>> {
+  try {
+    if (!sesionId) {
+      return { success: false, error: "Identificador de sesión inválido" };
+    }
+
+    const { dalGuardarAsistenciasSesion } = await import("@/lib/dal");
+    const res = await dalGuardarAsistenciasSesion(sesionId, asistencias);
+
+    revalidatePath(`/profesor/clases`);
+    revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+    revalidatePath(`/profesor/historial`);
+    revalidatePath(`/admin/historial`);
+    revalidatePath(`/profesor/metricas`);
+    revalidatePath(`/admin/dashboard`);
+
+    return {
+      success: true,
+      data: res,
+      message: "¡Asistencia guardada y confirmada exitosamente en la base de datos!",
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error al guardar la asistencia";
     return { success: false, error: msg };
   }
 }
@@ -100,6 +140,8 @@ export async function finalizarSesionClaseAction(
     await dalFinalizarSesion(sesionId);
     revalidatePath(`/profesor/clases`);
     revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+    revalidatePath(`/profesor/historial`);
+    revalidatePath(`/admin/historial`);
     revalidatePath(`/profesor/metricas`);
     revalidatePath(`/admin/dashboard`);
 

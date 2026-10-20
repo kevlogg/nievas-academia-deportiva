@@ -1,16 +1,24 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Usuario } from "@/types";
 import { UserMenu } from "@/components/navigation/UserMenu";
-import { Shield, BarChart3, Users, CalendarDays, History } from "lucide-react";
+import { Shield, BarChart3, Users, CalendarDays, History, Tablet } from "lucide-react";
 
 interface NavbarProps {
   currentUser: Usuario | null;
 }
 
 export function Navbar({ currentUser }: NavbarProps) {
+  const pathname = usePathname();
   const isAdmin = currentUser?.rol === "ADMIN";
+
+  if (pathname === "/terminal") {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-[#0F3E86] border-b border-[#1E57A8] px-3 sm:px-4 py-2 shadow-lg shadow-[#0F3E86]/25">
@@ -81,6 +89,14 @@ export function Navbar({ currentUser }: NavbarProps) {
                 >
                   <Users className="w-4 h-4 text-emerald-300" />
                   <span>Alumnos & Cintos</span>
+                </Link>
+                <Link
+                  href="/terminal"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 border border-amber-400/40 hover:text-white transition-all font-bold"
+                  title="Fijar tablet en Modo Kiosk Terminal para la Sede"
+                >
+                  <Tablet className="w-4 h-4 text-amber-300" />
+                  <span>Modo Tablet</span>
                 </Link>
               </>
             )}

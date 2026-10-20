@@ -31,6 +31,7 @@ import {
   CrearListaAlumnosInput,
 } from "@/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getArgentinaDateTime } from "@/lib/utils";
 
 // ======================================================================================
 // ALMACÉN DE DATOS SEMILLA EN MEMORIA (FALLBACK SEED STORE)
@@ -773,6 +774,118 @@ export async function dalMarcarAsistencia(
   }
 
   return asistencia;
+}
+
+/**
+ * Guardar/sincronizar de forma persistente y completa la lista de asistencias de una sesión.
+ * Especialmente útil al editar clases cerradas o tras modificaciones manuales en tatami.
+ */
+export async function dalGuardarAsistenciasSesion(
+  sesionId: string,
+  asistencias: {
+    alumnoId: string;
+    estado: AsistenciaEstado;
+    esRecuperacion?: boolean;
+  }[]
+): Promise<{ totalGuardadas: number }> {
+  const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  // 1. Intentar en Supabase (UPSERT masivo)
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbSesion } = await supabase
+      .from("sesiones_clase")
+      .select("id, clase_id, profesor_id, clase:clases(nombre)")
+      .eq("id", sesionId)
+      .maybeSingle();
+
+    if (dbSesion) {
+      if (currentUser.rol === "PROFESOR") {
+        const hasAccess = await checkProfesorAccessToClase(
+          supabase,
+          currentUser.id,
+          dbSesion.clase_id,
+          dbSesion.profesor_id,
+          (dbSesion.clase as any)?.nombre || ""
+        );
+        if (!hasAccess) {
+          throw new Error("No tienes permisos para modificar asistencias en esta sesión");
+        }
+      }
+
+      if (asistencias.length > 0) {
+        const rows = asistencias.map((a) => ({
+          sesion_id: sesionId,
+          alumno_id: a.alumnoId,
+          estado: a.estado,
+          es_recuperacion: a.esRecuperacion || false,
+          marcado_en: now,
+        }));
+
+        const { error: errUpsert } = await supabase
+          .from("asistencias")
+          .upsert(rows, { onConflict: "sesion_id,alumno_id" });
+
+        if (!errUpsert) {
+          // Sincronizar en memoria
+          for (const a of asistencias) {
+            const memAsist = dbState.asistencias.find(
+              (m) => m.sesion_id === sesionId && m.alumno_id === a.alumnoId
+            );
+            if (memAsist) {
+              memAsist.estado = a.estado;
+              memAsist.marcado_en = now;
+              memAsist.es_recuperacion = a.esRecuperacion || false;
+            } else {
+              dbState.asistencias.push({
+                id: "as-" + Math.random().toString(36).substring(2, 9),
+                sesion_id: sesionId,
+                alumno_id: a.alumnoId,
+                estado: a.estado,
+                es_recuperacion: a.esRecuperacion || false,
+                marcado_en: now,
+                created_at: now,
+              });
+            }
+          }
+
+          return { totalGuardadas: asistencias.length };
+        } else {
+          console.error("Error upserting asistencias in Supabase:", errUpsert);
+        }
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No tienes permisos")) {
+      throw err;
+    }
+    console.error("Error in dalGuardarAsistenciasSesion Supabase:", err);
+  }
+
+  // 2. Fallback memoria
+  for (const a of asistencias) {
+    const memAsist = dbState.asistencias.find(
+      (m) => m.sesion_id === sesionId && m.alumno_id === a.alumnoId
+    );
+    if (memAsist) {
+      memAsist.estado = a.estado;
+      memAsist.marcado_en = now;
+      memAsist.es_recuperacion = a.esRecuperacion || false;
+    } else {
+      dbState.asistencias.push({
+        id: "as-" + Math.random().toString(36).substring(2, 9),
+        sesion_id: sesionId,
+        alumno_id: a.alumnoId,
+        estado: a.estado,
+        es_recuperacion: a.esRecuperacion || false,
+        marcado_en: now,
+        created_at: now,
+      });
+    }
+  }
+
+  return { totalGuardadas: asistencias.length };
 }
 
 /**
@@ -1552,8 +1665,8 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
   const effectiveProfId = data.profesorId || currentUser.id;
   const profesor = dbState.usuarios.find((u) => u.id === effectiveProfId);
   const now = new Date().toISOString();
-  const hoyFecha = now.split("T")[0];
-  const fechaClase = data.fecha || hoyFecha;
+  const { fecha: hoyArg, horaInicioDefecto, horaFinDefecto } = getArgentinaDateTime();
+  const fechaClase = data.fecha || hoyArg;
 
   // Si no se pasaron días de semana pero sí fecha, calcular el día de la semana
   let diasSemana = data.diasSemana && data.diasSemana.length > 0 ? data.diasSemana : [];
@@ -1562,14 +1675,23 @@ export async function dalCrearClase(data: CrearClaseInput): Promise<Clase> {
     diasSemana = [isNaN(d) ? new Date().getDay() : d];
   }
 
-  // Horarios automáticos si no se especificaron
-  const horaActual = now.split("T")[1]?.substring(0, 8) || "18:00:00";
-  const horaInicio = data.horaInicio || horaActual;
-  let horaFin = data.horaFin;
-  if (!horaFin) {
-    const [hh, mm, ss] = horaInicio.split(":").map(Number);
-    const nextH = (hh + 1) % 24;
-    horaFin = `${String(nextH).padStart(2, "0")}:${String(mm || 0).padStart(2, "0")}:${String(ss || 0).padStart(2, "0")}`;
+  // Horarios en Argentina con formato completo HH:mm:ss
+  let horaInicio = data.horaInicio?.trim();
+  if (horaInicio) {
+    if (horaInicio.length === 5) horaInicio = `${horaInicio}:00`;
+  } else {
+    horaInicio = horaInicioDefecto;
+  }
+
+  let horaFin = data.horaFin?.trim();
+  if (horaFin) {
+    if (horaFin.length === 5) horaFin = `${horaFin}:00`;
+  } else {
+    const [hh, mm] = horaInicio.split(":").map(Number);
+    const endH = (hh + 1) % 24;
+    const endM = (mm + 15) % 60;
+    const endHAdjusted = mm + 15 >= 60 ? (endH + 1) % 24 : endH;
+    horaFin = `${String(endHAdjusted).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
   }
 
   // Si no se pasó nombre manual, tomar el nombre de la lista de alumnos
@@ -2260,56 +2382,158 @@ export async function dalCrearAlumnoRapido(input: {
 }
 
 /**
- * Obtener las últimas clases de un sensei (por defecto 3)
+ * Obtener las últimas clases dictadas de un sensei o de la academia (por defecto 3).
+ * Lee directamente las sesiones de tatami finalizadas ordenadas cronológicamente.
  */
 export async function dalGetUltimasClasesProfesor(
   profesorId?: string,
   limit: number = 3
 ): Promise<ClaseHistorialItem[]> {
   const currentUser = await requireProfesor();
-  const effectiveProfId =
-    currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
 
-  let clasesSensei = dbState.clases.filter((c) => c.activa);
-  if (currentUser.rol === "PROFESOR" || profesorId) {
-    clasesSensei = clasesSensei.filter((c) => c.profesor_id === effectiveProfId);
+  // 1. Intentar en Supabase consultando directamente las sesiones finalizadas
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    let query = supabase
+      .from("sesiones_clase")
+      .select(`
+        id,
+        clase_id,
+        profesor_id,
+        fecha,
+        hora_apertura,
+        estado,
+        observaciones,
+        created_at,
+        clase:clases(
+          id,
+          nombre,
+          profesor_id,
+          dias_semana,
+          hora_inicio,
+          hora_fin,
+          cupo_maximo,
+          activa,
+          created_at
+        ),
+        profesor:usuarios(id, nombre_completo),
+        asistencias(id, alumno_id, estado, es_recuperacion)
+      `)
+      .eq("estado", "FINALIZADA")
+      .order("fecha", { ascending: false })
+      .order("hora_apertura", { ascending: false });
+
+    if (profesorId && profesorId !== "TODOS") {
+      query = query.eq("profesor_id", profesorId);
+    } else if (currentUser.rol === "PROFESOR") {
+      query = query.eq("profesor_id", currentUser.id);
+    }
+
+    const { data: dbSesiones, error: errSesiones } = await query.limit(limit);
+
+    if (!errSesiones && dbSesiones && dbSesiones.length > 0) {
+      const items: ClaseHistorialItem[] = [];
+
+      for (const row of dbSesiones) {
+        const asistencias = (row.asistencias as any[]) || [];
+        const presDirectos = asistencias.filter((a) => a.estado === "PRESENTE").length;
+        const tardes = asistencias.filter((a) => a.estado === "TARDE").length;
+        const ausentes = asistencias.filter((a) => a.estado === "AUSENTE").length;
+
+        // Quien llegó tarde TIENE PRESENTE (asistió a la clase)
+        const totalPresentes = presDirectos + tardes;
+        const totalInscriptos = asistencias.length || (row.clase as any)?.cupo_maximo || 0;
+
+        const claseObj: Clase = {
+          id: (row.clase as any)?.id || row.clase_id,
+          nombre: (row.clase as any)?.nombre || "Clase Tatami",
+          profesor_id: (row.clase as any)?.profesor_id || row.profesor_id,
+          profesor_nombre:
+            (row.profesor as any)?.nombre_completo ||
+            (row.profesor_id === currentUser.id
+              ? currentUser.nombre_completo
+              : "Sensei"),
+          dias_semana: (row.clase as any)?.dias_semana || [1, 3, 5],
+          hora_inicio: (row.clase as any)?.hora_inicio || "18:00:00",
+          hora_fin: (row.clase as any)?.hora_fin || "19:15:00",
+          cupo_maximo: (row.clase as any)?.cupo_maximo || 30,
+          activa: (row.clase as any)?.activa ?? true,
+          created_at: (row.clase as any)?.created_at || row.created_at,
+          total_inscriptos: totalInscriptos,
+        };
+
+        const sesionObj: SesionClase = {
+          id: row.id,
+          clase_id: row.clase_id,
+          profesor_id: row.profesor_id,
+          fecha: row.fecha,
+          hora_apertura: row.hora_apertura,
+          estado: row.estado,
+          observaciones: row.observaciones,
+          created_at: row.created_at,
+          clase_nombre: claseObj.nombre,
+        };
+
+        items.push({
+          clase: claseObj,
+          sesion: sesionObj,
+          fecha: row.fecha || sesionObj.created_at.split("T")[0],
+          totalInscriptos,
+          totalPresentes,
+          totalAusentes: ausentes,
+          totalTardes: tardes,
+        });
+      }
+
+      return items;
+    }
+  } catch (err) {
+    console.error("Error in dalGetUltimasClasesProfesor Supabase:", err);
   }
 
-  // Ordenar por created_at descendente (más recientes primero)
-  const sortedClases = [...clasesSensei].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-
-  const items: ClaseHistorialItem[] = [];
-
-  for (const clase of sortedClases.slice(0, limit)) {
-    const sesion = dbState.sesiones
-      .filter((s) => s.clase_id === clase.id)
-      .sort(
-        (a, b) => new Date(b.hora_apertura).getTime() - new Date(a.hora_apertura).getTime()
-      )[0];
-
-    const inscriptos = dbState.inscripciones.filter(
-      (ins) => ins.clase_id === clase.id && ins.activo
+  // Fallback memoria
+  const finalizadasMem = dbState.sesiones
+    .filter((s) => s.estado === "FINALIZADA")
+    .filter((s) => {
+      if (profesorId && profesorId !== "TODOS") return s.profesor_id === profesorId;
+      if (currentUser.rol === "PROFESOR") return s.profesor_id === currentUser.id;
+      return true;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.hora_apertura || b.created_at).getTime() -
+        new Date(a.hora_apertura || a.created_at).getTime()
     );
 
-    let presentes = 0;
-    let ausentes = 0;
-    let tardes = 0;
+  const items: ClaseHistorialItem[] = [];
+  for (const sesion of finalizadasMem.slice(0, limit)) {
+    const clase = dbState.clases.find((c) => c.id === sesion.clase_id) || {
+      id: sesion.clase_id,
+      nombre: sesion.clase_nombre || "Clase Tatami",
+      profesor_id: sesion.profesor_id,
+      profesor_nombre: currentUser.nombre_completo,
+      dias_semana: [1, 3, 5],
+      hora_inicio: "18:00:00",
+      hora_fin: "19:15:00",
+      cupo_maximo: 30,
+      activa: true,
+      created_at: sesion.created_at,
+    };
 
-    if (sesion) {
-      const asistencias = dbState.asistencias.filter((as) => as.sesion_id === sesion.id);
-      presentes = asistencias.filter((a) => a.estado === "PRESENTE").length;
-      ausentes = asistencias.filter((a) => a.estado === "AUSENTE").length;
-      tardes = asistencias.filter((a) => a.estado === "TARDE").length;
-    }
+    const asistencias = dbState.asistencias.filter((a) => a.sesion_id === sesion.id);
+    const presDirectos = asistencias.filter((a) => a.estado === "PRESENTE").length;
+    const tardes = asistencias.filter((a) => a.estado === "TARDE").length;
+    const ausentes = asistencias.filter((a) => a.estado === "AUSENTE").length;
+    const totalPresentes = presDirectos + tardes;
+    const inscriptos = dbState.inscripciones.filter((i) => i.clase_id === clase.id && i.activo);
 
     items.push({
       clase,
       sesion,
-      fecha: sesion?.fecha || clase.created_at.split("T")[0],
-      totalInscriptos: inscriptos.length || clase.total_inscriptos || 0,
-      totalPresentes: presentes,
+      fecha: sesion.fecha,
+      totalInscriptos: asistencias.length || inscriptos.length || clase.total_inscriptos || 0,
+      totalPresentes,
       totalAusentes: ausentes,
       totalTardes: tardes,
     });
@@ -2465,14 +2689,25 @@ export async function dalGetClasesAbiertas(
           .eq("clase_id", row.clase_id)
           .eq("activo", true);
 
-        const presentesCount = (asistData || []).filter(
-          (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+        const presDirectos = (asistData || []).filter(
+          (a: any) => a.estado === "PRESENTE"
         ).length;
+        const tardesCount = (asistData || []).filter(
+          (a: any) => a.estado === "TARDE"
+        ).length;
+        const ausentesCount = (asistData || []).filter(
+          (a: any) => a.estado === "AUSENTE"
+        ).length;
+
+        // Quien llegó tarde TIENE PRESENTE
+        const presentesCount = presDirectos + tardesCount;
 
         items.push({
           sesion,
           clase,
           presentesCount,
+          tardesCount,
+          ausentesCount,
           totalCount: inscriptosCount || (asistData || []).length || 0,
         });
       }
@@ -2507,14 +2742,17 @@ export async function dalGetClasesAbiertas(
       (a) => a.sesion_id === sesion.id
     );
 
-    const presentesCount = asistencias.filter(
-      (a) => a.estado === "PRESENTE" || a.estado === "TARDE"
-    ).length;
+    const presDirectos = asistencias.filter((a) => a.estado === "PRESENTE").length;
+    const tardesCount = asistencias.filter((a) => a.estado === "TARDE").length;
+    const ausentesCount = asistencias.filter((a) => a.estado === "AUSENTE").length;
+    const presentesCount = presDirectos + tardesCount;
 
     items.push({
       sesion,
       clase,
       presentesCount,
+      tardesCount,
+      ausentesCount,
       totalCount: inscriptos.length || clase.total_inscriptos || 0,
     });
   }
@@ -2536,7 +2774,7 @@ export async function dalCerrarSesionClase(
     const supabase = await createServerSupabaseClient();
     const { data: dbSesion, error: errFetch } = await supabase
       .from("sesiones_clase")
-      .select("*, clase:clases(id, nombre, hora_inicio)")
+      .select("*, clase:clases(id, nombre, hora_inicio, hora_fin)")
       .eq("id", sesionId)
       .maybeSingle();
 
@@ -2559,12 +2797,14 @@ export async function dalCerrarSesionClase(
         .update({ estado: "FINALIZADA" })
         .eq("id", sesionId);
 
-      // Registrar hora_fin actual si la clase aún no tenía hora de cierre
-      const horaActual = now.split("T")[1]?.substring(0, 8) || "19:00:00";
-      await supabase
-        .from("clases")
-        .update({ hora_fin: horaActual })
-        .eq("id", dbSesion.clase_id);
+      // Mantener la hora_fin programada de la clase. Solo asignar una si no existía.
+      if (!(dbSesion.clase as any)?.hora_fin) {
+        const { horaFinDefecto } = getArgentinaDateTime();
+        await supabase
+          .from("clases")
+          .update({ hora_fin: horaFinDefecto })
+          .eq("id", dbSesion.clase_id);
+      }
 
       // Sincronizar estado en memoria
       const sMem = dbState.sesiones.find((s) => s.id === sesionId);

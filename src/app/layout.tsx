@@ -36,6 +36,8 @@ export const viewport: Viewport = {
   themeColor: "#080D1A",
 };
 
+import { AppLayoutContainer } from "@/components/navigation/AppLayoutContainer";
+
 export default async function RootLayout({
   children,
 }: {
@@ -47,9 +49,9 @@ export default async function RootLayout({
     <html lang="es" className="dark">
       <body className="min-h-screen bg-slate-950 text-slate-100 antialiased flex flex-col selection:bg-blue-600 selection:text-white">
         <Navbar currentUser={currentUser} />
-        <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 pb-24 md:pb-8">
+        <AppLayoutContainer>
           {children}
-        </main>
+        </AppLayoutContainer>
         <BottomBar userRole={currentUser?.rol} />
         <PwaManager />
       </body>

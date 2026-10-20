@@ -14,12 +14,15 @@ export const dynamic = "force-dynamic";
 
 interface AsistenciaPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ sesionId?: string }>;
 }
 
 export default async function AsistenciaTatamiPage({
   params,
+  searchParams,
 }: AsistenciaPageProps) {
   const { id: claseId } = await params;
+  const { sesionId } = await searchParams;
   const currentUser = await requireProfesor();
 
   const clase = await dalGetClaseById(claseId);
@@ -27,9 +30,20 @@ export default async function AsistenciaTatamiPage({
     notFound();
   }
 
-  // Obtener o inicializar la sesión de tatami del día
-  const sesion = await dalGetOrCreateSesionClase(claseId);
-  const detalle = await dalGetSesionDetalle(sesion.id);
+  // Si se especificó una sesionId (por ejemplo al editar asistencia de una clase cerrada del historial):
+  let detalle;
+  if (sesionId) {
+    try {
+      detalle = await dalGetSesionDetalle(sesionId);
+    } catch {
+      const sesion = await dalGetOrCreateSesionClase(claseId);
+      detalle = await dalGetSesionDetalle(sesion.id);
+    }
+  } else {
+    // Obtener o inicializar la sesión de tatami del día
+    const sesion = await dalGetOrCreateSesionClase(claseId);
+    detalle = await dalGetSesionDetalle(sesion.id);
+  }
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">

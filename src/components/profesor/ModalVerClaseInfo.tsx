@@ -14,6 +14,7 @@ import {
   Users,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   Edit2,
 } from "lucide-react";
 
@@ -116,7 +117,7 @@ export function ModalVerClaseInfo({
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="p-3 bg-[#0A2E65] border border-[#2056A8] rounded-xl text-center space-y-1">
                 <span className="text-[10px] text-blue-200 block font-semibold">
                   Inscriptos
@@ -134,6 +135,16 @@ export function ModalVerClaseInfo({
                 <span className="text-lg font-black text-emerald-400 flex items-center justify-center gap-1">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   {item.totalPresentes}
+                </span>
+              </div>
+
+              <div className="p-3 bg-[#0A2E65] border border-amber-500/30 rounded-xl text-center space-y-1">
+                <span className="text-[10px] text-amber-300 block font-semibold">
+                  Tardes
+                </span>
+                <span className="text-lg font-black text-amber-300 flex items-center justify-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  {item.totalTardes}
                 </span>
               </div>
 
@@ -160,7 +171,7 @@ export function ModalVerClaseInfo({
           </button>
 
           <Link
-            href={`/profesor/clases/${item.clase.id}/asistencia`}
+            href={`/profesor/clases/${item.clase.id}/asistencia${item.sesion?.id ? `?sesionId=${item.sesion.id}` : ""}`}
             onClick={onClose}
             className="px-4 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-bold text-xs rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
           >

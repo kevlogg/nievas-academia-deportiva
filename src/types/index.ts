@@ -97,8 +97,33 @@ export interface Usuario {
   nombre_completo: string;
   telefono?: string;
   activo: boolean;
+  pin_activo?: boolean;
+  tiene_biometria?: boolean;
+  avatar_url?: string;
   created_at: string;
 }
+
+export interface WebAuthnCredentialRecord {
+  id: string; // Base64URL string of credential ID
+  publicKey: string; // Base64URL string
+  counter: number;
+  deviceName?: string;
+  transports?: string[];
+  createdAt: string;
+}
+
+export interface ProfesorTerminalItem {
+  id: string;
+  nombre_completo: string;
+  email: string;
+  rol: UserRole;
+  activo: boolean;
+  tiene_pin: boolean;
+  tiene_biometria: boolean;
+  credenciales_biometria_ids?: string[];
+  avatar_url?: string;
+}
+
 
 export interface Alumno {
   id: string;
@@ -156,6 +181,8 @@ export interface ClaseAbiertaItem {
   sesion: SesionClase;
   clase: Clase;
   presentesCount: number;
+  tardesCount?: number;
+  ausentesCount?: number;
   totalCount: number;
 }
 
