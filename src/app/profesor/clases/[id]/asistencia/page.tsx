@@ -6,6 +6,7 @@ import {
   dalGetClaseById,
   dalGetOrCreateSesionClase,
   dalGetSesionDetalle,
+  dalGetTodosAlumnos,
 } from "@/lib/dal";
 import { AsistenciaTatamiList } from "@/components/tatami/AsistenciaTatamiList";
 import { ChevronLeft } from "lucide-react";
@@ -45,6 +46,8 @@ export default async function AsistenciaTatamiPage({
     detalle = await dalGetSesionDetalle(sesion.id);
   }
 
+  const todosAlumnos = await dalGetTodosAlumnos();
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* Botón Volver */}
@@ -68,6 +71,7 @@ export default async function AsistenciaTatamiPage({
         initialSesion={detalle.sesion}
         initialItems={detalle.items}
         isAdmin={currentUser.rol === "ADMIN"}
+        alumnosDisponibles={todosAlumnos}
       />
     </div>
   );

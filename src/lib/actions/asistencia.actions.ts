@@ -14,7 +14,7 @@ import {
   InscribirAlumnoSchema,
   MarcarAsistenciaSchema,
 } from "@/schemas";
-import { Asistencia, AsistenciaEstado } from "@/types";
+import { Asistencia, AsistenciaEstado, Alumno } from "@/types";
 
 export type ActionResponse<T> =
   | { success: true; data: T; message?: string }
@@ -201,7 +201,7 @@ export async function agregarAlumnoRecuperacionAction(
  */
 export async function inscribirAlumnoRapidoAction(
   formData: Record<string, unknown>
-): Promise<ActionResponse<{ alumnoId: string }>> {
+): Promise<ActionResponse<{ alumnoId: string; alumno: Alumno }>> {
   try {
     const parseResult = InscribirAlumnoSchema.safeParse(formData);
 
@@ -213,23 +213,58 @@ export async function inscribirAlumnoRapidoAction(
       };
     }
 
+    const sesionId = typeof formData.sesionId === "string" ? formData.sesionId : undefined;
     const result = await dalInscribirAlumnoRapido(
       parseResult.data.claseId,
-      parseResult.data
+      parseResult.data,
+      sesionId
     );
 
     // Automáticamente marcar asistencia en la sesión si existe
     revalidatePath(`/profesor/clases`);
     revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
     revalidatePath(`/profesor/metricas`);
+    revalidatePath(`/admin/alumnos`);
 
     return {
       success: true,
-      data: { alumnoId: result.alumno.id },
+      data: { alumnoId: result.alumno.id, alumno: result.alumno },
       message: `${result.alumno.nombre} ${result.alumno.apellido} inscripto exitosamente`,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Error al inscribir alumno";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Inscribir alumno existente a una clase (y sumarlo a la sesión activa como PRESENTE)
+ */
+export async function inscribirAlumnoExistenteAction(input: {
+  claseId: string;
+  alumnoId: string;
+  sesionId?: string;
+}): Promise<ActionResponse<{ alumno: Alumno }>> {
+  try {
+    const { dalInscribirAlumnoExistente } = await import("@/lib/dal");
+    const result = await dalInscribirAlumnoExistente(
+      input.claseId,
+      input.alumnoId,
+      input.sesionId
+    );
+
+    revalidatePath(`/profesor/clases`);
+    revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+    revalidatePath(`/profesor/metricas`);
+    revalidatePath(`/admin/alumnos`);
+
+    return {
+      success: true,
+      data: { alumno: result.alumno },
+      message: `${result.alumno.nombre} ${result.alumno.apellido} sumado a la clase`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error al sumar alumno a la clase";
     return { success: false, error: msg };
   }
 }

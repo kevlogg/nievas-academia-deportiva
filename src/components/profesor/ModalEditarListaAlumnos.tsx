@@ -27,6 +27,7 @@ interface ModalEditarListaAlumnosProps {
   currentUser?: Usuario;
   profesoresDisponibles?: Usuario[];
   onListaActualizada: (listaActualizada: ListaAlumnos) => void;
+  onAlumnoCreado?: (nuevoAlumno: Alumno) => void;
 }
 
 const BELT_OPTIONS: KarateBelt[] = [
@@ -40,7 +41,7 @@ const BELT_OPTIONS: KarateBelt[] = [
   "Negro",
 ];
 
-type TabModo = "MIS_CLASES" | "OTRO_SENSEI" | "NUEVO_ALUMNO";
+type TabModo = "TODOS" | "MIS_CLASES" | "OTRO_SENSEI" | "NUEVO_ALUMNO";
 
 export function ModalEditarListaAlumnos({
   lista,
@@ -50,6 +51,7 @@ export function ModalEditarListaAlumnos({
   currentUser,
   profesoresDisponibles = [],
   onListaActualizada,
+  onAlumnoCreado,
 }: ModalEditarListaAlumnosProps) {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -62,7 +64,7 @@ export function ModalEditarListaAlumnos({
   const [editingBeltAlumnoId, setEditingBeltAlumnoId] = useState<string | null>(null);
 
   // Modo de Selección de Alumnos (Pestañas)
-  const [activeTab, setActiveTab] = useState<TabModo>("MIS_CLASES");
+  const [activeTab, setActiveTab] = useState<TabModo>("TODOS");
 
   // Formulario de Alumno Nuevo
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -150,7 +152,12 @@ export function ModalEditarListaAlumnos({
   if (!isOpen || !lista) return null;
 
   // Alumnos mostrados en la pestaña activa según búsqueda
-  const currentTabPool = activeTab === "MIS_CLASES" ? misAlumnos : otrosSenseisAlumnos;
+  const currentTabPool =
+    activeTab === "TODOS"
+      ? alumnosList
+      : activeTab === "MIS_CLASES"
+      ? misAlumnos
+      : otrosSenseisAlumnos;
   const filteredAlumnos = currentTabPool.filter((a) => {
     const full = `${a.nombre} ${a.apellido} ${a.cinturon_actual} ${
       a.profesores_nombres?.join(" ") || ""
@@ -238,6 +245,7 @@ export function ModalEditarListaAlumnos({
         const created = res.data;
         setAlumnosList((prev) => [created, ...prev]);
         setSelectedAlumnos((prev) => [...prev, created.id]);
+        onAlumnoCreado?.(created);
         setMensajeExitoAlumno(
           `¡${created.nombre} ${created.apellido} registrado y añadido a la lista!`
         );
@@ -245,6 +253,7 @@ export function ModalEditarListaAlumnos({
         setNuevoApellido("");
         setNuevoTelefono("");
         setNuevoEmergencia("");
+        setActiveTab("TODOS");
         setTimeout(() => setMensajeExitoAlumno(null), 4000);
       } else {
         setError(res.error || "No se pudo registrar el nuevo alumno");
@@ -426,11 +435,24 @@ export function ModalEditarListaAlumnos({
             </div>
 
             {/* Selector de Pestañas */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#092652] rounded-2xl border border-[#2056A8]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-[#092652] rounded-2xl border border-[#2056A8]">
+              <button
+                type="button"
+                onClick={() => setActiveTab("TODOS")}
+                className={`px-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  activeTab === "TODOS"
+                    ? "bg-white text-[#0F3E86] shadow-sm font-black"
+                    : "text-blue-200 hover:text-white"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="truncate">Todos ({alumnosList.length})</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setActiveTab("MIS_CLASES")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   activeTab === "MIS_CLASES"
                     ? "bg-white text-[#0F3E86] shadow-sm font-black"
                     : "text-blue-200 hover:text-white"
@@ -443,27 +465,27 @@ export function ModalEditarListaAlumnos({
               <button
                 type="button"
                 onClick={() => setActiveTab("OTRO_SENSEI")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   activeTab === "OTRO_SENSEI"
                     ? "bg-white text-[#0F3E86] shadow-sm font-black"
                     : "text-blue-200 hover:text-white"
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span className="truncate">Otro Sensei ({otrosSenseisAlumnos.length})</span>
+                <span className="truncate">Otros ({otrosSenseisAlumnos.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("NUEVO_ALUMNO")}
-                className={`px-2.5 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   activeTab === "NUEVO_ALUMNO"
-                    ? "bg-white text-[#0F3E86] shadow-sm font-black"
-                    : "text-blue-200 hover:text-white"
+                    ? "bg-cyan-400 text-[#0F3E86] shadow-sm font-black"
+                    : "text-cyan-300 hover:text-white"
                 }`}
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span className="truncate">Alumno Nuevo</span>
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span className="truncate">+ Nuevo Alumno</span>
               </button>
             </div>
 
@@ -600,8 +622,8 @@ export function ModalEditarListaAlumnos({
             {/* Contenido Pestañas 1 y 2 */}
             {activeTab !== "NUEVO_ALUMNO" && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="relative flex-1 mr-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="relative flex-1">
                     <Search className="w-4 h-4 absolute left-3 top-2.5 text-blue-300" />
                     <input
                       type="text"
@@ -612,23 +634,46 @@ export function ModalEditarListaAlumnos({
                     />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={selectAll}
-                    className="text-xs text-blue-200 hover:text-white font-bold hover:underline cursor-pointer shrink-0"
-                  >
-                    {selectedAlumnos.length === filteredAlumnos.length && filteredAlumnos.length > 0
-                      ? "Deseleccionar"
-                      : "Seleccionar todos"}
-                  </button>
+                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("NUEVO_ALUMNO")}
+                      className="px-3 py-1.5 bg-cyan-400 hover:bg-cyan-300 text-[#0F3E86] font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>+ Nuevo Alumno</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={selectAll}
+                      className="text-xs text-blue-200 hover:text-white font-bold hover:underline cursor-pointer shrink-0"
+                    >
+                      {selectedAlumnos.length === filteredAlumnos.length && filteredAlumnos.length > 0
+                        ? "Deseleccionar"
+                        : "Seleccionar todos"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
                   {filteredAlumnos.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-blue-200 font-medium bg-[#0B2E63]/40 rounded-xl border border-dashed border-[#2056A8]">
-                      {activeTab === "MIS_CLASES"
-                        ? "No tienes alumnos en esta categoría."
-                        : "No se encontraron alumnos de otros Senseis con este criterio."}
+                    <div className="text-center py-6 px-4 text-xs text-blue-200 font-medium bg-[#0B2E63]/40 rounded-xl border border-dashed border-[#2056A8] space-y-2">
+                      <p>
+                        {activeTab === "TODOS"
+                          ? "No se encontraron alumnos en la academia con ese criterio de búsqueda."
+                          : activeTab === "MIS_CLASES"
+                          ? "No tienes alumnos asignados a tus clases en esta categoría."
+                          : "No se encontraron alumnos de otros Senseis con este criterio."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("NUEVO_ALUMNO")}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-cyan-300 text-xs font-bold rounded-lg border border-cyan-400/30 transition-colors cursor-pointer"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Registrar un Nuevo Alumno Ahora</span>
+                      </button>
                     </div>
                   ) : (
                     filteredAlumnos.map((alumno) => {

@@ -44,6 +44,7 @@ interface AsistenciaTatamiListProps {
   initialSesion: SesionClase | null;
   initialItems: AlumnoSesionItem[];
   isAdmin: boolean;
+  alumnosDisponibles?: Alumno[];
 }
 
 interface OfflineQueueItem {
@@ -61,6 +62,7 @@ export function AsistenciaTatamiList({
   initialSesion,
   initialItems,
   isAdmin,
+  alumnosDisponibles = [],
 }: AsistenciaTatamiListProps) {
   const [sesion, setSesion] = useState<SesionClase | null>(initialSesion);
   const [items, setItems] = useState<AlumnoSesionItem[]>(initialItems);
@@ -318,44 +320,24 @@ export function AsistenciaTatamiList({
     setTimeout(() => setBannerNotice(null), 3000);
   };
 
-  // Callback cuando se inscribe un alumno rápido
-  const handleAlumnoInscripto = (nuevoAlumno: {
-    id: string;
-    nombre: string;
-    apellido: string;
-    cinturon_actual: KarateBelt;
-    telefono_contacto: string;
-    contacto_emergencia: string;
-  }) => {
+  // Callback cuando se inscribe o suma un alumno (existente o nuevo)
+  const handleAlumnoInscripto = (nuevoAlumno: Alumno) => {
     const item: AlumnoSesionItem = {
-      alumno: {
-        id: nuevoAlumno.id,
-        nombre: nuevoAlumno.nombre,
-        apellido: nuevoAlumno.apellido,
-        fecha_nacimiento: "2015-01-01",
-        telefono_contacto: nuevoAlumno.telefono_contacto,
-        contacto_emergencia: nuevoAlumno.contacto_emergencia,
-        cinturon_actual: nuevoAlumno.cinturon_actual,
-        estado: "ACTIVO",
-        notas_privadas: null,
-        created_at: new Date().toISOString(),
-      },
+      alumno: nuevoAlumno,
       estado: "PRESENTE",
       es_recuperacion: false,
       marcado_en: new Date().toISOString(),
       clases_en_cinturon: 1,
     };
 
-    setItems((prev) => [...prev, item]);
-
-    // Marcar presente en la sesión si está abierta
-    if (sesion) {
-      marcarAsistenciaAction(sesion.id, nuevoAlumno.id, "PRESENTE", false);
-    }
+    setItems((prev) => {
+      const filtered = prev.filter((it) => it.alumno.id !== nuevoAlumno.id);
+      return [...filtered, item];
+    });
 
     triggerHaptic("success");
-    setBannerNotice(`${nuevoAlumno.nombre} inscripto y marcado presente.`);
-    setTimeout(() => setBannerNotice(null), 3000);
+    setBannerNotice(`¡${nuevoAlumno.nombre} ${nuevoAlumno.apellido} sumado a la clase y marcado PRESENTE!`);
+    setTimeout(() => setBannerNotice(null), 3500);
   };
 
   // Cálculos de resumen
@@ -800,6 +782,9 @@ export function AsistenciaTatamiList({
             isOpen={activeModal === "inscribir"}
             onClose={() => setActiveModal(null)}
             claseId={clase.id}
+            claseNombre={clase.nombre}
+            sesionId={sesion.id}
+            alumnosDisponibles={alumnosDisponibles}
             onAlumnoInscripto={handleAlumnoInscripto}
           />
         </>

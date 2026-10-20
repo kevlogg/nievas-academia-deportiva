@@ -18,6 +18,7 @@ import { ModalVerListaAlumnos } from "./ModalVerListaAlumnos";
 import { ModalEditarListaAlumnos } from "./ModalEditarListaAlumnos";
 import { ModalVerClaseInfo } from "./ModalVerClaseInfo";
 import { ModalEditarClaseHistorial } from "./ModalEditarClaseHistorial";
+import { ModalInscribirAlumno } from "@/components/tatami/ModalInscribirAlumno";
 import { TerminalSessionWatcher } from "@/components/terminal/TerminalSessionWatcher";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import { cerrarClaseAction } from "@/lib/actions/asistencia.actions";
@@ -69,10 +70,14 @@ export function ProfesorClasesClient({
     useState<ListaAlumnos[]>(initialListasAlumnos);
   const [clasesAbiertas, setClasesAbiertas] =
     useState<ClaseAbiertaItem[]>(initialClasesAbiertas);
+  const [alumnos, setAlumnos] = useState<Alumno[]>(alumnosDisponibles);
   const [cerrandoSesionId, setCerrandoSesionId] = useState<string | null>(null);
 
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
   const [isCrearListaOpen, setIsCrearListaOpen] = useState(false);
+
+  // Estado para Sumar Alumno a Clase Abierta (Modal)
+  const [claseParaInscribir, setClaseParaInscribir] = useState<ClaseAbiertaItem | null>(null);
 
   // Estados para Ver y Editar Listas de Alumnos Guardadas
   const [listaParaVer, setListaParaVer] = useState<ListaAlumnos | null>(null);
@@ -85,7 +90,7 @@ export function ProfesorClasesClient({
   const [claseParaEditar, setClaseParaEditar] = useState<ClaseHistorialItem | null>(null);
   const [menuClaseAbiertoId, setMenuClaseAbiertoId] = useState<string | null>(null);
 
-  // Sincronizar ultimasClases y clasesAbiertas cuando las props del servidor cambien
+  // Sincronizar ultimasClases, clasesAbiertas y alumnos cuando las props del servidor cambien
   React.useEffect(() => {
     setUltimasClases(initialUltimasClases);
   }, [initialUltimasClases]);
@@ -93,6 +98,18 @@ export function ProfesorClasesClient({
   React.useEffect(() => {
     setClasesAbiertas(initialClasesAbiertas);
   }, [initialClasesAbiertas]);
+
+  React.useEffect(() => {
+    setAlumnos(alumnosDisponibles);
+  }, [alumnosDisponibles]);
+
+  const handleAlumnoCreado = (nuevoAlumno: Alumno) => {
+    setAlumnos((prev) => {
+      const exists = prev.some((a) => a.id === nuevoAlumno.id);
+      if (exists) return prev.map((a) => (a.id === nuevoAlumno.id ? nuevoAlumno : a));
+      return [nuevoAlumno, ...prev];
+    });
+  };
 
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser.nombre_completo
@@ -296,6 +313,15 @@ export function ProfesorClasesClient({
 
                 {/* Botones de Acción Alineados */}
                 <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto pt-1 lg:pt-0">
+                  <button
+                    type="button"
+                    onClick={() => setClaseParaInscribir(item)}
+                    className="py-2 px-3 bg-white hover:bg-blue-50 text-[#0F3E86] text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-98 touch-target-safe cursor-pointer shrink-0"
+                    title="Sumar alumno del padrón o registrar nuevo en esta clase abierta"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5 text-[#0F3E86]" />
+                    <span>+ Sumar Alumno</span>
+                  </button>
                   <Link
                     href={`/profesor/clases/${item.clase.id}/asistencia?sesionId=${item.sesion.id}`}
                     className="flex-1 lg:flex-initial py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 active:scale-98 text-slate-950 text-xs font-black rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all touch-target-safe cursor-pointer"
@@ -640,20 +666,21 @@ export function ProfesorClasesClient({
       <ModalCrearListaAlumnos
         isOpen={isCrearListaOpen}
         onClose={() => setIsCrearListaOpen(false)}
-        alumnosDisponibles={alumnosDisponibles}
+        alumnosDisponibles={alumnos}
         currentUser={currentUser}
         profesoresDisponibles={profesoresDisponibles}
         onListaCreada={(nuevaLista) => {
           handleListaCreada(nuevaLista);
           setIsCrearClaseOpen(true);
         }}
+        onAlumnoCreado={handleAlumnoCreado}
       />
 
       {/* Modal para Ver Detalles de Alumnos de la Lista */}
       <ModalVerListaAlumnos
         isOpen={!!listaParaVer}
         lista={listaParaVer}
-        alumnosDisponibles={alumnosDisponibles}
+        alumnosDisponibles={alumnos}
         onClose={() => setListaParaVer(null)}
         onEditar={(lista) => {
           setListaParaVer(null);
@@ -665,7 +692,7 @@ export function ProfesorClasesClient({
       <ModalEditarListaAlumnos
         isOpen={!!listaParaEditar}
         lista={listaParaEditar}
-        alumnosDisponibles={alumnosDisponibles}
+        alumnosDisponibles={alumnos}
         currentUser={currentUser}
         profesoresDisponibles={profesoresDisponibles}
         onClose={() => setListaParaEditar(null)}
@@ -673,7 +700,34 @@ export function ProfesorClasesClient({
           handleListaActualizada(listaActualizada);
           setListaParaEditar(null);
         }}
+        onAlumnoCreado={handleAlumnoCreado}
       />
+
+      {/* Modal para Sumar Alumno a Clase Abierta (Padrón General o Alta Rápida) */}
+      {claseParaInscribir && (
+        <ModalInscribirAlumno
+          isOpen={!!claseParaInscribir}
+          onClose={() => setClaseParaInscribir(null)}
+          claseId={claseParaInscribir.clase.id}
+          claseNombre={claseParaInscribir.clase.nombre}
+          sesionId={claseParaInscribir.sesion.id}
+          alumnosDisponibles={alumnos}
+          onAlumnoInscripto={(nuevoAlumno) => {
+            handleAlumnoCreado(nuevoAlumno);
+            setClasesAbiertas((prev) =>
+              prev.map((c) =>
+                c.sesion.id === claseParaInscribir.sesion.id
+                  ? {
+                      ...c,
+                      totalCount: (c.totalCount || 0) + 1,
+                      presentesCount: (c.presentesCount || 0) + 1,
+                    }
+                  : c
+              )
+            );
+          }}
+        />
+      )}
 
       {/* Modal para Ver Info Completa de Clase Cerrada */}
       <ModalVerClaseInfo

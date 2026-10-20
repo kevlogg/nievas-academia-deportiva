@@ -898,13 +898,14 @@ export async function dalBuscarAlumnosGlobalParaRecuperacion(
   await requireProfesor();
 
   const cleanQuery = query.toLowerCase().trim();
+  const todos = await dalGetTodosAlumnos();
   const alumnosYaEnSesion = new Set(
     dbState.asistencias
       .filter((a) => a.sesion_id === sesionId)
       .map((a) => a.alumno_id)
   );
 
-  return dbState.alumnos
+  return todos
     .filter((a) => a.estado === "ACTIVO" && !alumnosYaEnSesion.has(a.id))
     .filter(
       (a) =>
@@ -916,7 +917,7 @@ export async function dalBuscarAlumnosGlobalParaRecuperacion(
       ...a,
       notas_privadas: null, // Regla de RBAC: Oculto para profesores
     }))
-    .slice(0, 10);
+    .slice(0, 15);
 }
 
 /**
@@ -950,49 +951,227 @@ export async function dalAgregarAlumnoRecuperacion(
  */
 export async function dalInscribirAlumnoRapido(
   claseId: string,
-  input: InscribirAlumnoInput
+  input: InscribirAlumnoInput,
+  sesionId?: string
 ): Promise<{ alumno: Alumno; inscripcion: Inscripcion }> {
   const currentUser = await requireProfesor();
-  const clase = dbState.clases.find((c) => c.id === claseId);
-  if (!clase) {
-    throw new Error("Clase no encontrada");
-  }
-
-  if (currentUser.rol === "PROFESOR" && clase.profesor_id !== currentUser.id) {
-    throw new Error("Solo puedes inscribir alumnos en tus propias clases");
-  }
-
   const now = new Date().toISOString();
+
+  let generatedId = "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+  let inscId = "ins" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // 1. Insertar alumno en public.alumnos
+    const { data: dbAlumno, error: aErr } = await supabase
+      .from("alumnos")
+      .insert({
+        nombre: input.nombre.trim(),
+        apellido: input.apellido.trim(),
+        fecha_nacimiento: input.fechaNacimiento || "2015-01-01",
+        telefono_contacto: input.telefonoContacto?.trim() || "Sin registrar",
+        contacto_emergencia: input.contactoEmergencia?.trim() || "Sin registrar",
+        cinturon_actual: input.cinturonActual || "Blanco",
+        estado: "ACTIVO",
+      })
+      .select()
+      .single();
+
+    if (!aErr && dbAlumno) {
+      generatedId = dbAlumno.id;
+    }
+
+    // 2. Insertar inscripción en public.inscripciones
+    const { data: dbInsc } = await supabase
+      .from("inscripciones")
+      .upsert(
+        {
+          clase_id: claseId,
+          alumno_id: generatedId,
+          fecha_alta: now.split("T")[0],
+          activo: true,
+        },
+        { onConflict: "clase_id,alumno_id" }
+      )
+      .select()
+      .maybeSingle();
+
+    if (dbInsc) {
+      inscId = dbInsc.id;
+    }
+
+    // 3. Si hay sesión activa (o sesionId proporcionado), marcar asistencia PRESENTE de inmediato
+    let targetSesionId = sesionId;
+    if (!targetSesionId) {
+      const { data: sesionActiva } = await supabase
+        .from("sesiones_clase")
+        .select("id")
+        .eq("clase_id", claseId)
+        .eq("estado", "ABIERTA")
+        .order("hora_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sesionActiva) {
+        targetSesionId = sesionActiva.id;
+      }
+    }
+
+    if (targetSesionId) {
+      await supabase.from("asistencias").upsert(
+        {
+          sesion_id: targetSesionId,
+          alumno_id: generatedId,
+          estado: "PRESENTE",
+          es_recuperacion: false,
+          marcado_en: now,
+        },
+        { onConflict: "sesion_id,alumno_id" }
+      );
+    }
+  } catch (err) {
+    console.error("Error in dalInscribirAlumnoRapido Supabase:", err);
+  }
+
   const nuevoAlumno: Alumno = {
-    id: "a" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: generatedId,
     nombre: input.nombre.trim(),
     apellido: input.apellido.trim(),
-    fecha_nacimiento: input.fechaNacimiento,
-    telefono_contacto: input.telefonoContacto.trim(),
-    contacto_emergencia: input.contactoEmergencia.trim(),
-    cinturon_actual: input.cinturonActual,
+    fecha_nacimiento: input.fechaNacimiento || "2015-01-01",
+    telefono_contacto: input.telefonoContacto?.trim() || "Sin registrar",
+    contacto_emergencia: input.contactoEmergencia?.trim() || "Sin registrar",
+    cinturon_actual: input.cinturonActual || "Blanco",
     estado: "ACTIVO",
     notas_privadas: null,
+    profesores_ids: [currentUser.id],
+    profesores_nombres: [
+      currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim(),
+    ],
     created_at: now,
   };
 
-  dbState.alumnos.push(nuevoAlumno);
-
   const nuevaInscripcion: Inscripcion = {
-    id: "ins" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+    id: inscId,
     clase_id: claseId,
-    alumno_id: nuevoAlumno.id,
+    alumno_id: generatedId,
     fecha_alta: now.split("T")[0],
     activo: true,
     created_at: now,
   };
 
+  dbState.alumnos.unshift(nuevoAlumno);
   dbState.inscripciones.push(nuevaInscripcion);
-  if (clase.total_inscriptos !== undefined) {
-    clase.total_inscriptos += 1;
-  }
 
   return { alumno: nuevoAlumno, inscripcion: nuevaInscripcion };
+}
+
+/**
+ * Inscribir un alumno existente de la academia a una clase y marcarlo presente si la clase está abierta
+ */
+export async function dalInscribirAlumnoExistente(
+  claseId: string,
+  alumnoId: string,
+  sesionId?: string
+): Promise<{ alumno: Alumno; inscripcion: Inscripcion }> {
+  const currentUser = await requireProfesor();
+  const now = new Date().toISOString();
+
+  let alumnoFound: Alumno | undefined = dbState.alumnos.find((a) => a.id === alumnoId);
+  let inscId = "ins" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36);
+
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    if (!alumnoFound) {
+      const { data: dbAlumno } = await supabase
+        .from("alumnos")
+        .select("*")
+        .eq("id", alumnoId)
+        .single();
+      if (dbAlumno) {
+        alumnoFound = {
+          id: dbAlumno.id,
+          nombre: dbAlumno.nombre,
+          apellido: dbAlumno.apellido,
+          fecha_nacimiento: dbAlumno.fecha_nacimiento,
+          telefono_contacto: dbAlumno.telefono_contacto,
+          contacto_emergencia: dbAlumno.contacto_emergencia,
+          cinturon_actual: dbAlumno.cinturon_actual,
+          estado: dbAlumno.estado,
+          notas_privadas: null,
+          created_at: dbAlumno.created_at,
+        };
+      }
+    }
+
+    // 1. Upsert inscripcion
+    const { data: dbInsc } = await supabase
+      .from("inscripciones")
+      .upsert(
+        {
+          clase_id: claseId,
+          alumno_id: alumnoId,
+          fecha_alta: now.split("T")[0],
+          activo: true,
+        },
+        { onConflict: "clase_id,alumno_id" }
+      )
+      .select()
+      .maybeSingle();
+
+    if (dbInsc) {
+      inscId = dbInsc.id;
+    }
+
+    // 2. Si hay sesión activa o sesionId, marcar PRESENTE
+    let targetSesionId = sesionId;
+    if (!targetSesionId) {
+      const { data: sesionActiva } = await supabase
+        .from("sesiones_clase")
+        .select("id")
+        .eq("clase_id", claseId)
+        .eq("estado", "ABIERTA")
+        .order("hora_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sesionActiva) {
+        targetSesionId = sesionActiva.id;
+      }
+    }
+
+    if (targetSesionId) {
+      await supabase.from("asistencias").upsert(
+        {
+          sesion_id: targetSesionId,
+          alumno_id: alumnoId,
+          estado: "PRESENTE",
+          es_recuperacion: false,
+          marcado_en: now,
+        },
+        { onConflict: "sesion_id,alumno_id" }
+      );
+    }
+  } catch (err) {
+    console.error("Error in dalInscribirAlumnoExistente Supabase:", err);
+  }
+
+  if (!alumnoFound) {
+    throw new Error("Alumno no encontrado");
+  }
+
+  const inscripcion: Inscripcion = {
+    id: inscId,
+    clase_id: claseId,
+    alumno_id: alumnoId,
+    fecha_alta: now.split("T")[0],
+    activo: true,
+    created_at: now,
+  };
+
+  dbState.inscripciones.push(inscripcion);
+  return { alumno: alumnoFound, inscripcion };
 }
 
 /**
