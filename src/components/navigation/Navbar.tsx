@@ -15,8 +15,28 @@ interface NavbarProps {
 export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
   const isAdmin = currentUser?.rol === "ADMIN";
+  const [isKiosk, setIsKiosk] = React.useState(false);
 
-  if (pathname === "/terminal") {
+  React.useEffect(() => {
+    const checkKiosk = () => {
+      try {
+        const stored = localStorage.getItem("nievas_kiosk_mode") === "true";
+        const hasParam = window.location.search.includes("terminal=1");
+        setIsKiosk(stored || hasParam);
+      } catch {
+        setIsKiosk(false);
+      }
+    };
+    checkKiosk();
+    window.addEventListener("kiosk_mode_change", checkKiosk);
+    window.addEventListener("storage", checkKiosk);
+    return () => {
+      window.removeEventListener("kiosk_mode_change", checkKiosk);
+      window.removeEventListener("storage", checkKiosk);
+    };
+  }, []);
+
+  if (pathname === "/terminal" || isKiosk) {
     return null;
   }
 

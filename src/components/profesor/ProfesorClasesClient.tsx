@@ -43,6 +43,7 @@ import {
   User,
   AlertTriangle,
   XCircle,
+  ArrowRight,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -218,6 +219,257 @@ export function ProfesorClasesClient({
       setCerrandoSesionId(null);
     }
   };
+
+  // Detección reactiva de Modo Tablet / Kiosk
+  const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    const checkKiosk = () => {
+      try {
+        const isKiosk =
+          localStorage.getItem("nievas_kiosk_mode") === "true" ||
+          (typeof window !== "undefined" && window.location.search.includes("terminal=1"));
+        setIsKioskMode(isKiosk);
+      } catch {
+        setIsKioskMode(false);
+      }
+    };
+
+    checkKiosk();
+    window.addEventListener("kiosk_mode_change", checkKiosk);
+    window.addEventListener("storage", checkKiosk);
+    return () => {
+      window.removeEventListener("kiosk_mode_change", checkKiosk);
+      window.removeEventListener("storage", checkKiosk);
+    };
+  }, []);
+
+  // VISTA EXCLUSIVA MODO TABLET (PANTALLA AZUL CON LOS 2 BOTONES PRINCIPALES)
+  if (isKioskMode) {
+    return (
+      <div className="min-h-[calc(100vh-2rem)] flex flex-col justify-between py-2 sm:py-4 space-y-6">
+        {/* Componente Centinela de Modo Terminal / Kiosk (Sede Central) */}
+        <TerminalSessionWatcher currentUser={currentUser} />
+
+        {/* 1. CLASE ABIERTA PARPADEANDO (Si hay una clase en curso en el tatami) */}
+        {clasesAbiertas.length > 0 && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+            {clasesAbiertas.map((item) => (
+              <div
+                key={item.sesion.id}
+                className="p-4 bg-gradient-to-r from-[#0F3E86] via-[#164e9e] to-[#0A2E65] text-white border-2 border-emerald-400 rounded-3xl shadow-2xl animate-open-class"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-300 uppercase tracking-wider bg-emerald-950/80 border border-emerald-500/60 px-2.5 py-1 rounded-full shrink-0">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+                        </span>
+                        <span>CLASE EN CURSO EN TATAMI</span>
+                      </span>
+                      <h2 className="text-lg sm:text-xl font-black text-white tracking-tight truncate">
+                        {item.clase.nombre}
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-blue-200">
+                      <span className="flex items-center gap-1 font-semibold text-blue-100">
+                        <Clock className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                        <span>
+                          {formatTime(item.clase.hora_inicio)} - {formatTime(item.clase.hora_fin)}
+                        </span>
+                      </span>
+                      <span className="text-emerald-300 font-bold text-xs flex items-center gap-1 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/40">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span>{item.presentesCount} presentes</span>
+                      </span>
+                      <span className="text-rose-300 font-semibold text-xs flex items-center gap-1 bg-rose-950/50 px-2 py-0.5 rounded border border-rose-500/30">
+                        <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                        <span>
+                          {item.ausentesCount ??
+                            Math.max(0, item.totalCount - item.presentesCount - (item.tardesCount || 0))}{" "}
+                          ausentes
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setClaseParaInscribir(item)}
+                      className="px-3 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-400/50 font-bold rounded-2xl text-xs transition-all flex items-center gap-1.5 cursor-pointer touch-target-safe"
+                    >
+                      <PlusCircle className="w-4 h-4 text-cyan-300" />
+                      <span>+ Sumar Alumno</span>
+                    </button>
+                    <Link
+                      href={`/profesor/clases/${item.clase.id}/asistencia`}
+                      className="px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95 touch-target-safe text-sm"
+                    >
+                      <ClipboardCheck className="w-4 h-4" />
+                      <span>CONTINUAR ASISTENCIA</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleCerrarClase(item.sesion.id)}
+                      disabled={cerrandoSesionId === item.sesion.id}
+                      className="px-3 py-2.5 bg-white/10 hover:bg-rose-500/30 text-rose-200 hover:text-white border border-rose-400/30 font-bold rounded-2xl text-xs transition-all flex items-center gap-1 cursor-pointer touch-target-safe"
+                      title="Cerrar tatami y finalizar clase"
+                    >
+                      {cerrandoSesionId === item.sesion.id ? (
+                        <span>Cerrando...</span>
+                      ) : (
+                        <span>Finalizar</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 2. ÁREA CENTRAL EXCLUSIVA: PANTALLA AZUL CON LOS DOS BOTONES GIGANTES */}
+        <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-10 max-w-4xl mx-auto w-full px-2">
+          {/* Logo y Encabezado de Modo Tablet */}
+          <div className="text-center space-y-3 mb-8">
+            <div className="inline-flex items-center justify-center p-3.5 bg-white rounded-3xl shadow-xl border-2 border-blue-200/50 mb-1">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden">
+                <Image
+                  src="/nievas-logo.jpg"
+                  alt="Nievas Academia Deportiva"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              </div>
+            </div>
+            <div>
+              <span className="inline-block px-3 py-1 bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-full shadow-md mb-2">
+                Tablet Tatami • Sede Central
+              </span>
+              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                Sensei {cleanNombre}
+              </h1>
+              <p className="text-sm sm:text-base text-blue-200/90 font-medium max-w-md mx-auto mt-1">
+                Seleccioná una acción rápida para iniciar en la tablet:
+              </p>
+            </div>
+          </div>
+
+          {/* LOS DOS BOTONES GIGANTES TÁCTILES */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 w-full">
+            {/* BOTÓN 1: CREAR NUEVA CLASE */}
+            <button
+              type="button"
+              id="btn-crear-nueva-clase-tablet"
+              onClick={() => setIsCrearClaseOpen(true)}
+              className="group relative flex flex-col items-center justify-center p-7 sm:p-9 bg-gradient-to-br from-[#0F3E86] to-[#0A2E65] hover:from-[#164e9e] hover:to-[#0F3E86] text-white border-2 border-[#2A6CD1] hover:border-amber-400 rounded-3xl shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer text-center overflow-hidden"
+            >
+              <div className="absolute -top-12 -right-12 w-36 h-36 bg-blue-400/20 rounded-full blur-2xl group-hover:bg-amber-400/20 transition-all" />
+
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-amber-400 group-hover:bg-amber-300 text-slate-950 flex items-center justify-center shadow-xl mb-5 transition-transform duration-300 group-hover:scale-110">
+                <ClipboardCheck className="w-10 h-10 sm:w-12 sm:h-12" />
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-amber-200 tracking-tight leading-snug transition-colors">
+                Crear Nueva Clase
+              </h2>
+              <p className="text-xs sm:text-sm text-blue-200/90 mt-2 font-medium max-w-xs leading-relaxed">
+                Elegí la lista de alumnos, horario e iniciá la asistencia en tatami
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-xs font-extrabold text-amber-300 uppercase tracking-wider bg-white/10 px-4 py-1.5 rounded-full border border-white/20 group-hover:bg-amber-400 group-hover:text-slate-950 transition-colors">
+                <span>Comenzar Clase</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </button>
+
+            {/* BOTÓN 2: CREAR LISTA DE ALUMNOS */}
+            <button
+              type="button"
+              id="btn-crear-lista-alumnos-tablet"
+              onClick={() => setIsCrearListaOpen(true)}
+              className="group relative flex flex-col items-center justify-center p-7 sm:p-9 bg-gradient-to-br from-[#0A2E65] to-[#082046] hover:from-[#0F3E86] hover:to-[#0A2E65] text-white border-2 border-[#1E57A8] hover:border-cyan-400 rounded-3xl shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer text-center overflow-hidden"
+            >
+              <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-cyan-400/15 rounded-full blur-2xl group-hover:bg-cyan-400/25 transition-all" />
+
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-cyan-400 group-hover:bg-cyan-300 text-slate-950 flex items-center justify-center shadow-xl mb-5 transition-transform duration-300 group-hover:scale-110">
+                <ListPlus className="w-10 h-10 sm:w-12 sm:h-12" />
+              </div>
+
+              <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-cyan-200 tracking-tight leading-snug transition-colors">
+                Crear Lista de Alumnos
+              </h2>
+              <p className="text-xs sm:text-sm text-blue-200/90 mt-2 font-medium max-w-xs leading-relaxed">
+                Armá una nueva nómina para clases o subí un nuevo alumno
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-xs font-extrabold text-cyan-300 uppercase tracking-wider bg-white/10 px-4 py-1.5 rounded-full border border-white/20 group-hover:bg-cyan-400 group-hover:text-slate-950 transition-colors">
+                <span>Nueva Nómina</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Modales Necesarios en Modo Tablet */}
+        <ModalCrearClaseProfesor
+          isOpen={isCrearClaseOpen}
+          onClose={() => setIsCrearClaseOpen(false)}
+          listasDisponibles={listasAlumnos}
+          onOpenCrearLista={() => {
+            setIsCrearClaseOpen(false);
+            setIsCrearListaOpen(true);
+          }}
+          profesorId={currentUser.id}
+          onClaseCreada={handleClaseCreada}
+        />
+
+        <ModalCrearListaAlumnos
+          isOpen={isCrearListaOpen}
+          onClose={() => setIsCrearListaOpen(false)}
+          alumnosDisponibles={alumnos}
+          currentUser={currentUser}
+          profesoresDisponibles={profesoresDisponibles}
+          onListaCreada={(nuevaLista) => {
+            handleListaCreada(nuevaLista);
+            setIsCrearClaseOpen(true);
+          }}
+          onAlumnoCreado={handleAlumnoCreado}
+        />
+
+        {claseParaInscribir && (
+          <ModalInscribirAlumno
+            isOpen={!!claseParaInscribir}
+            onClose={() => setClaseParaInscribir(null)}
+            claseId={claseParaInscribir.clase.id}
+            claseNombre={claseParaInscribir.clase.nombre}
+            sesionId={claseParaInscribir.sesion.id}
+            alumnosDisponibles={alumnos}
+            onAlumnoInscripto={(nuevoAlumno) => {
+              handleAlumnoCreado(nuevoAlumno);
+              setClasesAbiertas((prev) =>
+                prev.map((c) =>
+                  c.sesion.id === claseParaInscribir.sesion.id
+                    ? {
+                        ...c,
+                        totalCount: (c.totalCount || 0) + 1,
+                        presentesCount: (c.presentesCount || 0) + 1,
+                      }
+                    : c
+                )
+              );
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

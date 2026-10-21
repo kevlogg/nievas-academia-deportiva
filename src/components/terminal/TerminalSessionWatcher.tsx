@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Usuario } from "@/types";
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { usuarioRegistrarBiometriaAction } from "@/lib/actions/terminal.actions";
+import { ModalSalirModoTerminal } from "@/components/terminal/ModalSalirModoTerminal";
 import {
   isBiometricsAvailable,
   registrarBiometriaDispositivo,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Loader2,
+  Lock,
 } from "lucide-react";
 
 interface TerminalSessionWatcherProps {
@@ -31,6 +33,7 @@ const WARNING_COUNTDOWN_SEC = 20; // 20 segundos antes muestra aviso
 export function TerminalSessionWatcher({ currentUser }: TerminalSessionWatcherProps) {
   const router = useRouter();
   const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
+  const [isSalirModalOpen, setIsSalirModalOpen] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 
   // Estados de enrolamiento biométrico de 1 toque
@@ -187,6 +190,16 @@ export function TerminalSessionWatcher({ currentUser }: TerminalSessionWatcherPr
 
           <div className="flex items-center gap-2 shrink-0">
             <button
+              type="button"
+              onClick={() => setIsSalirModalOpen(true)}
+              className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-amber-200 border border-amber-400/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer touch-target-safe"
+              title="Salir de Modo Tablet hacia el panel de Dirección (requiere PIN de Admin)"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-300" />
+              <span>Salir Tablet (Admin)</span>
+            </button>
+            <button
+              type="button"
               onClick={cerrarTurnoATerminal}
               disabled={isPending}
               className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 touch-target-safe"
@@ -295,6 +308,12 @@ export function TerminalSessionWatcher({ currentUser }: TerminalSessionWatcherPr
           </div>
         </div>
       )}
+
+      {/* 4. MODAL PARA SALIR DE MODO TABLET HACIA DIRECCIÓN */}
+      <ModalSalirModoTerminal
+        isOpen={isSalirModalOpen}
+        onClose={() => setIsSalirModalOpen(false)}
+      />
     </>
   );
 }

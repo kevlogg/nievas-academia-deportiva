@@ -48,7 +48,10 @@ export function PwaManager() {
       return; // No need to show install prompts
     }
 
-    // 3. Check dismissed flag in localStorage
+    // 3. Check dismissed flag in localStorage or Kiosk mode
+    if (localStorage.getItem("nievas_kiosk_mode") === "true") {
+      return;
+    }
     const dismissedUntil = localStorage.getItem("nievas_pwa_dismissed_until");
     if (dismissedUntil && Number(dismissedUntil) > Date.now()) {
       return;
