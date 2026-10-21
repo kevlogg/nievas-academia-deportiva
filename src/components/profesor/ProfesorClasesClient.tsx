@@ -363,10 +363,10 @@ export function ProfesorClasesClient({
 
           {/* LOS DOS BOTONES GIGANTES TÁCTILES */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 w-full">
-            {/* BOTÓN 1: CREAR NUEVA CLASE */}
+            {/* BOTÓN 1: INICIAR NUEVA CLASE */}
             <button
               type="button"
-              id="btn-crear-nueva-clase-tablet"
+              id="btn-iniciar-nueva-clase-tablet"
               onClick={() => setIsCrearClaseOpen(true)}
               className="group relative flex flex-col items-center justify-center p-7 sm:p-9 bg-gradient-to-br from-[#0F3E86] to-[#0A2E65] hover:from-[#164e9e] hover:to-[#0F3E86] text-white border-2 border-[#2A6CD1] hover:border-amber-400 rounded-3xl shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer text-center overflow-hidden"
             >
@@ -377,7 +377,7 @@ export function ProfesorClasesClient({
               </div>
 
               <h2 className="text-xl sm:text-2xl font-black text-white group-hover:text-amber-200 tracking-tight leading-snug transition-colors">
-                Crear Nueva Clase
+                Iniciar Nueva Clase
               </h2>
               <p className="text-xs sm:text-sm text-blue-200/90 mt-2 font-medium max-w-xs leading-relaxed">
                 Elegí la lista de alumnos, horario e iniciá la asistencia en tatami
@@ -598,14 +598,14 @@ export function ProfesorClasesClient({
 
       {/* 3. ACCIONES PRINCIPALES: Botones Compactos de Crear Clase y Lista */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Card 1: Botón Crear Nueva Clase */}
+        {/* Card 1: Botón Iniciar Nueva Clase */}
         <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-2.5 sm:p-3 shadow-md shadow-blue-950/15 flex items-center">
           <button
             onClick={() => setIsCrearClaseOpen(true)}
             className="w-full py-3.5 px-4 bg-white hover:bg-blue-50 active:scale-98 text-[#0F3E86] font-black text-sm rounded-xl shadow-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer touch-target-safe"
           >
             <PlusCircle className="w-5 h-5 text-[#0F3E86]" />
-            <span>CREAR NUEVA CLASE</span>
+            <span>INICIAR NUEVA CLASE</span>
           </button>
         </div>
 
@@ -757,7 +757,7 @@ export function ProfesorClasesClient({
               Aún no tienes clases registradas en tu historial.
             </p>
             <p className="text-xs text-blue-200 max-w-md mx-auto">
-              Utiliza el botón de arriba &quot;Crear Nueva Clase&quot; para seleccionar una lista de alumnos e iniciar el registro de asistencia en el tatami.
+              Utiliza el botón de arriba &quot;Iniciar Nueva Clase&quot; para seleccionar una lista de alumnos e iniciar el registro de asistencia en el tatami.
             </p>
             <button
               onClick={() => setIsCrearClaseOpen(true)}
