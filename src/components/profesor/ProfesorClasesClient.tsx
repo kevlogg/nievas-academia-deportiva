@@ -333,34 +333,8 @@ export function ProfesorClasesClient({
           </div>
         )}
 
-        {/* 2. ÁREA CENTRAL EXCLUSIVA: PANTALLA AZUL CON LOS DOS BOTONES GIGANTES */}
-        <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-10 max-w-4xl mx-auto w-full px-2">
-          {/* Logo y Encabezado de Modo Tablet */}
-          <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex items-center justify-center p-3.5 bg-white rounded-3xl shadow-xl border-2 border-blue-200/50 mb-1">
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden">
-                <Image
-                  src="/nievas-logo.jpg"
-                  alt="Nievas Academia Deportiva"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-            </div>
-            <div>
-              <span className="inline-block px-3 py-1 bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-full shadow-md mb-2">
-                Tablet Tatami • Sede Central
-              </span>
-              <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                Sensei {cleanNombre}
-              </h1>
-              <p className="text-sm sm:text-base text-blue-200/90 font-medium max-w-md mx-auto mt-1">
-                Seleccioná una acción rápida para iniciar en la tablet:
-              </p>
-            </div>
-          </div>
-
+        {/* 2. ÁREA CENTRAL EXCLUSIVA: LOS DOS BOTONES GIGANTES */}
+        <div className="flex-1 flex flex-col items-center justify-center py-4 sm:py-8 max-w-4xl mx-auto w-full px-2">
           {/* LOS DOS BOTONES GIGANTES TÁCTILES */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 w-full">
             {/* BOTÓN 1: INICIAR NUEVA CLASE */}
