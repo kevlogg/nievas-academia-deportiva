@@ -30,6 +30,8 @@ import {
   History,
   AlertCircle,
   Save,
+  Trophy,
+  Medal,
 } from "lucide-react";
 
 interface ModalFichaAlumnoProps {
@@ -47,7 +49,7 @@ export function ModalFichaAlumno({
   onOpenPaseOficial,
   onNotaUpdated,
 }: ModalFichaAlumnoProps) {
-  const [activeTab, setActiveTab] = useState<"resumen" | "asistencias" | "graduaciones" | "nota">("resumen");
+  const [activeTab, setActiveTab] = useState<"resumen" | "asistencias" | "graduaciones" | "torneos" | "nota">("resumen");
   const [fichaData, setFichaData] = useState<FichaAlumnoData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,8 +233,8 @@ export function ModalFichaAlumno({
           </div>
         </div>
 
-        {/* 2. Tarjetas Métricas Rápidas de Asistencia (4 Cards) */}
-        <div className="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-[#0A2E65] border-b border-[#1E57A8] shrink-0">
+        {/* 2. Tarjetas Métricas Rápidas de Asistencia y Torneos (5 Cards) */}
+        <div className="p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-5 gap-2.5 bg-[#0A2E65] border-b border-[#1E57A8] shrink-0">
           {/* Presentes */}
           <div className="p-3 rounded-2xl bg-[#0F3E86] border border-emerald-500/30 flex flex-col justify-between">
             <div className="flex items-center justify-between text-emerald-400">
@@ -289,6 +291,23 @@ export function ModalFichaAlumno({
               <span className="text-[11px] text-cyan-200 font-bold">clases</span>
             </div>
             <span className="text-[10px] text-blue-200 font-medium mt-0.5">Para pase de grado</span>
+          </div>
+
+          {/* Torneos & Premios */}
+          <div className="p-3 rounded-2xl bg-[#0F3E86] border border-amber-400/30 flex flex-col justify-between col-span-2 sm:col-span-1">
+            <div className="flex items-center justify-between text-amber-300">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Torneos</span>
+              <Trophy className="w-4 h-4 text-amber-300" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-amber-300">{fichaData?.torneos?.length ?? 0}</span>
+              <span className="text-[11px] text-amber-200 font-bold">
+                {(fichaData?.torneos?.length ?? 0) === 1 ? "evento" : "eventos"}
+              </span>
+            </div>
+            <span className="text-[10px] text-blue-200 font-medium mt-0.5">
+              {(fichaData?.torneos?.length ?? 0) > 0 ? "Con participación" : "Sin torneos aún"}
+            </span>
           </div>
         </div>
 
@@ -371,6 +390,18 @@ export function ModalFichaAlumno({
           >
             <History className="w-3.5 h-3.5" />
             <span>Graduaciones ({fichaData?.historialGraduaciones.length ?? 0})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("torneos")}
+            className={`pb-2.5 px-3 text-xs font-black transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${
+              activeTab === "torneos"
+                ? "border-amber-400 text-amber-300"
+                : "border-transparent text-blue-200 hover:text-white"
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-300" />
+            <span>Torneos ({fichaData?.torneos?.length ?? 0})</span>
           </button>
 
           <button
@@ -743,6 +774,87 @@ export function ModalFichaAlumno({
                               &quot;{grad.observaciones}&quot;
                             </span>
                           )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: TORNEOS & PREMIOS */}
+          {activeTab === "torneos" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-amber-300" />
+                  <span>Historial de Torneos y Premiaciones ({fichaData?.torneos?.length ?? 0})</span>
+                </h4>
+              </div>
+
+              {!fichaData?.torneos || fichaData.torneos.length === 0 ? (
+                <div className="p-8 text-center bg-[#0A2E65] border border-[#2056A8] rounded-2xl text-xs text-blue-200">
+                  <Trophy className="w-8 h-8 text-amber-300/40 mx-auto mb-2" />
+                  <p className="font-bold text-white text-sm">Sin torneos registrados</p>
+                  <p className="text-[11px] text-blue-200 mt-1 max-w-sm mx-auto">
+                    Este alumno aún no fue asignado a ninguna delegación de torneos. Podés sumarlo desde la sección de Torneos en Dirección.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {fichaData.torneos.map((torneo) => {
+                    const isOro = torneo.medalla === "ORO" || torneo.puesto_premio.toLowerCase().includes("1");
+                    const isPlata = torneo.medalla === "PLATA" || torneo.puesto_premio.toLowerCase().includes("2");
+                    const isBronce = torneo.medalla === "BRONCE" || torneo.puesto_premio.toLowerCase().includes("3");
+
+                    return (
+                      <div
+                        key={torneo.id}
+                        className="p-4 bg-[#0A2E65] border border-[#2056A8] hover:border-amber-400/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="p-1 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                              <Trophy className="w-3.5 h-3.5" />
+                            </span>
+                            <span className="font-black text-white text-sm">
+                              {torneo.torneoNombre}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-blue-200 flex-wrap">
+                            <span className="flex items-center gap-1 text-cyan-300 font-bold">
+                              <Calendar className="w-3 h-3" />
+                              {torneo.fecha}
+                            </span>
+                            {torneo.lugar && (
+                              <span>• {torneo.lugar}</span>
+                            )}
+                            <span className="text-white font-medium">
+                              • Modalidad: <strong className="text-cyan-200">{torneo.categoria || "General"}</strong>
+                            </span>
+                          </div>
+                          {torneo.notas && (
+                            <p className="text-[11px] text-blue-200 italic mt-0.5">
+                              &ldquo;{torneo.notas}&rdquo;
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badge de Premio / Medalla */}
+                        <div
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 border flex items-center gap-1.5 self-start sm:self-center ${
+                            isOro
+                              ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-500/20"
+                              : isPlata
+                              ? "bg-slate-200 text-slate-900 border-slate-300 shadow-md"
+                              : isBronce
+                              ? "bg-amber-800 text-amber-100 border-amber-700"
+                              : "bg-blue-600/40 text-blue-100 border-blue-400/40"
+                          }`}
+                        >
+                          <span>{isOro ? "🥇" : isPlata ? "🥈" : isBronce ? "🥉" : "🎖️"}</span>
+                          <span>{torneo.puesto_premio}</span>
                         </div>
                       </div>
                     );

@@ -406,6 +406,17 @@ export interface FichaAlumnoData {
   }>;
   historialGraduaciones: HistorialGraduacion[];
   historialAsistencias: FichaAlumnoAsistenciaItem[];
+  torneos?: Array<{
+    id: string;
+    torneoId: string;
+    torneoNombre: string;
+    fecha: string;
+    lugar?: string | null;
+    categoria?: string;
+    puesto_premio: string;
+    medalla?: TipoMedalla;
+    notas?: string | null;
+  }>;
 }
 
 // Modelos enriquecidos para la UI del tatami
@@ -427,6 +438,34 @@ export interface SesionMetricaItem {
   totalAsistencias: number;
 }
 
+export type TipoMedalla = "ORO" | "PLATA" | "BRONCE" | "PARTICIPACION" | "OTRO";
+
+export interface TorneoParticipacion {
+  id: string;
+  torneo_id: string;
+  alumno_id: string;
+  alumno_nombre?: string;
+  alumno_cinturon?: KarateBelt;
+  alumno_subcategoria?: string | null;
+  categoria?: string;
+  puesto_premio: string;
+  medalla?: TipoMedalla;
+  notas?: string | null;
+  created_at?: string;
+}
+
+export interface Torneo {
+  id: string;
+  nombre: string;
+  fecha: string;
+  lugar?: string | null;
+  descripcion?: string | null;
+  creado_por?: string | null;
+  creado_por_nombre?: string | null;
+  participaciones: TorneoParticipacion[];
+  created_at: string;
+}
+
 export interface AlumnoMetricaItem {
   alumno: Alumno;
   clasesNombre: string[];
@@ -436,6 +475,15 @@ export interface AlumnoMetricaItem {
     estado: AsistenciaEstado;
   }>;
   clasesEnCinturonActual: number;
+  torneosCompetidos?: number;
+  premiosObtenidos?: Array<{
+    torneoId: string;
+    torneoNombre: string;
+    fecha: string;
+    puesto_premio: string;
+    medalla?: TipoMedalla;
+    categoria?: string;
+  }>;
 }
 
 export interface ProfesorMetricasCompletasData {

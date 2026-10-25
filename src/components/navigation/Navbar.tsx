@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Usuario } from "@/types";
 import { UserMenu } from "@/components/navigation/UserMenu";
-import { Shield, BarChart3, Users, CalendarDays, History, Tablet } from "lucide-react";
+import { Shield, BarChart3, Users, CalendarDays, History, Tablet, Trophy } from "lucide-react";
 
 interface NavbarProps {
   currentUser: Usuario | null;
@@ -172,6 +172,25 @@ export function Navbar({ currentUser }: NavbarProps) {
                         className={`w-4 h-4 ${isActive ? "text-emerald-600" : "text-emerald-300"}`}
                       />
                       <span>Alumnos & Cintos</span>
+                    </Link>
+                  );
+                })()}
+
+                {(() => {
+                  const isActive = pathname.startsWith("/admin/torneos");
+                  return (
+                    <Link
+                      href="/admin/torneos"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
+                        isActive
+                          ? "bg-white text-[#0F3E86] font-black shadow-md shadow-blue-950/25 ring-2 ring-white/80"
+                          : "text-blue-100/90 hover:text-white hover:bg-white/10 font-bold"
+                      }`}
+                    >
+                      <Trophy
+                        className={`w-4 h-4 ${isActive ? "text-amber-500 fill-amber-500" : "text-amber-300"}`}
+                      />
+                      <span>Torneos</span>
                     </Link>
                   );
                 })()}

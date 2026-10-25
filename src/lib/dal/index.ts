@@ -31,6 +31,9 @@ import {
   FichaAlumnoAsistenciaItem,
   getGradoRank,
   ESCALAFON_KARATE,
+  Torneo,
+  TorneoParticipacion,
+  TipoMedalla,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -66,6 +69,8 @@ const dbState = {
   asistencias: [...SEED_ASISTENCIAS],
   listas_alumnos: [...SEED_LISTAS_ALUMNOS],
   historial_bajas: [] as RegistroHistorialBaja[],
+  torneos: [] as Torneo[],
+  torneo_participaciones: [] as TorneoParticipacion[],
 };
 
 /**
@@ -1466,6 +1471,15 @@ export async function dalGetProfesorMetricasCompletas(
       sesionFechaMap.set(s.id, s.fecha);
     }
 
+    // Torneos y participaciones de alumnos
+    let dbParticipacionesProf: any[] = [];
+    try {
+      const { data: tpData } = await supabase
+        .from("torneo_participaciones")
+        .select("*, torneo:torneos(id, nombre, fecha)");
+      dbParticipacionesProf = tpData || [];
+    } catch (_) {}
+
     const alumnos: AlumnoMetricaItem[] = [];
     for (const rawAlumno of dbAlumnosList) {
       const alumnoId = rawAlumno.id;
@@ -1507,11 +1521,31 @@ export async function dalGetProfesorMetricasCompletas(
         );
       }).length;
 
+      // Torneos del alumno
+      const partsAl = (dbParticipacionesProf.length > 0
+        ? dbParticipacionesProf.filter((p: any) => p.alumno_id === alumnoId)
+        : dbState.torneo_participaciones.filter((p) => p.alumno_id === alumnoId)
+      );
+
+      const premiosObtenidos = partsAl.map((p: any) => {
+        const tor = dbState.torneos.find((t) => t.id === p.torneo_id);
+        return {
+          torneoId: p.torneo?.id || p.torneo_id,
+          torneoNombre: p.torneo?.nombre || tor?.nombre || "Torneo Tatami",
+          fecha: p.torneo?.fecha || tor?.fecha || "",
+          puesto_premio: p.puesto_premio,
+          medalla: p.medalla as TipoMedalla,
+          categoria: p.categoria,
+        };
+      });
+
       alumnos.push({
         alumno,
         clasesNombre: clasesNombres,
         asistencias: asistenciasAlumno,
         clasesEnCinturonActual: clasesEnCinto,
+        torneosCompetidos: partsAl.length,
+        premiosObtenidos,
       });
     }
 
@@ -1743,6 +1777,15 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
       sesionFechaMap.set(s.id, s.fecha);
     }
 
+    // Torneos y participaciones de alumnos del dojo
+    let dbParticipacionesDojo: any[] = [];
+    try {
+      const { data: tpData } = await supabase
+        .from("torneo_participaciones")
+        .select("*, torneo:torneos(id, nombre, fecha)");
+      dbParticipacionesDojo = tpData || [];
+    } catch (_) {}
+
     const alumnos: AlumnoMetricaItem[] = [];
     for (const rawAlumno of todosAlumnos) {
       const alumnoId = rawAlumno.id;
@@ -1783,11 +1826,31 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
         );
       }).length;
 
+      // Torneos del alumno
+      const partsAl = (dbParticipacionesDojo.length > 0
+        ? dbParticipacionesDojo.filter((p: any) => p.alumno_id === alumnoId)
+        : dbState.torneo_participaciones.filter((p) => p.alumno_id === alumnoId)
+      );
+
+      const premiosObtenidos = partsAl.map((p: any) => {
+        const tor = dbState.torneos.find((t) => t.id === p.torneo_id);
+        return {
+          torneoId: p.torneo?.id || p.torneo_id,
+          torneoNombre: p.torneo?.nombre || tor?.nombre || "Torneo Tatami",
+          fecha: p.torneo?.fecha || tor?.fecha || "",
+          puesto_premio: p.puesto_premio,
+          medalla: p.medalla as TipoMedalla,
+          categoria: p.categoria,
+        };
+      });
+
       alumnos.push({
         alumno,
         clasesNombre: clasesNombres,
         asistencias: asistenciasAlumno,
         clasesEnCinturonActual: clasesEnCinto,
+        torneosCompetidos: partsAl.length,
+        premiosObtenidos,
       });
     }
 
@@ -2485,6 +2548,7 @@ export async function dalGetFichaAlumno(alumnoId: string): Promise<FichaAlumnoDa
         clasesInscriptas,
         historialGraduaciones,
         historialAsistencias,
+        torneos: await dalGetTorneosAlumno(dbAlumno.id),
       };
     }
   } catch (err) {
@@ -2605,6 +2669,7 @@ export async function dalGetFichaAlumno(alumnoId: string): Promise<FichaAlumnoDa
       cinturon: (g.cinturon === "Azul" ? "Violeta" : g.cinturon) as KarateBelt,
     })),
     historialAsistencias,
+    torneos: await dalGetTorneosAlumno(alumno.id),
   };
 }
 
@@ -4333,4 +4398,375 @@ export async function dalReincorporarAlumno(alumnoId: string): Promise<{ success
     success: true,
     message: "Alumno reincorporado con éxito al padrón activo de la academia.",
   };
+}
+
+// ======================================================================================
+// GESTIÓN DE TORNEOS Y PARTICIPACIONES (ADMIN)
+// ======================================================================================
+
+/**
+ * Obtener todos los torneos registrados con sus competidores y premios
+ */
+export async function dalGetTorneos(): Promise<Torneo[]> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbTorneos, error } = await supabase
+      .from("torneos")
+      .select(`
+        *,
+        participaciones:torneo_participaciones(
+          id,
+          torneo_id,
+          alumno_id,
+          categoria,
+          puesto_premio,
+          medalla,
+          notas,
+          created_at,
+          alumno:alumnos(id, nombre, apellido, cinturon_actual, subcategoria_actual)
+        )
+      `)
+      .order("fecha", { ascending: false });
+
+    if (!error && dbTorneos) {
+      return dbTorneos.map((t: any) => ({
+        id: t.id,
+        nombre: t.nombre,
+        fecha: t.fecha,
+        lugar: t.lugar,
+        descripcion: t.descripcion,
+        creado_por: t.creado_por,
+        creado_por_nombre: t.creado_por_nombre,
+        created_at: t.created_at,
+        participaciones: (t.participaciones || []).map((p: any) => ({
+          id: p.id,
+          torneo_id: p.torneo_id,
+          alumno_id: p.alumno_id,
+          alumno_nombre: p.alumno ? `${p.alumno.nombre} ${p.alumno.apellido}` : "Alumno",
+          alumno_cinturon: (p.alumno?.cinturon_actual === "Azul" ? "Violeta" : p.alumno?.cinturon_actual) as KarateBelt,
+          alumno_subcategoria: p.alumno?.subcategoria_actual,
+          categoria: p.categoria || "General",
+          puesto_premio: p.puesto_premio,
+          medalla: p.medalla as TipoMedalla,
+          notas: p.notas,
+          created_at: p.created_at,
+        })),
+      }));
+    }
+  } catch (err) {
+    console.warn("dalGetTorneos Supabase fallback to dbState:", err);
+  }
+
+  // Fallback a dbState
+  return dbState.torneos.map((t) => {
+    const parts = dbState.torneo_participaciones
+      .filter((p) => p.torneo_id === t.id)
+      .map((p) => {
+        const al = dbState.alumnos.find((a) => a.id === p.alumno_id);
+        return {
+          ...p,
+          alumno_nombre: al ? `${al.nombre} ${al.apellido}` : p.alumno_nombre || "Alumno",
+          alumno_cinturon: al ? (al.cinturon_actual === "Azul" ? "Violeta" : al.cinturon_actual) as KarateBelt : p.alumno_cinturon,
+          alumno_subcategoria: al ? al.subcategoria_actual : p.alumno_subcategoria,
+        };
+      });
+    return {
+      ...t,
+      participaciones: parts,
+    };
+  });
+}
+
+/**
+ * Obtener un torneo por ID
+ */
+export async function dalGetTorneoById(torneoId: string): Promise<Torneo | null> {
+  const torneos = await dalGetTorneos();
+  return torneos.find((t) => t.id === torneoId) || null;
+}
+
+/**
+ * Crear un nuevo torneo con sus competidores y premios
+ */
+export async function dalCrearTorneo(input: {
+  nombre: string;
+  fecha: string;
+  lugar?: string | null;
+  descripcion?: string | null;
+  participaciones: Array<{
+    alumno_id: string;
+    categoria?: string | null;
+    puesto_premio: string;
+    medalla?: TipoMedalla | null;
+    notas?: string | null;
+  }>;
+}): Promise<Torneo> {
+  const admin = await requireAdmin();
+
+  let createdTorneo: Torneo | null = null;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: newT, error: errT } = await supabase
+      .from("torneos")
+      .insert({
+        nombre: input.nombre.trim(),
+        fecha: input.fecha,
+        lugar: input.lugar?.trim() || null,
+        descripcion: input.descripcion?.trim() || null,
+        creado_por: admin.id,
+        creado_por_nombre: admin.nombre_completo,
+      })
+      .select()
+      .single();
+
+    if (!errT && newT) {
+      const partsRows = input.participaciones.map((p) => ({
+        torneo_id: newT.id,
+        alumno_id: p.alumno_id,
+        categoria: p.categoria?.trim() || "General",
+        puesto_premio: p.puesto_premio.trim(),
+        medalla: p.medalla || "OTRO",
+        notas: p.notas?.trim() || null,
+      }));
+
+      let insertedParts: any[] = [];
+      if (partsRows.length > 0) {
+        const { data: pData } = await supabase
+          .from("torneo_participaciones")
+          .insert(partsRows)
+          .select("*, alumno:alumnos(id, nombre, apellido, cinturon_actual, subcategoria_actual)");
+        insertedParts = pData || [];
+      }
+
+      createdTorneo = {
+        id: newT.id,
+        nombre: newT.nombre,
+        fecha: newT.fecha,
+        lugar: newT.lugar,
+        descripcion: newT.descripcion,
+        creado_por: newT.creado_por,
+        creado_por_nombre: newT.creado_por_nombre,
+        created_at: newT.created_at,
+        participaciones: insertedParts.map((p: any) => ({
+          id: p.id,
+          torneo_id: p.torneo_id,
+          alumno_id: p.alumno_id,
+          alumno_nombre: p.alumno ? `${p.alumno.nombre} ${p.alumno.apellido}` : "",
+          alumno_cinturon: (p.alumno?.cinturon_actual === "Azul" ? "Violeta" : p.alumno?.cinturon_actual) as KarateBelt,
+          alumno_subcategoria: p.alumno?.subcategoria_actual,
+          categoria: p.categoria,
+          puesto_premio: p.puesto_premio,
+          medalla: p.medalla as TipoMedalla,
+          notas: p.notas,
+          created_at: p.created_at,
+        })),
+      };
+    }
+  } catch (err) {
+    console.warn("dalCrearTorneo Supabase fallback:", err);
+  }
+
+  // Respaldo en dbState
+  const fallbackTorneoId = createdTorneo?.id || `torneo-${Date.now()}`;
+  const fallbackParts: TorneoParticipacion[] = input.participaciones.map((p, idx) => {
+    const al = dbState.alumnos.find((a) => a.id === p.alumno_id);
+    return {
+      id: `tp-${Date.now()}-${idx}`,
+      torneo_id: fallbackTorneoId,
+      alumno_id: p.alumno_id,
+      alumno_nombre: al ? `${al.nombre} ${al.apellido}` : "Alumno",
+      alumno_cinturon: al ? (al.cinturon_actual === "Azul" ? "Violeta" : al.cinturon_actual) as KarateBelt : "Blanco",
+      alumno_subcategoria: al ? al.subcategoria_actual : null,
+      categoria: p.categoria || "General",
+      puesto_premio: p.puesto_premio,
+      medalla: p.medalla || "OTRO",
+      notas: p.notas || null,
+      created_at: new Date().toISOString(),
+    };
+  });
+
+  const fallbackTorneo: Torneo = createdTorneo || {
+    id: fallbackTorneoId,
+    nombre: input.nombre.trim(),
+    fecha: input.fecha,
+    lugar: input.lugar?.trim() || null,
+    descripcion: input.descripcion?.trim() || null,
+    creado_por: admin.id,
+    creado_por_nombre: admin.nombre_completo,
+    participaciones: fallbackParts,
+    created_at: new Date().toISOString(),
+  };
+
+  dbState.torneos.unshift(fallbackTorneo);
+  dbState.torneo_participaciones.push(...fallbackParts);
+
+  return fallbackTorneo;
+}
+
+/**
+ * Actualizar torneo y sus competidores
+ */
+export async function dalActualizarTorneo(
+  torneoId: string,
+  input: {
+    nombre: string;
+    fecha: string;
+    lugar?: string | null;
+    descripcion?: string | null;
+    participaciones: Array<{
+      alumno_id: string;
+      categoria?: string | null;
+      puesto_premio: string;
+      medalla?: TipoMedalla | null;
+      notas?: string | null;
+    }>;
+  }
+): Promise<Torneo> {
+  await requireAdmin();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase
+      .from("torneos")
+      .update({
+        nombre: input.nombre.trim(),
+        fecha: input.fecha,
+        lugar: input.lugar?.trim() || null,
+        descripcion: input.descripcion?.trim() || null,
+      })
+      .eq("id", torneoId);
+
+    // Reemplazar participaciones
+    await supabase.from("torneo_participaciones").delete().eq("torneo_id", torneoId);
+
+    const partsRows = input.participaciones.map((p) => ({
+      torneo_id: torneoId,
+      alumno_id: p.alumno_id,
+      categoria: p.categoria?.trim() || "General",
+      puesto_premio: p.puesto_premio.trim(),
+      medalla: p.medalla || "OTRO",
+      notas: p.notas?.trim() || null,
+    }));
+
+    if (partsRows.length > 0) {
+      await supabase.from("torneo_participaciones").insert(partsRows);
+    }
+  } catch (err) {
+    console.warn("dalActualizarTorneo Supabase fallback:", err);
+  }
+
+  // dbState fallback
+  const idx = dbState.torneos.findIndex((t) => t.id === torneoId);
+  const updatedParts: TorneoParticipacion[] = input.participaciones.map((p, pIdx) => {
+    const al = dbState.alumnos.find((a) => a.id === p.alumno_id);
+    return {
+      id: `tp-${Date.now()}-${pIdx}`,
+      torneo_id: torneoId,
+      alumno_id: p.alumno_id,
+      alumno_nombre: al ? `${al.nombre} ${al.apellido}` : "Alumno",
+      alumno_cinturon: al ? (al.cinturon_actual === "Azul" ? "Violeta" : al.cinturon_actual) as KarateBelt : "Blanco",
+      alumno_subcategoria: al ? al.subcategoria_actual : null,
+      categoria: p.categoria || "General",
+      puesto_premio: p.puesto_premio,
+      medalla: p.medalla || "OTRO",
+      notas: p.notas || null,
+      created_at: new Date().toISOString(),
+    };
+  });
+
+  if (idx !== -1) {
+    dbState.torneos[idx] = {
+      ...dbState.torneos[idx],
+      nombre: input.nombre.trim(),
+      fecha: input.fecha,
+      lugar: input.lugar?.trim() || null,
+      descripcion: input.descripcion?.trim() || null,
+      participaciones: updatedParts,
+    };
+  }
+
+  dbState.torneo_participaciones = dbState.torneo_participaciones.filter((p) => p.torneo_id !== torneoId);
+  dbState.torneo_participaciones.push(...updatedParts);
+
+  const t = await dalGetTorneoById(torneoId);
+  if (!t) throw new Error("Torneo no encontrado");
+  return t;
+}
+
+/**
+ * Eliminar un torneo
+ */
+export async function dalEliminarTorneo(torneoId: string): Promise<boolean> {
+  await requireAdmin();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from("torneo_participaciones").delete().eq("torneo_id", torneoId);
+    await supabase.from("torneos").delete().eq("id", torneoId);
+  } catch (err) {
+    console.warn("dalEliminarTorneo Supabase fallback:", err);
+  }
+
+  dbState.torneos = dbState.torneos.filter((t) => t.id !== torneoId);
+  dbState.torneo_participaciones = dbState.torneo_participaciones.filter((p) => p.torneo_id !== torneoId);
+
+  return true;
+}
+
+/**
+ * Obtener participaciones en torneos y premios de un alumno específico
+ */
+export async function dalGetTorneosAlumno(alumnoId: string): Promise<Array<{
+  id: string;
+  torneoId: string;
+  torneoNombre: string;
+  fecha: string;
+  lugar?: string | null;
+  categoria?: string;
+  puesto_premio: string;
+  medalla?: TipoMedalla;
+  notas?: string | null;
+}>> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbParts, error } = await supabase
+      .from("torneo_participaciones")
+      .select("*, torneo:torneos(*)")
+      .eq("alumno_id", alumnoId);
+
+    if (!error && dbParts && dbParts.length > 0) {
+      return dbParts.map((p: any) => ({
+        id: p.id,
+        torneoId: p.torneo?.id || p.torneo_id,
+        torneoNombre: p.torneo?.nombre || "Torneo Tatami",
+        fecha: p.torneo?.fecha || (p.created_at || "").split("T")[0],
+        lugar: p.torneo?.lugar,
+        categoria: p.categoria,
+        puesto_premio: p.puesto_premio,
+        medalla: p.medalla as TipoMedalla,
+        notas: p.notas,
+      }));
+    }
+  } catch (err) {
+    console.warn("dalGetTorneosAlumno Supabase fallback:", err);
+  }
+
+  // Fallback dbState
+  return dbState.torneo_participaciones
+    .filter((p) => p.alumno_id === alumnoId)
+    .map((p) => {
+      const t = dbState.torneos.find((tor) => tor.id === p.torneo_id);
+      return {
+        id: p.id,
+        torneoId: p.torneo_id,
+        torneoNombre: t?.nombre || "Torneo Tatami",
+        fecha: t?.fecha || new Date().toISOString().split("T")[0],
+        lugar: t?.lugar,
+        categoria: p.categoria,
+        puesto_premio: p.puesto_premio,
+        medalla: p.medalla,
+        notas: p.notas,
+      };
+    });
 }

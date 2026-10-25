@@ -16,6 +16,8 @@ import {
   Filter,
   Shield,
   UserX,
+  Trophy,
+  Medal,
 } from "lucide-react";
 
 interface ProfesorMetricasClientProps {
@@ -586,6 +588,57 @@ export function ProfesorMetricasClient({
                     {isNearGraduation && (
                       <span className="inline-block mt-1 text-[9px] font-bold text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md border border-amber-300">
                         Apto Examen 🥋
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Torneos & Premios del Alumno */}
+                  <div className="p-2.5 bg-white/10 rounded-xl border border-white/20 text-center min-w-[130px]">
+                    <div className="flex items-center justify-center gap-1 text-[10px] text-amber-200 font-bold">
+                      <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Torneos</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1 mt-0.5">
+                      <span className="text-base font-black text-amber-300">
+                        {item.torneosCompetidos || 0}
+                      </span>
+                      <span className="text-[10px] text-blue-200 font-medium">
+                        {item.torneosCompetidos === 1 ? "torneo" : "torneos"}
+                      </span>
+                    </div>
+                    {item.premiosObtenidos && item.premiosObtenidos.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap items-center justify-center gap-1 max-w-[130px]">
+                        {item.premiosObtenidos.slice(0, 2).map((premio, pIdx) => {
+                          const isOro = premio.medalla === "ORO" || premio.puesto_premio.toLowerCase().includes("1");
+                          const isPlata = premio.medalla === "PLATA" || premio.puesto_premio.toLowerCase().includes("2");
+                          const isBronce = premio.medalla === "BRONCE" || premio.puesto_premio.toLowerCase().includes("3");
+                          return (
+                            <span
+                              key={pIdx}
+                              className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
+                                isOro
+                                  ? "bg-amber-400 text-slate-950 border-amber-300"
+                                  : isPlata
+                                  ? "bg-slate-200 text-slate-900 border-slate-300"
+                                  : isBronce
+                                  ? "bg-amber-700 text-amber-100 border-amber-600"
+                                  : "bg-blue-600/40 text-blue-100 border-blue-400/40"
+                              }`}
+                              title={`${premio.torneoNombre}: ${premio.puesto_premio}`}
+                            >
+                              {isOro ? "🥇" : isPlata ? "🥈" : isBronce ? "🥉" : "🎖️"} {premio.puesto_premio.split("(")[0].trim()}
+                            </span>
+                          );
+                        })}
+                        {item.premiosObtenidos.length > 2 && (
+                          <span className="text-[9px] text-amber-200 font-bold">
+                            +{item.premiosObtenidos.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-block mt-1 text-[9px] font-medium text-blue-300">
+                        Sin premios aún
                       </span>
                     )}
                   </div>
