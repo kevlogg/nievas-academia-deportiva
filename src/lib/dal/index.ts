@@ -1313,6 +1313,242 @@ export async function dalGetProfesorMetricasCompletas(
   const effectiveProfId =
     currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
 
+  // 1. Intentar en Supabase para obtener estadísticas reales
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Profesor
+    const { data: dbProfesor } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id", effectiveProfId)
+      .maybeSingle();
+
+    const profesor: Usuario = dbProfesor
+      ? {
+          id: dbProfesor.id,
+          email: dbProfesor.email,
+          nombre_completo: dbProfesor.nombre_completo,
+          rol: dbProfesor.rol,
+          activo: dbProfesor.activo,
+          created_at: dbProfesor.created_at,
+        }
+      : currentUser;
+
+    // Clases del profesor
+    const { data: dbClases } = await supabase
+      .from("clases")
+      .select("*")
+      .eq("profesor_id", effectiveProfId);
+
+    const clasesProfesor = dbClases || [];
+    const clasesIds = new Set(clasesProfesor.map((c: any) => c.id));
+    const clasesNombresMap = new Map<string, string>();
+    for (const c of clasesProfesor) {
+      clasesNombresMap.set(c.id, c.nombre);
+    }
+
+    // Sesiones del profesor (por clase asignada o por profesor_id directo)
+    const { data: dbTodasSesiones } = await supabase
+      .from("sesiones_clase")
+      .select("*, clase:clases(id, nombre, profesor_id)")
+      .order("fecha", { ascending: false });
+
+    const sesionesFiltradas = (dbTodasSesiones || []).filter((s: any) => {
+      return (
+        s.profesor_id === effectiveProfId ||
+        clasesIds.has(s.clase_id) ||
+        s.clase?.profesor_id === effectiveProfId
+      );
+    });
+
+    const sesionesIds = new Set(sesionesFiltradas.map((s: any) => s.id));
+
+    // Asistencias de esas sesiones
+    let dbAsistencias: any[] = [];
+    if (sesionesIds.size > 0) {
+      const { data: asistData } = await supabase
+        .from("asistencias")
+        .select("*")
+        .in("sesion_id", Array.from(sesionesIds));
+      dbAsistencias = asistData || [];
+    }
+
+    const asistenciasPorSesion = new Map<string, any[]>();
+    for (const a of dbAsistencias) {
+      const list = asistenciasPorSesion.get(a.sesion_id) || [];
+      list.push(a);
+      asistenciasPorSesion.set(a.sesion_id, list);
+    }
+
+    const sesiones: SesionMetricaItem[] = sesionesFiltradas.map((s: any) => {
+      const asistenciasSesion = asistenciasPorSesion.get(s.id) || [];
+      const presentesCount = asistenciasSesion.filter(
+        (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+      return {
+        id: s.id,
+        clase_id: s.clase_id,
+        clase_nombre: s.clase?.nombre || clasesNombresMap.get(s.clase_id) || "Clase Tatami",
+        fecha: s.fecha,
+        presentesCount,
+        totalAsistencias: asistenciasSesion.length,
+      };
+    });
+
+    // Inscripciones del profesor
+    let dbInscripciones: any[] = [];
+    if (clasesIds.size > 0) {
+      const { data: inscData } = await supabase
+        .from("inscripciones")
+        .select("*")
+        .in("clase_id", Array.from(clasesIds))
+        .eq("activo", true);
+      dbInscripciones = inscData || [];
+    }
+
+    const alumnoIdToClases = new Map<string, string[]>();
+    for (const ins of dbInscripciones) {
+      const nombreClase = clasesNombresMap.get(ins.clase_id);
+      const existing = alumnoIdToClases.get(ins.alumno_id) || [];
+      if (nombreClase && !existing.includes(nombreClase)) {
+        existing.push(nombreClase);
+      }
+      alumnoIdToClases.set(ins.alumno_id, existing);
+    }
+
+    // Incluir alumnos que hayan asistido a sesiones del profesor aunque la inscripción haya variado
+    for (const a of dbAsistencias) {
+      if (!alumnoIdToClases.has(a.alumno_id)) {
+        alumnoIdToClases.set(a.alumno_id, []);
+      }
+    }
+
+    const alumnosIdsList = Array.from(alumnoIdToClases.keys());
+    let dbAlumnosList: any[] = [];
+    if (alumnosIdsList.length > 0) {
+      const { data: alData } = await supabase
+        .from("alumnos")
+        .select("*")
+        .in("id", alumnosIdsList);
+      dbAlumnosList = alData || [];
+    }
+
+    // Graduaciones para cálculo de clases en cinturón actual
+    let dbGraduaciones: any[] = [];
+    if (alumnosIdsList.length > 0) {
+      const { data: gradData } = await supabase
+        .from("historial_graduaciones")
+        .select("*")
+        .in("alumno_id", alumnosIdsList);
+      dbGraduaciones = gradData || [];
+    }
+
+    // Todas las asistencias históricas del alumno para cálculo exacto de clases en cinto
+    let dbTodasAsistencias: any[] = [];
+    if (alumnosIdsList.length > 0) {
+      const { data: allAsist } = await supabase
+        .from("asistencias")
+        .select("alumno_id, estado, marcado_en, created_at")
+        .in("alumno_id", alumnosIdsList);
+      dbTodasAsistencias = allAsist || [];
+    }
+
+    const asistenciasPorAlumno = new Map<string, any[]>();
+    for (const a of dbAsistencias) {
+      const list = asistenciasPorAlumno.get(a.alumno_id) || [];
+      list.push(a);
+      asistenciasPorAlumno.set(a.alumno_id, list);
+    }
+
+    const sesionFechaMap = new Map<string, string>();
+    for (const s of sesionesFiltradas) {
+      sesionFechaMap.set(s.id, s.fecha);
+    }
+
+    const alumnos: AlumnoMetricaItem[] = [];
+    for (const rawAlumno of dbAlumnosList) {
+      const alumnoId = rawAlumno.id;
+      const clasesNombres = alumnoIdToClases.get(alumnoId) || [];
+
+      const alumno: Alumno = {
+        id: rawAlumno.id,
+        nombre: rawAlumno.nombre,
+        apellido: rawAlumno.apellido,
+        fecha_nacimiento: rawAlumno.fecha_nacimiento,
+        cinturon_actual: (rawAlumno.cinturon_actual === "Azul" ? "Violeta" : rawAlumno.cinturon_actual) as KarateBelt,
+        subcategoria_actual: rawAlumno.subcategoria_actual,
+        estado: rawAlumno.estado,
+        telefono_contacto: rawAlumno.telefono_contacto,
+        contacto_emergencia: rawAlumno.contacto_emergencia,
+        notas_privadas: currentUser.rol === "ADMIN" ? rawAlumno.notas_privadas : null,
+        created_at: rawAlumno.created_at,
+      };
+
+      const asistenciasAlumnoRaw = asistenciasPorAlumno.get(alumnoId) || [];
+      const asistenciasAlumno = asistenciasAlumnoRaw.map((a: any) => ({
+        sesionId: a.sesion_id,
+        fecha: sesionFechaMap.get(a.sesion_id) || (a.marcado_en || a.created_at || "").split("T")[0] || "",
+        estado: a.estado,
+      }));
+
+      // Clases acumuladas en cinturón actual
+      const gradActual = dbGraduaciones
+        .filter((g: any) => g.alumno_id === alumnoId && (g.cinturon === alumno.cinturon_actual || (alumno.cinturon_actual === "Violeta" && g.cinturon === "Azul")))
+        .sort((x: any, y: any) => (y.fecha_graduacion || "").localeCompare(x.fecha_graduacion || ""))[0];
+
+      const fechaCinto = gradActual ? gradActual.fecha_graduacion : (rawAlumno.created_at ? rawAlumno.created_at.split("T")[0] : "2020-01-01");
+      const clasesEnCinto = dbTodasAsistencias.filter((a: any) => {
+        const fechaA = (a.marcado_en || a.created_at || "").split("T")[0];
+        return (
+          a.alumno_id === alumnoId &&
+          (a.estado === "PRESENTE" || a.estado === "TARDE") &&
+          fechaA >= fechaCinto
+        );
+      }).length;
+
+      alumnos.push({
+        alumno,
+        clasesNombre: clasesNombres,
+        asistencias: asistenciasAlumno,
+        clasesEnCinturonActual: clasesEnCinto,
+      });
+    }
+
+    // Historial de bajas por deserción
+    const { data: dbBajas } = await supabase
+      .from("historial_bajas")
+      .select("*")
+      .order("fecha_baja", { ascending: false });
+
+    const historialBajas: RegistroHistorialBaja[] = (dbBajas || []).map((b: any) => ({
+      id: b.id,
+      alumno_id: b.alumno_id,
+      alumno_nombre: b.alumno_nombre,
+      cinturon: (b.cinturon === "Azul" ? "Violeta" : b.cinturon) as KarateBelt,
+      subcategoria: b.subcategoria,
+      fecha_baja: b.fecha_baja,
+      tipo: b.tipo,
+      motivo: b.motivo,
+      ausencias_consecutivas: b.ausencias_consecutivas || 4,
+      telefono_contacto: b.telefono_contacto,
+      contacto_emergencia: b.contacto_emergencia,
+      registrado_por: b.registrado_por,
+      registrado_por_nombre: b.registrado_por_nombre,
+      created_at: b.created_at,
+    }));
+
+    return {
+      profesor,
+      sesiones,
+      alumnos,
+      historialBajas,
+    };
+  } catch (err) {
+    console.warn("dalGetProfesorMetricasCompletas Supabase fallback to dbState:", err);
+  }
+
+  // 2. Fallback local a dbState
   const profesor =
     dbState.usuarios.find((u) => u.id === effectiveProfId) || currentUser;
 
@@ -1321,9 +1557,8 @@ export async function dalGetProfesorMetricasCompletas(
   );
   const clasesIds = new Set(clasesProfesor.map((c) => c.id));
 
-  // Todas las sesiones de este profesor
   const sesiones: SesionMetricaItem[] = dbState.sesiones
-    .filter((s) => clasesIds.has(s.clase_id))
+    .filter((s) => clasesIds.has(s.clase_id) || s.profesor_id === effectiveProfId)
     .map((s) => {
       const asistenciasSesion = dbState.asistencias.filter((a) => a.sesion_id === s.id);
       const presentesCount = asistenciasSesion.filter(
@@ -1339,7 +1574,6 @@ export async function dalGetProfesorMetricasCompletas(
       };
     });
 
-  // Alumnos inscriptos
   const inscripcionesProf = dbState.inscripciones.filter(
     (ins) => clasesIds.has(ins.clase_id) && ins.activo
   );
@@ -1360,6 +1594,7 @@ export async function dalGetProfesorMetricasCompletas(
 
     const alumno: Alumno = {
       ...rawAlumno,
+      cinturon_actual: (rawAlumno.cinturon_actual === "Azul" ? "Violeta" : rawAlumno.cinturon_actual) as KarateBelt,
       notas_privadas:
         currentUser.rol === "ADMIN" ? rawAlumno.notas_privadas : null,
     };
@@ -1401,6 +1636,7 @@ export async function dalGetProfesorMetricasCompletas(
     profesor,
     sesiones,
     alumnos,
+    historialBajas: [...dbState.historial_bajas],
   };
 }
 
@@ -1410,6 +1646,185 @@ export async function dalGetProfesorMetricasCompletas(
 export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCompletasData> {
   const currentUser = await requireAdmin();
 
+  // 1. Intentar en Supabase para obtener estadísticas de todo el dojo
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Todas las clases
+    const { data: dbClases } = await supabase
+      .from("clases")
+      .select("*");
+
+    const todasClases = dbClases || [];
+    const clasesNombresMap = new Map<string, string>();
+    for (const c of todasClases) {
+      clasesNombresMap.set(c.id, c.nombre);
+    }
+
+    // Todas las sesiones con join de clase
+    const { data: dbSesiones } = await supabase
+      .from("sesiones_clase")
+      .select("*, clase:clases(id, nombre, profesor_id)")
+      .order("fecha", { ascending: false });
+
+    const todasSesiones = dbSesiones || [];
+    const sesionesIds = new Set(todasSesiones.map((s: any) => s.id));
+
+    // Todas las asistencias
+    let dbAsistencias: any[] = [];
+    if (sesionesIds.size > 0) {
+      const { data: asistData } = await supabase
+        .from("asistencias")
+        .select("*");
+      dbAsistencias = asistData || [];
+    }
+
+    const asistenciasPorSesion = new Map<string, any[]>();
+    for (const a of dbAsistencias) {
+      const list = asistenciasPorSesion.get(a.sesion_id) || [];
+      list.push(a);
+      asistenciasPorSesion.set(a.sesion_id, list);
+    }
+
+    const sesiones: SesionMetricaItem[] = todasSesiones.map((s: any) => {
+      const asistenciasSesion = asistenciasPorSesion.get(s.id) || [];
+      const presentesCount = asistenciasSesion.filter(
+        (a: any) => a.estado === "PRESENTE" || a.estado === "TARDE"
+      ).length;
+      return {
+        id: s.id,
+        clase_id: s.clase_id,
+        clase_nombre: s.clase?.nombre || clasesNombresMap.get(s.clase_id) || "Clase Tatami",
+        fecha: s.fecha,
+        presentesCount,
+        totalAsistencias: asistenciasSesion.length,
+      };
+    });
+
+    // Todas las inscripciones activas
+    const { data: dbInscripciones } = await supabase
+      .from("inscripciones")
+      .select("*")
+      .eq("activo", true);
+
+    const alumnoIdToClases = new Map<string, string[]>();
+    for (const ins of (dbInscripciones || [])) {
+      const nombreClase = clasesNombresMap.get(ins.clase_id);
+      const existing = alumnoIdToClases.get(ins.alumno_id) || [];
+      if (nombreClase && !existing.includes(nombreClase)) {
+        existing.push(nombreClase);
+      }
+      alumnoIdToClases.set(ins.alumno_id, existing);
+    }
+
+    // Todos los alumnos
+    const { data: dbAlumnos } = await supabase
+      .from("alumnos")
+      .select("*");
+
+    const todosAlumnos = dbAlumnos || [];
+
+    // Graduaciones para clasesEnCinturonActual
+    const { data: dbGraduaciones } = await supabase
+      .from("historial_graduaciones")
+      .select("*");
+
+    const todasGrads = dbGraduaciones || [];
+
+    const asistenciasPorAlumno = new Map<string, any[]>();
+    for (const a of dbAsistencias) {
+      const list = asistenciasPorAlumno.get(a.alumno_id) || [];
+      list.push(a);
+      asistenciasPorAlumno.set(a.alumno_id, list);
+    }
+
+    const sesionFechaMap = new Map<string, string>();
+    for (const s of todasSesiones) {
+      sesionFechaMap.set(s.id, s.fecha);
+    }
+
+    const alumnos: AlumnoMetricaItem[] = [];
+    for (const rawAlumno of todosAlumnos) {
+      const alumnoId = rawAlumno.id;
+      const clasesNombres = alumnoIdToClases.get(alumnoId) || [];
+
+      const alumno: Alumno = {
+        id: rawAlumno.id,
+        nombre: rawAlumno.nombre,
+        apellido: rawAlumno.apellido,
+        fecha_nacimiento: rawAlumno.fecha_nacimiento,
+        cinturon_actual: (rawAlumno.cinturon_actual === "Azul" ? "Violeta" : rawAlumno.cinturon_actual) as KarateBelt,
+        subcategoria_actual: rawAlumno.subcategoria_actual,
+        estado: rawAlumno.estado,
+        telefono_contacto: rawAlumno.telefono_contacto,
+        contacto_emergencia: rawAlumno.contacto_emergencia,
+        notas_privadas: rawAlumno.notas_privadas,
+        created_at: rawAlumno.created_at,
+      };
+
+      const asistenciasAlumnoRaw = asistenciasPorAlumno.get(alumnoId) || [];
+      const asistenciasAlumno = asistenciasAlumnoRaw.map((a: any) => ({
+        sesionId: a.sesion_id,
+        fecha: sesionFechaMap.get(a.sesion_id) || (a.marcado_en || a.created_at || "").split("T")[0] || "",
+        estado: a.estado,
+      }));
+
+      // Clases acumuladas en cinturón actual
+      const gradActual = todasGrads
+        .filter((g: any) => g.alumno_id === alumnoId && (g.cinturon === alumno.cinturon_actual || (alumno.cinturon_actual === "Violeta" && g.cinturon === "Azul")))
+        .sort((x: any, y: any) => (y.fecha_graduacion || "").localeCompare(x.fecha_graduacion || ""))[0];
+
+      const fechaCinto = gradActual ? gradActual.fecha_graduacion : (rawAlumno.created_at ? rawAlumno.created_at.split("T")[0] : "2020-01-01");
+      const clasesEnCinto = asistenciasAlumnoRaw.filter((a: any) => {
+        const fechaA = (a.marcado_en || a.created_at || "").split("T")[0];
+        return (
+          (a.estado === "PRESENTE" || a.estado === "TARDE") &&
+          fechaA >= fechaCinto
+        );
+      }).length;
+
+      alumnos.push({
+        alumno,
+        clasesNombre: clasesNombres,
+        asistencias: asistenciasAlumno,
+        clasesEnCinturonActual: clasesEnCinto,
+      });
+    }
+
+    // Historial de bajas de deserción del dojo
+    const { data: dbBajas } = await supabase
+      .from("historial_bajas")
+      .select("*")
+      .order("fecha_baja", { ascending: false });
+
+    const historialBajas: RegistroHistorialBaja[] = (dbBajas || []).map((b: any) => ({
+      id: b.id,
+      alumno_id: b.alumno_id,
+      alumno_nombre: b.alumno_nombre,
+      cinturon: (b.cinturon === "Azul" ? "Violeta" : b.cinturon) as KarateBelt,
+      subcategoria: b.subcategoria,
+      fecha_baja: b.fecha_baja,
+      tipo: b.tipo,
+      motivo: b.motivo,
+      ausencias_consecutivas: b.ausencias_consecutivas || 4,
+      telefono_contacto: b.telefono_contacto,
+      contacto_emergencia: b.contacto_emergencia,
+      registrado_por: b.registrado_por,
+      registrado_por_nombre: b.registrado_por_nombre,
+      created_at: b.created_at,
+    }));
+
+    return {
+      profesor: currentUser,
+      sesiones,
+      alumnos,
+      historialBajas,
+    };
+  } catch (err) {
+    console.warn("dalGetDojoMetricasCompletas Supabase fallback to dbState:", err);
+  }
+
+  // 2. Fallback local a dbState
   const todasClases = dbState.clases;
   const clasesIds = new Set(todasClases.map((c) => c.id));
 
@@ -1461,6 +1876,7 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
 
     const alumno: Alumno = {
       ...rawAlumno,
+      cinturon_actual: (rawAlumno.cinturon_actual === "Azul" ? "Violeta" : rawAlumno.cinturon_actual) as KarateBelt,
       notas_privadas: rawAlumno.notas_privadas,
     };
 
@@ -1501,6 +1917,7 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
     profesor: currentUser,
     sesiones,
     alumnos,
+    historialBajas: [...dbState.historial_bajas],
   };
 }
 

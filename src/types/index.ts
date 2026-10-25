@@ -442,6 +442,7 @@ export interface ProfesorMetricasCompletasData {
   profesor: Usuario;
   sesiones: SesionMetricaItem[];
   alumnos: AlumnoMetricaItem[];
+  historialBajas?: RegistroHistorialBaja[];
 }
 
 export interface ProfesorMetricasData {

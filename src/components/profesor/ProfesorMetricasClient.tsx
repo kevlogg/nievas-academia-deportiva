@@ -11,11 +11,11 @@ import {
   Award,
   ChevronLeft,
   Users,
-  Clock,
   CheckCircle,
   Calendar,
   Filter,
   Shield,
+  UserX,
 } from "lucide-react";
 
 interface ProfesorMetricasClientProps {
@@ -95,6 +95,13 @@ export function ProfesorMetricasClient({
     return new Set(sesionesPeriodo.map((s) => s.id));
   }, [sesionesPeriodo]);
 
+  // Bajas registradas por deserción (alumnos que no vuelven)
+  const bajasNoVuelven = useMemo(() => {
+    return (activeData.historialBajas || []).filter(
+      (b) => b.tipo === "NO_VUELVE"
+    );
+  }, [activeData.historialBajas]);
+
   // Métricas calculadas para el período
   const metricas = useMemo(() => {
     const cantidadClases = sesionesPeriodo.length;
@@ -137,10 +144,8 @@ export function ProfesorMetricasClient({
       };
     });
 
-    const alumnosTotales =
-      alumnosAsistieronIds.size > 0
-        ? alumnosAsistieronIds.size
-        : alumnos.length;
+    const alumnosTotales = alumnos.length;
+    const alumnosActivosPeriodo = alumnosAsistieronIds.size;
 
     const alumnosPromedio =
       cantidadClases > 0
@@ -150,26 +155,41 @@ export function ProfesorMetricasClient({
     const porcentajePresentismo =
       totalAsistenciasMarcadas > 0
         ? Math.round((totalPresentes / totalAsistenciasMarcadas) * 100)
-        : totalPresentes > 0
-        ? 88
         : 0;
 
     const asistenciaDestacadaCount = alumnosDetalle.filter(
       (a) => a.porcentajePresentismoPeriodo >= 85 && a.presentesEnPeriodo > 0
     ).length;
 
-    const horasTatami = Math.round(cantidadClases * 1.25 * 10) / 10;
+    // Alumnos que se han ido en base al historial de deserción que se eligió que "No vuelven"
+    const alumnosQueSeFueron = bajasNoVuelven.filter((b) => {
+      if (periodo === "todo") return true;
+      const fecha = b.fecha_baja || (b.created_at ? b.created_at.split("T")[0] : "");
+      return fecha >= startDate && fecha <= endDate;
+    }).length;
+
+    const totalHistoricoIdos = bajasNoVuelven.length;
 
     return {
       cantidadClases,
       alumnosPromedio,
       alumnosTotales,
+      alumnosActivosPeriodo,
       porcentajePresentismo,
       asistenciaDestacadaCount,
-      horasTatami,
+      alumnosQueSeFueron,
+      totalHistoricoIdos,
       alumnosDetalle,
     };
-  }, [sesionesPeriodo, sesionesIdsPeriodo, alumnos, startDate, endDate]);
+  }, [
+    sesionesPeriodo,
+    sesionesIdsPeriodo,
+    alumnos,
+    startDate,
+    endDate,
+    bajasNoVuelven,
+    periodo,
+  ]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16">
@@ -385,7 +405,9 @@ export function ProfesorMetricasClient({
               {metricas.alumnosTotales}
             </span>
             <p className="text-[11px] text-blue-200 mt-0.5 font-medium">
-              Alumnos activos en tatami
+              {metricas.alumnosActivosPeriodo > 0
+                ? `${metricas.alumnosActivosPeriodo} asistieron en el período`
+                : "Alumnos matriculados"}
             </p>
           </div>
         </div>
@@ -430,26 +452,38 @@ export function ProfesorMetricasClient({
           </div>
         </div>
 
-        {/* Card 6: Horas en Tatami */}
+        {/* Card 6: Alumnos que se han ido (Historial de Deserción - No vuelven) */}
         <div className="bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 shadow-xl shadow-blue-950/15 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">
-              Horas en Tatami
+            <span className="text-xs font-bold text-rose-200 uppercase tracking-wider">
+              Alumnos que se han ido
             </span>
-            <div className="p-2 rounded-xl bg-white/10 text-cyan-300">
-              <Clock className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              <UserX className="w-4 h-4 text-rose-300" />
             </div>
           </div>
           <div>
-            <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              {metricas.horasTatami} h
+            <span className="text-3xl sm:text-4xl font-black text-rose-300 tracking-tight">
+              {metricas.alumnosQueSeFueron}
             </span>
             <p className="text-[11px] text-blue-200 mt-0.5 font-medium">
-              Tiempo total de entrenamiento
+              {periodo === "todo"
+                ? "Bajas totales registradas por deserción"
+                : `${metricas.totalHistoricoIdos} bajas acumuladas (No vuelven)`}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Alerta si no hay clases en el período */}
+      {metricas.cantidadClases === 0 && (
+        <div className="p-3.5 bg-amber-500/15 border border-amber-400/30 rounded-2xl text-amber-200 text-xs flex items-center gap-2.5">
+          <span className="text-base">🥋</span>
+          <span>
+            No se registran clases dictadas en el período seleccionado. Podés cambiar el filtro superior a <strong>&quot;3 meses&quot;</strong> o <strong>&quot;Todo&quot;</strong> para consultar el rendimiento acumulado.
+          </span>
+        </div>
+      )}
 
       {/* 4. SEGUIMIENTO INDIVIDUAL DE ALUMNOS (Cards Azules #0F3E86) */}
       <section className="space-y-3 pt-2">
@@ -468,36 +502,48 @@ export function ProfesorMetricasClient({
         </div>
 
         <div className="space-y-3">
-          {metricas.alumnosDetalle.map((item) => {
-            const isNearGraduation = item.clasesEnCinturonActual >= 15;
+          {metricas.alumnosDetalle.length === 0 ? (
+            <div className="p-8 text-center bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl">
+              <Users className="w-8 h-8 text-cyan-300 mx-auto mb-2 opacity-60" />
+              <p className="text-sm font-bold text-white">No hay alumnos para el alcance seleccionado.</p>
+              <p className="text-xs text-blue-200 mt-1">Podés seleccionar &quot;Todo el Dojo&quot; si sos administrador o revisar las inscripciones.</p>
+            </div>
+          ) : (
+            metricas.alumnosDetalle.map((item) => {
+              const isNearGraduation = item.clasesEnCinturonActual >= 15;
 
-            return (
-              <div
-                key={item.alumno.id}
-                className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-2xl shadow-xl shadow-blue-950/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all"
-              >
-                {/* Info Alumno */}
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-black text-sm text-cyan-300 shrink-0">
-                    {item.alumno.nombre[0]}
-                    {item.alumno.apellido[0]}
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-white text-base">
-                        {item.alumno.nombre} {item.alumno.apellido}
-                      </span>
-                      <BeltBadge
-                        belt={item.alumno.cinturon_actual}
-                        size="sm"
-                      />
+              return (
+                <div
+                  key={item.alumno.id}
+                  className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-2xl shadow-xl shadow-blue-950/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition-all"
+                >
+                  {/* Info Alumno */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-black text-sm text-cyan-300 shrink-0">
+                      {item.alumno.nombre[0]}
+                      {item.alumno.apellido[0]}
                     </div>
-                    <p className="text-[11px] text-blue-200 font-medium">
-                      Clases: {item.clasesNombre.join(", ")}
-                    </p>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white text-base">
+                          {item.alumno.nombre} {item.alumno.apellido}
+                        </span>
+                        <BeltBadge
+                          belt={item.alumno.cinturon_actual}
+                          size="sm"
+                        />
+                        {item.alumno.subcategoria_actual && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/10 text-cyan-200 border border-white/15">
+                            {item.alumno.subcategoria_actual}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-blue-200 font-medium">
+                        Clases: {item.clasesNombre.length > 0 ? item.clasesNombre.join(", ") : "Sin clase asignada"}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
                 {/* Métricas del Alumno en el Período */}
                 <div className="flex items-center gap-4 self-end sm:self-center">
@@ -546,7 +592,7 @@ export function ProfesorMetricasClient({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </section>
     </div>
