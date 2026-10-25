@@ -24,6 +24,7 @@ import {
   ClaseHistorialItem,
   ClaseAbiertaItem,
   AlertaDesercion,
+  RegistroHistorialBaja,
   SUBCATEGORIAS_POR_CINTURON,
   CINTURON_POR_SUBCATEGORIA,
   FichaAlumnoData,
@@ -64,6 +65,7 @@ const dbState = {
   sesiones: [...SEED_SESIONES],
   asistencias: [...SEED_ASISTENCIAS],
   listas_alumnos: [...SEED_LISTAS_ALUMNOS],
+  historial_bajas: [] as RegistroHistorialBaja[],
 };
 
 /**
@@ -1621,7 +1623,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       totalClasesDictadas > 0 ? [...clasesSorted].reverse().slice(0, 3) : [];
 
     // Alertas de Deserción:
-    // Un alumno activo entra en alerta ÚNICAMENTE si acumula 3 o más AUSENTE
+    // Un alumno activo entra en alerta ÚNICAMENTE si acumula 4 o más AUSENTE
     // consecutivas en clases que ya han sido CERRADAS (FINALIZADA).
     const { data: dbAlumnos } = await supabase
       .from("alumnos")
@@ -1631,9 +1633,18 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     const alumnos = dbAlumnos || dbState.alumnos.filter((a) => a.estado === "ACTIVO");
     const alertasDesercion: AlertaDesercion[] = [];
 
-    // Solo se evalúan si efectivamente existen clases finalizadas en el sistema
-    if (sesiones.length >= 3 && alumnos.length > 0) {
+    // Solo se evalúan si efectivamente existen al menos 4 clases finalizadas en el sistema
+    if (sesiones.length >= 4 && alumnos.length > 0) {
       for (const al of alumnos) {
+        // Detectar si el alumno fue contactado y se le restablecieron las faltas con "Continúa"
+        let fechaReinicio: string | null = null;
+        if (al.notas_privadas) {
+          const matchReset = al.notas_privadas.match(/\[DESERCION_RESET:([^\]]+)\]/);
+          if (matchReset) {
+            fechaReinicio = matchReset[1];
+          }
+        }
+
         const asistenciasAlumnoEnCerradas = asistencias
           .filter((a: any) => a.alumno_id === al.id)
           .map((a: any) => {
@@ -1641,6 +1652,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
             return {
               sesionId: a.sesion_id,
               fecha: ses?.fecha || a.created_at.split("T")[0],
+              marcado_en: a.marcado_en || a.created_at,
               estado: a.estado,
             };
           })
@@ -1653,6 +1665,11 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
         let ultimaFechaAsistida: string | null = null;
 
         for (const reg of asistenciasAlumnoEnCerradas) {
+          // Si la inasistencia fue anterior o igual a la fecha de restablecimiento de faltas, se corta la racha a 0
+          if (fechaReinicio && new Date(reg.fecha).getTime() <= new Date(fechaReinicio.split("T")[0]).getTime()) {
+            break;
+          }
+
           if (reg.estado === "AUSENTE") {
             if (ultimaFechaAsistida === null) {
               ausenciasConsecutivas++;
@@ -1665,7 +1682,8 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
           }
         }
 
-        if (ausenciasConsecutivas >= 3) {
+        // Alerta estricta tras 4 faltas seguidas
+        if (ausenciasConsecutivas >= 4) {
           alertasDesercion.push({
             alumno: al,
             ausenciasConsecutivas,
@@ -1677,6 +1695,8 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       }
     }
 
+    const historialBajas = await dalGetHistorialBajas();
+
     return {
       totalAlumnosActivos: totalAlumnosActivos || 0,
       totalProfesoresActivos: docentes.length,
@@ -1685,6 +1705,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       clasesConMenorConvocatoria,
       desempenoProfesores,
       alertasDesercion,
+      historialBajas,
     };
   } catch (err) {
     console.error("Error in dalGetAdminDashboardMetrics Supabase:", err);
@@ -1696,6 +1717,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       u.activo &&
       (u.rol === "PROFESOR" || dbState.clases.some((c) => c.profesor_id === u.id))
   );
+  const historialBajasMem = await dalGetHistorialBajas();
   return {
     totalAlumnosActivos: dbState.alumnos.filter((a) => a.estado === "ACTIVO").length,
     totalProfesoresActivos: docentes.length,
@@ -1711,6 +1733,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       promedioAlumnosPorClase: 0,
     })),
     alertasDesercion: [],
+    historialBajas: historialBajasMem,
   };
 }
 
@@ -3598,4 +3621,299 @@ export async function dalCerrarSesionClase(
 
   sesion.estado = "FINALIZADA";
   return sesion;
+}
+
+/**
+ * Obtener historial de alumnos que causaron baja por deserción o confirmación de dirección
+ */
+export async function dalGetHistorialBajas(): Promise<RegistroHistorialBaja[]> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbBajas, error } = await supabase
+      .from("historial_bajas")
+      .select("*")
+      .order("fecha_baja", { ascending: false });
+
+    if (!error && dbBajas) {
+      return dbBajas.map((b: any) => ({
+        id: b.id,
+        alumno_id: b.alumno_id,
+        alumno_nombre: b.alumno_nombre,
+        cinturon: (b.cinturon === "Azul" ? "Violeta" : b.cinturon) as KarateBelt,
+        subcategoria: b.subcategoria,
+        fecha_baja: b.fecha_baja,
+        tipo: b.tipo,
+        motivo: b.motivo,
+        ausencias_consecutivas: b.ausencias_consecutivas || 4,
+        telefono_contacto: b.telefono_contacto,
+        contacto_emergencia: b.contacto_emergencia,
+        registrado_por: b.registrado_por,
+        registrado_por_nombre: b.registrado_por_nombre,
+        created_at: b.created_at,
+      }));
+    }
+  } catch (err) {
+    console.warn("dalGetHistorialBajas Supabase fallback:", err);
+  }
+
+  // Fallback memoria y tags en alumnos inactivos
+  const list = [...dbState.historial_bajas];
+  for (const al of dbState.alumnos) {
+    if (al.estado === "INACTIVO" && al.notas_privadas?.includes("[BAJA_DESERCION") && !list.some((b) => b.alumno_id === al.id)) {
+      list.push({
+        id: "b-" + al.id,
+        alumno_id: al.id,
+        alumno_nombre: `${al.nombre} ${al.apellido}`,
+        cinturon: (al.cinturon_actual === "Azul" ? "Violeta" : al.cinturon_actual) as KarateBelt,
+        subcategoria: al.subcategoria_actual,
+        fecha_baja: new Date().toISOString().split("T")[0],
+        tipo: "NO_VUELVE",
+        motivo: "Baja por deserción (No vuelve)",
+        ausencias_consecutivas: 4,
+        telefono_contacto: al.telefono_contacto,
+        contacto_emergencia: al.contacto_emergencia,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  return list.sort((a, b) => b.fecha_baja.localeCompare(a.fecha_baja));
+}
+
+/**
+ * Marcar que un alumno en riesgo de deserción "Continúa":
+ * Restablece las inasistencias acumuladas a 0 para que deje de estar en la lista de deserción.
+ */
+export async function dalMarcarAlumnoContinua(
+  alumnoId: string,
+  motivo?: string
+): Promise<{ success: boolean; message: string }> {
+  await requireAdmin();
+  const now = new Date().toISOString();
+  const resetTag = `[DESERCION_RESET:${now}]`;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    // Obtener notas actuales del alumno
+    const { data: dbAl } = await supabase
+      .from("alumnos")
+      .select("notas_privadas, estado")
+      .eq("id", alumnoId)
+      .maybeSingle();
+
+    const oldNotes = dbAl?.notas_privadas || "";
+    // Limpiar resets anteriores y poner el nuevo
+    const cleanNotes = oldNotes.replace(/\[DESERCION_RESET:[^\]]+\]/g, "").trim();
+    const updatedNotes = `${resetTag} ${cleanNotes}`.trim();
+
+    await supabase
+      .from("alumnos")
+      .update({
+        notas_privadas: updatedNotes,
+        estado: "ACTIVO",
+      })
+      .eq("id", alumnoId);
+  } catch (err) {
+    console.warn("dalMarcarAlumnoContinua Supabase error:", err);
+  }
+
+  // Actualizar estado en memoria
+  const memAl = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (memAl) {
+    const oldNotes = memAl.notas_privadas || "";
+    const cleanNotes = oldNotes.replace(/\[DESERCION_RESET:[^\]]+\]/g, "").trim();
+    memAl.notas_privadas = `${resetTag} ${cleanNotes}`.trim();
+    memAl.estado = "ACTIVO";
+  }
+
+  return {
+    success: true,
+    message: "Faltas restablecidas a 0. El alumno continúa en la academia y ya no figura en la lista de deserción.",
+  };
+}
+
+/**
+ * Marcar que un alumno en riesgo de deserción "No vuelve":
+ * 1. Lo elimina de la lista de deserción (pasa a INACTIVO).
+ * 2. Lo quita de las listas de alumnos a las que pertenece.
+ * 3. Desactiva sus inscripciones a clases.
+ * 4. Lo guarda en el historial permanente de bajas.
+ */
+export async function dalMarcarAlumnoNoVuelve(
+  alumnoId: string,
+  motivo?: string
+): Promise<{ success: boolean; message: string }> {
+  const admin = await requireAdmin();
+  const now = new Date().toISOString();
+  const today = now.split("T")[0];
+  const bajaTag = `[BAJA_DESERCION:${now}]`;
+
+  // Buscar datos del alumno
+  let alumnoNombre = "Alumno";
+  let cinturon: KarateBelt = "Blanco";
+  let subcategoria: string | null = null;
+  let telContacto = "";
+  let telEmergencia = "";
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbAl } = await supabase
+      .from("alumnos")
+      .select("*")
+      .eq("id", alumnoId)
+      .maybeSingle();
+
+    if (dbAl) {
+      alumnoNombre = `${dbAl.nombre} ${dbAl.apellido}`;
+      cinturon = (dbAl.cinturon_actual === "Azul" ? "Violeta" : dbAl.cinturon_actual) as KarateBelt;
+      subcategoria = dbAl.subcategoria_actual || null;
+      telContacto = dbAl.telefono_contacto || "";
+      telEmergencia = dbAl.contacto_emergencia || "";
+
+      const oldNotes = dbAl.notas_privadas || "";
+      const updatedNotes = `${bajaTag} ${oldNotes}`.trim();
+
+      // 1. Marcar como INACTIVO en alumnos
+      await supabase
+        .from("alumnos")
+        .update({
+          estado: "INACTIVO",
+          notas_privadas: updatedNotes,
+        })
+        .eq("id", alumnoId);
+
+      // 2. Quitarlo de las listas de alumnos (lista_alumnos_items)
+      await supabase
+        .from("lista_alumnos_items")
+        .delete()
+        .eq("alumno_id", alumnoId);
+
+      // 3. Desactivar inscripciones a clases
+      await supabase
+        .from("inscripciones")
+        .update({ activo: false })
+        .eq("alumno_id", alumnoId);
+
+      // 4. Guardar en historial_bajas
+      await supabase
+        .from("historial_bajas")
+        .insert({
+          alumno_id: alumnoId,
+          alumno_nombre: alumnoNombre,
+          cinturon,
+          subcategoria,
+          fecha_baja: today,
+          tipo: "NO_VUELVE",
+          motivo: motivo || "Deserción escolar: confirmado por Dirección tras 4 faltas seguidas",
+          ausencias_consecutivas: 4,
+          telefono_contacto: telContacto,
+          contacto_emergencia: telEmergencia,
+          registrado_por: admin.id,
+          registrado_por_nombre: admin.nombre_completo,
+        });
+    }
+  } catch (err) {
+    console.warn("dalMarcarAlumnoNoVuelve Supabase fallback:", err);
+  }
+
+  // Sincronizar memoria
+  const memAl = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (memAl) {
+    memAl.estado = "INACTIVO";
+    alumnoNombre = `${memAl.nombre} ${memAl.apellido}`;
+    cinturon = (memAl.cinturon_actual === "Azul" ? "Violeta" : memAl.cinturon_actual) as KarateBelt;
+    subcategoria = memAl.subcategoria_actual || null;
+    telContacto = memAl.telefono_contacto || "";
+    telEmergencia = memAl.contacto_emergencia || "";
+
+    const oldNotes = memAl.notas_privadas || "";
+    memAl.notas_privadas = `${bajaTag} ${oldNotes}`.trim();
+  }
+
+  // Quitar de listas_alumnos en memoria
+  for (const lista of dbState.listas_alumnos) {
+    lista.alumnos_ids = lista.alumnos_ids.filter((id) => id !== alumnoId);
+  }
+
+  // Desactivar inscripciones en memoria
+  for (const ins of dbState.inscripciones) {
+    if (ins.alumno_id === alumnoId) {
+      ins.activo = false;
+    }
+  }
+
+  // Guardar en historial_bajas en memoria
+  const registroBaja: RegistroHistorialBaja = {
+    id: "baja-" + Math.random().toString(36).substring(2, 9),
+    alumno_id: alumnoId,
+    alumno_nombre: alumnoNombre,
+    cinturon,
+    subcategoria,
+    fecha_baja: today,
+    tipo: "NO_VUELVE",
+    motivo: motivo || "Deserción escolar: confirmado por Dirección tras 4 faltas seguidas",
+    ausencias_consecutivas: 4,
+    telefono_contacto: telContacto,
+    contacto_emergencia: telEmergencia,
+    registrado_por: admin.id,
+    registrado_por_nombre: admin.nombre_completo,
+    created_at: now,
+  };
+  dbState.historial_bajas.unshift(registroBaja);
+
+  return {
+    success: true,
+    message: `${alumnoNombre} fue dado de baja, quitado de las listas de alumnos y registrado en el historial de deserciones.`,
+  };
+}
+
+/**
+ * Reincorporar a un alumno que estaba en el historial de bajas / no vuelve
+ */
+export async function dalReincorporarAlumno(alumnoId: string): Promise<{ success: boolean; message: string }> {
+  await requireAdmin();
+  const now = new Date().toISOString();
+  const resetTag = `[DESERCION_RESET:${now}]`;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbAl } = await supabase
+      .from("alumnos")
+      .select("notas_privadas")
+      .eq("id", alumnoId)
+      .maybeSingle();
+
+    const oldNotes = dbAl?.notas_privadas || "";
+    const cleanNotes = oldNotes
+      .replace(/\[BAJA_DESERCION:[^\]]+\]/g, "")
+      .replace(/\[DESERCION_RESET:[^\]]+\]/g, "")
+      .trim();
+
+    await supabase
+      .from("alumnos")
+      .update({
+        estado: "ACTIVO",
+        notas_privadas: `${resetTag} [REINCORPORADO:${now}] ${cleanNotes}`.trim(),
+      })
+      .eq("id", alumnoId);
+  } catch (err) {
+    console.warn("dalReincorporarAlumno Supabase fallback:", err);
+  }
+
+  const memAl = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (memAl) {
+    memAl.estado = "ACTIVO";
+    const oldNotes = memAl.notas_privadas || "";
+    const cleanNotes = oldNotes
+      .replace(/\[BAJA_DESERCION:[^\]]+\]/g, "")
+      .replace(/\[DESERCION_RESET:[^\]]+\]/g, "")
+      .trim();
+    memAl.notas_privadas = `${resetTag} [REINCORPORADO:${now}] ${cleanNotes}`.trim();
+  }
+
+  return {
+    success: true,
+    message: "Alumno reincorporado con éxito al padrón activo de la academia.",
+  };
 }

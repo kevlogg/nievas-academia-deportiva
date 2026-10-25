@@ -241,5 +241,95 @@ export async function importarAlumnosCsvAction(
   }
 }
 
+/**
+ * Marcar que el alumno continúa asistiendo (restablece sus 4 faltas consecutivas a 0)
+ */
+export async function marcarAlumnoContinuaAction(
+  alumnoId: string,
+  motivo?: string
+): Promise<ActionResponse<{ alumnoId: string }>> {
+  try {
+    if (!alumnoId) {
+      return { success: false, error: "ID de alumno no válido" };
+    }
+
+    const { dalMarcarAlumnoContinua } = await import("@/lib/dal");
+    const res = await dalMarcarAlumnoContinua(alumnoId, motivo);
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/alumnos");
+
+    return {
+      success: true,
+      data: { alumnoId },
+      message: res.message,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al actualizar estado de deserción";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Marcar que el alumno "No vuelve" (baja, remoción de listas y guardado en historial de deserción)
+ */
+export async function marcarAlumnoNoVuelveAction(
+  alumnoId: string,
+  motivo?: string
+): Promise<ActionResponse<{ alumnoId: string }>> {
+  try {
+    if (!alumnoId) {
+      return { success: false, error: "ID de alumno no válido" };
+    }
+
+    const { dalMarcarAlumnoNoVuelve } = await import("@/lib/dal");
+    const res = await dalMarcarAlumnoNoVuelve(alumnoId, motivo);
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/alumnos");
+    revalidatePath("/profesor/clases");
+
+    return {
+      success: true,
+      data: { alumnoId },
+      message: res.message,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al registrar baja de alumno";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Reincorporar alumno dado de baja
+ */
+export async function reincorporarAlumnoAction(
+  alumnoId: string
+): Promise<ActionResponse<{ alumnoId: string }>> {
+  try {
+    if (!alumnoId) {
+      return { success: false, error: "ID de alumno no válido" };
+    }
+
+    const { dalReincorporarAlumno } = await import("@/lib/dal");
+    const res = await dalReincorporarAlumno(alumnoId);
+
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/alumnos");
+
+    return {
+      success: true,
+      data: { alumnoId },
+      message: res.message,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al reincorporar alumno";
+    return { success: false, error: msg };
+  }
+}
+
 
 

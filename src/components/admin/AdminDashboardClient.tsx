@@ -1,11 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { AdminDashboardMetricsData, Clase, Usuario } from "@/types";
+import {
+  AdminDashboardMetricsData,
+  Clase,
+  Usuario,
+  AlertaDesercion,
+  RegistroHistorialBaja,
+} from "@/types";
 import { ModalCrearClase } from "./ModalCrearClase";
 import { ModalGestionarPinProfesor } from "./ModalGestionarPinProfesor";
+import { BeltBadge } from "@/components/ui/BeltBadge";
+import {
+  marcarAlumnoContinuaAction,
+  marcarAlumnoNoVuelveAction,
+  reincorporarAlumnoAction,
+} from "@/lib/actions/alumnos.actions";
 import { formatDaysList, formatTime } from "@/lib/utils";
 import {
   Users,
@@ -18,10 +30,19 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle,
+  CheckCircle2,
   ShieldCheck,
   History,
   Tablet,
   KeyRound,
+  MessageCircle,
+  ChevronDown,
+  ChevronUp,
+  UserX,
+  RotateCcw,
+  Loader2,
+  X,
+  Archive,
 } from "lucide-react";
 
 interface AdminDashboardClientProps {
@@ -40,10 +61,111 @@ export function AdminDashboardClient({
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
   const [profesorParaPin, setProfesorParaPin] = useState<Usuario | null>(null);
 
+  // Estados dinámicos de Deserción y Bajas
+  const [alertas, setAlertas] = useState<AlertaDesercion[]>(metrics.alertasDesercion);
+  const [historialBajas, setHistorialBajas] = useState<RegistroHistorialBaja[]>(
+    metrics.historialBajas || []
+  );
+  const [desplegarDesercion, setDesplegarDesercion] = useState<boolean>(true);
+  const [tabDesercion, setTabDesercion] = useState<"alertas" | "historial">("alertas");
+  const [procesandoAlumnoId, setProcesandoAlumnoId] = useState<string | null>(null);
+  const [alumnoParaBaja, setAlumnoParaBaja] = useState<AlertaDesercion | null>(null);
+  const [motivoBajaInput, setMotivoBajaInput] = useState<string>("");
+  const [feedback, setFeedback] = useState<{ tipo: "exito" | "error"; mensaje: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
+
   // Nombre limpio sin sufijos como (Admin) o (SuperAdmin)
   const cleanNombre = currentUser?.nombre_completo
     ? currentUser.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
     : "Francisco Nievas";
+
+  const showFeedback = (tipo: "exito" | "error", mensaje: string) => {
+    setFeedback({ tipo, mensaje });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
+  // Acción "Continúa": restablece inasistencias a 0 y lo saca de la lista de deserción
+  const handleContinua = (alumnoId: string, nombreAlumno: string) => {
+    setProcesandoAlumnoId(alumnoId);
+    startTransition(async () => {
+      const res = await marcarAlumnoContinuaAction(alumnoId);
+      setProcesandoAlumnoId(null);
+      if (res.success) {
+        setAlertas((prev) => prev.filter((a) => a.alumno.id !== alumnoId));
+        showFeedback(
+          "exito",
+          `¡Faltas restablecidas a 0! ${nombreAlumno} continúa y ya no figura en deserción.`
+        );
+      } else {
+        showFeedback("error", res.error || "No se pudo actualizar el estado del alumno");
+      }
+    });
+  };
+
+  // Confirmar acción "No vuelve": baja, remoción de listas y registro en historial
+  const handleConfirmarNoVuelve = () => {
+    if (!alumnoParaBaja) return;
+    const { alumno, ausenciasConsecutivas } = alumnoParaBaja;
+    setProcesandoAlumnoId(alumno.id);
+
+    startTransition(async () => {
+      const res = await marcarAlumnoNoVuelveAction(
+        alumno.id,
+        motivoBajaInput || "Deserción confirmada por Dirección tras 4 faltas consecutivas"
+      );
+      setProcesandoAlumnoId(null);
+
+      if (res.success) {
+        setAlertas((prev) => prev.filter((a) => a.alumno.id !== alumno.id));
+        setHistorialBajas((prev) => [
+          {
+            id: "baja-" + Date.now(),
+            alumno_id: alumno.id,
+            alumno_nombre: `${alumno.nombre} ${alumno.apellido}`,
+            cinturon: alumno.cinturon_actual,
+            subcategoria: alumno.subcategoria_actual,
+            fecha_baja: new Date().toISOString().split("T")[0],
+            tipo: "NO_VUELVE",
+            motivo: motivoBajaInput || "Deserción confirmada por Dirección tras 4 faltas consecutivas",
+            ausencias_consecutivas: ausenciasConsecutivas,
+            telefono_contacto: alumno.telefono_contacto,
+            contacto_emergencia: alumno.contacto_emergencia,
+            registrado_por: currentUser?.id,
+            registrado_por_nombre: currentUser?.nombre_completo,
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+
+        showFeedback(
+          "exito",
+          `${alumno.nombre} ${alumno.apellido} fue dado de baja y guardado en el historial de deserciones.`
+        );
+        setAlumnoParaBaja(null);
+        setMotivoBajaInput("");
+      } else {
+        showFeedback("error", res.error || "Error al dar de baja al alumno");
+      }
+    });
+  };
+
+  // Reincorporar alumno desde el historial de bajas
+  const handleReincorporar = (alumnoId: string, nombreAlumno: string) => {
+    setProcesandoAlumnoId(alumnoId);
+    startTransition(async () => {
+      const res = await reincorporarAlumnoAction(alumnoId);
+      setProcesandoAlumnoId(null);
+      if (res.success) {
+        setHistorialBajas((prev) => prev.filter((b) => b.alumno_id !== alumnoId));
+        showFeedback(
+          "exito",
+          `¡${nombreAlumno} ha sido reincorporado exitosamente al padrón activo!`
+        );
+      } else {
+        showFeedback("error", res.error || "Error al reincorporar alumno");
+      }
+    });
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-16">
@@ -97,10 +219,10 @@ export function AdminDashboardClient({
             <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse" />
           </div>
           <p className="text-3xl font-black text-rose-300">
-            {metrics.alertasDesercion.length}
+            {alertas.length}
           </p>
           <span className="text-[11px] text-rose-200 font-semibold">
-            Alumnos con &ge; 3 faltas seguidas
+            Alumnos con &ge; 4 faltas seguidas
           </span>
         </div>
 
@@ -132,80 +254,453 @@ export function AdminDashboardClient({
         </div>
       </div>
 
-      {/* SECCIÓN CRÍTICA: ALERTAS DE DESERCIÓN */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
+      {/* Banner flotante de feedback */}
+      {feedback && (
+        <div
+          className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-lg animate-in fade-in duration-200 ${
+            feedback.tipo === "exito"
+              ? "bg-emerald-950/90 border-emerald-500/70 text-emerald-200"
+              : "bg-rose-950/90 border-rose-500/70 text-rose-200"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-rose-600 text-white">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Alertas de Deserción Escolar de Karate
-            </h2>
+            {feedback.tipo === "exito" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            )}
+            <span>{feedback.mensaje}</span>
           </div>
-          <span className="text-xs text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 font-bold">
-            Requiere Contacto Inmediato
-          </span>
+          <button
+            onClick={() => setFeedback(null)}
+            className="p-1 hover:bg-white/10 rounded-lg text-white/80 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        {metrics.alertasDesercion.length === 0 ? (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-sm shadow-xs">
-            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+      {/* SECCIÓN CRÍTICA: ALERTAS DE DESERCIÓN (DESPLEGABLE / ACORDEÓN) */}
+      <section className="space-y-3 bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-sm">
+        {/* Cabecera con selector de pestaña y botón de colapso */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-rose-600 text-white shadow-xs">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
             <div>
-              <p className="font-bold">Sin alertas de deserción activas</p>
-              <p className="text-xs text-emerald-700">
-                Ningún alumno activo acumula 3 o más ausencias consecutivas en clases cerradas.
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                  Control de Deserción Escolar
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                  {alertas.length} en alerta
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Alumnos con 4 o más inasistencias seguidas en clases finalizadas
               </p>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {metrics.alertasDesercion.map((alerta) => (
-              <div
-                key={alerta.alumno.id}
-                className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400 rounded-2xl shadow-xl shadow-blue-950/15 space-y-3 relative overflow-hidden"
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Pestañas: Alertas Activas / Historial de Bajas */}
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-bold border border-slate-200">
+              <button
+                onClick={() => {
+                  setTabDesercion("alertas");
+                  setDesplegarDesercion(true);
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  tabDesercion === "alertas"
+                    ? "bg-[#0F3E86] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-base">
-                        {alerta.alumno.nombre} {alerta.alumno.apellido}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white uppercase">
-                        {alerta.ausenciasConsecutivas} Ausencias
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-200 font-medium mt-0.5">
-                      Cinturón: {alerta.alumno.cinturon_actual} • Última asistencia:{" "}
-                      {alerta.ultimaClaseAsistida || "Sin registro reciente"}
-                    </p>
-                  </div>
-                </div>
+                Alertas Activas ({alertas.length})
+              </button>
 
-                {/* Contacto de Emergencia */}
-                <div className="p-2.5 bg-white/10 rounded-xl border border-white/15 flex items-center justify-between gap-2 text-xs">
-                  <div>
-                    <p className="text-[10px] text-blue-200 uppercase font-bold">
-                      Contacto / Tutor
-                    </p>
-                    <p className="font-bold text-white">
-                      {alerta.contactoEmergencia}
-                    </p>
-                  </div>
+              <button
+                onClick={() => {
+                  setTabDesercion("historial");
+                  setDesplegarDesercion(true);
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  tabDesercion === "historial"
+                    ? "bg-[#0F3E86] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                <span>Historial Bajas ({historialBajas.length})</span>
+              </button>
+            </div>
 
-                  <a
-                    href={`tel:${alerta.telefonoContacto}`}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm touch-target-safe cursor-pointer transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>Llamar</span>
-                  </a>
-                </div>
-              </div>
-            ))}
+            {/* Botón Desplegable / Contraer */}
+            <button
+              onClick={() => setDesplegarDesercion((prev) => !prev)}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              title={desplegarDesercion ? "Contraer lista" : "Desplegar lista"}
+            >
+              {desplegarDesercion ? (
+                <>
+                  <ChevronUp className="w-4 h-4 text-slate-600" />
+                  <span>Contraer</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 text-slate-600" />
+                  <span>Desplegar lista</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Resumen cuando está contraído */}
+        {!desplegarDesercion && (
+          <div
+            onClick={() => setDesplegarDesercion(true)}
+            className="p-3.5 bg-blue-50/70 hover:bg-blue-100/60 border border-blue-200 rounded-2xl flex items-center justify-between text-xs text-blue-900 font-semibold cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+              <span>
+                {tabDesercion === "alertas"
+                  ? `Lista colapsada: ${alertas.length} alumnos en riesgo de deserción (≥ 4 faltas).`
+                  : `Historial colapsado: ${historialBajas.length} alumnos registrados en el histórico de bajas.`}
+              </span>
+            </div>
+            <span className="text-cyan-700 font-bold hover:underline">Hacer clic para desplegar &rarr;</span>
           </div>
         )}
+
+        {/* CONTENIDO DESPLEGADO */}
+        {desplegarDesercion && (
+          <>
+            {/* PESTAÑA 1: ALERTAS ACTIVAS */}
+            {tabDesercion === "alertas" && (
+              <>
+                {alertas.length === 0 ? (
+                  <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs sm:text-sm shadow-xs">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold">Sin alertas de deserción activas</p>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        Ningún alumno activo acumula 4 o más inasistencias consecutivas en clases cerradas.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                    {alertas.map((alerta) => {
+                      const cleanPhone = (
+                        alerta.telefonoContacto ||
+                        alerta.contactoEmergencia ||
+                        ""
+                      ).replace(/\D/g, "");
+
+                      const mensajeWsp = encodeURIComponent(
+                        `Hola! Nos comunicamos de Nievas Academia Deportiva. Notamos que ${alerta.alumno.nombre} acumuló inasistencias consecutivas a las clases de Karate y queríamos saber si se encuentra bien o si necesitan coordinar clases de recuperación.`
+                      );
+
+                      const isProcesando = procesandoAlumnoId === alerta.alumno.id;
+
+                      return (
+                        <div
+                          key={alerta.alumno.id}
+                          className="p-4 bg-[#0F3E86] text-white border-2 border-rose-500 rounded-2xl shadow-xl shadow-blue-950/15 space-y-3 relative overflow-hidden flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-black text-white text-base">
+                                    {alerta.alumno.nombre} {alerta.alumno.apellido}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-rose-600 text-white uppercase tracking-wider shadow-xs">
+                                    {alerta.ausenciasConsecutivas} Faltas Seguidas
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <BeltBadge
+                                    belt={alerta.alumno.cinturon_actual}
+                                    subcategoria={alerta.alumno.subcategoria_actual}
+                                    size="sm"
+                                  />
+                                  <span className="text-xs text-blue-200">
+                                    • Última vez:{" "}
+                                    <strong className="text-white">
+                                      {alerta.ultimaClaseAsistida || "Sin registro"}
+                                    </strong>
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Contactos */}
+                            <div className="mt-3 p-2.5 bg-white/10 rounded-xl border border-white/15 text-xs space-y-1">
+                              <div className="flex items-center justify-between text-blue-100">
+                                <span className="text-[11px] text-blue-200 font-semibold">Teléfono Alumno:</span>
+                                <span className="font-bold text-white">{alerta.telefonoContacto || "No registrado"}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-blue-100">
+                                <span className="text-[11px] text-rose-300 font-semibold">Tutor / Emergencia:</span>
+                                <span className="font-bold text-white">{alerta.contactoEmergencia || "No registrado"}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ACCIONES: WhatsApp + Continúa + No Vuelve */}
+                          <div className="pt-2 border-t border-white/15 flex items-center justify-between gap-2 flex-wrap">
+                            {/* 1. Botón WhatsApp Directo */}
+                            {cleanPhone ? (
+                              <a
+                                href={`https://wa.me/${cleanPhone}?text=${mensajeWsp}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+                                title="Enviar mensaje de WhatsApp al alumno o tutor"
+                              >
+                                <MessageCircle className="w-4 h-4 fill-white" />
+                                <span>WhatsApp</span>
+                              </a>
+                            ) : (
+                              <span className="text-[11px] text-blue-300 italic">Sin teléfono</span>
+                            )}
+
+                            {/* 2. Botón Continúa y Botón No Vuelve */}
+                            <div className="flex items-center gap-1.5">
+                              {/* Continúa */}
+                              <button
+                                type="button"
+                                disabled={isProcesando}
+                                onClick={() =>
+                                  handleContinua(
+                                    alerta.alumno.id,
+                                    `${alerta.alumno.nombre} ${alerta.alumno.apellido}`
+                                  )
+                                }
+                                className="px-3 py-2 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                                title="Restablece las 4 faltas a 0 y saca al alumno de la lista de deserción"
+                              >
+                                {isProcesando ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                                )}
+                                <span>Continúa</span>
+                              </button>
+
+                              {/* No Vuelve */}
+                              <button
+                                type="button"
+                                disabled={isProcesando}
+                                onClick={() => setAlumnoParaBaja(alerta)}
+                                className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                                title="Da de baja al alumno, lo quita de las listas y lo guarda en el historial de deserción"
+                              >
+                                <UserX className="w-3.5 h-3.5" />
+                                <span>No vuelve</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* PESTAÑA 2: HISTORIAL DE BAJAS */}
+            {tabDesercion === "historial" && (
+              <div className="space-y-3 pt-1">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                  <p className="font-semibold text-slate-800">
+                    Registro permanente de alumnos que dejaron de asistir al dojo.
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Permite conservar sus antecedentes, notas y contactarlos en futuras campañas de reinscripción.
+                  </p>
+                </div>
+
+                {historialBajas.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500 font-medium">
+                    No hay alumnos dados de baja en el historial.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {historialBajas.map((item) => {
+                      const cleanPhone = (
+                        item.telefono_contacto ||
+                        item.contacto_emergencia ||
+                        ""
+                      ).replace(/\D/g, "");
+
+                      const mensajeWsp = encodeURIComponent(
+                        `Hola ${item.alumno_nombre}! Te escribimos de Nievas Academia Deportiva. Queríamos saber cómo estás y contarte que el dojo siempre tiene las puertas abiertas para cuando desees retomar tus clases de Karate.`
+                      );
+
+                      const isProcesando = procesandoAlumnoId === item.alumno_id;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-slate-200 text-slate-700 shrink-0">
+                              <UserX className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 text-sm">
+                                  {item.alumno_nombre}
+                                </span>
+                                <BeltBadge
+                                  belt={item.cinturon}
+                                  subcategoria={item.subcategoria}
+                                  size="sm"
+                                />
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                Baja registrada:{" "}
+                                <strong className="text-slate-700">{item.fecha_baja}</strong> • Motivo:{" "}
+                                <span className="italic">{item.motivo || "No vuelve más"}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {cleanPhone && (
+                              <a
+                                href={`https://wa.me/${cleanPhone}?text=${mensajeWsp}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs cursor-pointer"
+                                title="Enviar WhatsApp de recontacto"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={isProcesando}
+                              onClick={() => handleReincorporar(item.alumno_id, item.alumno_nombre)}
+                              className="px-2.5 py-1.5 bg-[#0F3E86] hover:bg-[#1E57A8] text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
+                              title="Reincorporar alumno al padrón activo"
+                            >
+                              {isProcesando ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              )}
+                              <span>Reincorporar</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </section>
+
+      {/* MODAL DE CONFIRMACIÓN: NO VUELVE */}
+      {alumnoParaBaja && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md bg-[#0F3E86] text-white border-2 border-rose-500 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/20">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-600 text-white">
+                  <UserX className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    Confirmar Baja por Deserción
+                  </h3>
+                  <p className="text-xs text-rose-200 font-medium">
+                    El alumno dejará de pertenecer a las listas activas
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAlumnoParaBaja(null)}
+                className="p-1.5 text-blue-200 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-rose-950/40 border border-rose-500/40 rounded-2xl text-xs space-y-2">
+              <p className="font-bold text-white text-sm">
+                {alumnoParaBaja.alumno.nombre} {alumnoParaBaja.alumno.apellido}
+              </p>
+              <p className="text-rose-200 leading-relaxed">
+                Al confirmar que <strong>No vuelve</strong>:
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-blue-100">
+                <li>Se eliminará de la lista de alertas de deserción.</li>
+                <li>Se quitará de todas las listas de alumnos a las que pertenece.</li>
+                <li>Se desactivarán sus inscripciones en clases activas.</li>
+                <li>Quedará archivado en el <strong>Historial de Bajas</strong> para no perder sus datos ni su ficha.</li>
+              </ul>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-blue-100 mb-1">
+                Motivo / Nota de la baja (Opcional)
+              </label>
+              <textarea
+                rows={2}
+                value={motivoBajaInput}
+                onChange={(e) => setMotivoBajaInput(e.target.value)}
+                placeholder="Ej. Mudanza de ciudad / incompatibilidad de horarios / no responde mensajes..."
+                className="w-full px-3 py-2 bg-[#082552] border border-[#2056A8] rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-white"
+              />
+            </div>
+
+            <div className="pt-2 border-t border-white/20 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAlumnoParaBaja(null)}
+                disabled={isPending}
+                className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 text-blue-200 font-bold text-xs rounded-xl border border-white/20 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarNoVuelve}
+                disabled={isPending}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Procesando...</span>
+                  </>
+                ) : (
+                  <>
+                    <UserX className="w-4 h-4" />
+                    <span>Confirmar No Vuelve</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SECCIÓN: DESEMPEÑO POR PROFESOR (Cards Azules #0F3E86) */}
       <section className="space-y-3">

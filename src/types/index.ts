@@ -465,6 +465,23 @@ export interface AlertaDesercion {
   contactoEmergencia: string;
 }
 
+export interface RegistroHistorialBaja {
+  id: string;
+  alumno_id: string;
+  alumno_nombre: string;
+  cinturon: KarateBelt;
+  subcategoria?: string | null;
+  fecha_baja: string;
+  tipo: "NO_VUELVE" | "CONTINUA";
+  motivo?: string | null;
+  ausencias_consecutivas: number;
+  telefono_contacto?: string | null;
+  contacto_emergencia?: string | null;
+  registrado_por?: string | null;
+  registrado_por_nombre?: string | null;
+  created_at: string;
+}
+
 export interface AdminDashboardMetricsData {
   totalAlumnosActivos: number;
   totalProfesoresActivos: number;
@@ -490,6 +507,7 @@ export interface AdminDashboardMetricsData {
     promedioAlumnosPorClase: number;
   }>;
   alertasDesercion: AlertaDesercion[];
+  historialBajas?: RegistroHistorialBaja[];
 }
 
 export interface OfflineActionPayload {
