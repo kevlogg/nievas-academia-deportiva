@@ -33,11 +33,10 @@ interface ModalInscribirAlumnoProps {
 
 const BELTS: KarateBelt[] = [
   "Blanco",
-  "Blanco/Amarillo",
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
 ];

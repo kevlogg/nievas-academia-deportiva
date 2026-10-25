@@ -24,6 +24,12 @@ import {
   ClaseHistorialItem,
   ClaseAbiertaItem,
   AlertaDesercion,
+  SUBCATEGORIAS_POR_CINTURON,
+  CINTURON_POR_SUBCATEGORIA,
+  FichaAlumnoData,
+  FichaAlumnoAsistenciaItem,
+  getGradoRank,
+  ESCALAFON_KARATE,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -1709,7 +1715,7 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
 }
 
 /**
- * Obtener listado de alumnos para Admin (con notas privadas)
+ * Obtener listado de alumnos para Admin (con notas privadas y resumen de asistencia)
  */
 export async function dalGetAdminAlumnos(
   search?: string,
@@ -1717,12 +1723,14 @@ export async function dalGetAdminAlumnos(
 ): Promise<Alumno[]> {
   await requireAdmin();
 
+  // 1. Intentar en Supabase
   try {
     const supabase = await createServerSupabaseClient();
     let query = supabase.from("alumnos").select("*").order("apellido", { ascending: true });
 
-    if (beltFilter && beltFilter !== "TODOS") {
-      query = query.eq("cinturon_actual", beltFilter);
+    const normalizedBeltFilter = beltFilter === "Azul" ? "Violeta" : beltFilter;
+    if (normalizedBeltFilter && normalizedBeltFilter !== "TODOS") {
+      query = query.eq("cinturon_actual", normalizedBeltFilter);
     }
 
     if (search && search.trim() !== "") {
@@ -1731,32 +1739,85 @@ export async function dalGetAdminAlumnos(
     }
 
     const { data: alumnos, error } = await query;
-    if (!error && alumnos) {
-      return alumnos.map((a: any) => ({
-        id: a.id,
-        nombre: a.nombre,
-        apellido: a.apellido,
-        fecha_nacimiento: a.fecha_nacimiento,
-        telefono_contacto: a.telefono_contacto,
-        contacto_emergencia: a.contacto_emergencia,
-        cinturon_actual: a.cinturon_actual,
-        estado: a.estado,
-        notas_privadas: a.notas_privadas,
-        profesores_ids: [],
-        profesores_nombres: [],
-        created_at: a.created_at,
-      }));
+    if (!error && alumnos && alumnos.length > 0) {
+      // Traer todas las asistencias para computar métricas rápidas de los alumnos
+      const { data: allAsistencias } = await supabase
+        .from("asistencias")
+        .select("alumno_id, estado, marcado_en");
+
+      const asistenciasMap = new Map<string, { presentes: number; tardes: number; ausentes: number; total: number }>();
+      for (const asis of allAsistencias || []) {
+        const existing = asistenciasMap.get(asis.alumno_id) || { presentes: 0, tardes: 0, ausentes: 0, total: 0 };
+        existing.total += 1;
+        if (asis.estado === "PRESENTE") existing.presentes += 1;
+        else if (asis.estado === "TARDE") existing.tardes += 1;
+        else if (asis.estado === "AUSENTE") existing.ausentes += 1;
+        asistenciasMap.set(asis.alumno_id, existing);
+      }
+
+      return alumnos.map((a: any) => {
+        const cinturon: KarateBelt = (a.cinturon_actual === "Azul" ? "Violeta" : a.cinturon_actual) as KarateBelt;
+        const subcatValidas = SUBCATEGORIAS_POR_CINTURON[cinturon] || [];
+        const subcategoria: string | null = a.subcategoria_actual || (subcatValidas.length === 1 ? subcatValidas[0] : null);
+        const { ids, nombres } = getProfesoresForAlumno(a.id);
+
+        const stats = asistenciasMap.get(a.id) || { presentes: 0, tardes: 0, ausentes: 0, total: 0 };
+        const porcentajePresentismo =
+          stats.total > 0 ? Math.round(((stats.presentes + stats.tardes) / stats.total) * 100) : 100;
+
+        return {
+          id: a.id,
+          nombre: a.nombre,
+          apellido: a.apellido,
+          fecha_nacimiento: a.fecha_nacimiento,
+          telefono_contacto: a.telefono_contacto,
+          contacto_emergencia: a.contacto_emergencia,
+          cinturon_actual: cinturon,
+          subcategoria_actual: subcategoria,
+          estado: a.estado,
+          notas_privadas: a.notas_privadas,
+          profesores_ids: ids,
+          profesores_nombres: nombres,
+          asistencias_resumen: {
+            ...stats,
+            porcentajePresentismo,
+          },
+          created_at: a.created_at,
+        };
+      });
     }
   } catch (err) {
     console.error("Error in dalGetAdminAlumnos Supabase:", err);
   }
 
-  let list = dbState.alumnos.map((a) => {
+  // 2. Fallback con dbState
+  let list: Alumno[] = dbState.alumnos.map((a) => {
+    const cinturon: KarateBelt = (a.cinturon_actual === "Azul" ? "Violeta" : a.cinturon_actual) as KarateBelt;
+    const subcatValidas = SUBCATEGORIAS_POR_CINTURON[cinturon] || [];
+    const subcategoria: string | null = a.subcategoria_actual || (subcatValidas.length === 1 ? subcatValidas[0] : null);
     const { ids, nombres } = getProfesoresForAlumno(a.id);
+
+    const asistenciasAlumno = dbState.asistencias.filter((asis) => asis.alumno_id === a.id);
+    const total = asistenciasAlumno.length;
+    const presentes = asistenciasAlumno.filter((asis) => asis.estado === "PRESENTE").length;
+    const tardes = asistenciasAlumno.filter((asis) => asis.estado === "TARDE").length;
+    const ausentes = asistenciasAlumno.filter((asis) => asis.estado === "AUSENTE").length;
+    const porcentajePresentismo =
+      total > 0 ? Math.round(((presentes + tardes) / total) * 100) : 100;
+
     return {
       ...a,
+      cinturon_actual: cinturon,
+      subcategoria_actual: subcategoria,
       profesores_ids: ids,
       profesores_nombres: nombres,
+      asistencias_resumen: {
+        total,
+        presentes,
+        tardes,
+        ausentes,
+        porcentajePresentismo,
+      },
     };
   });
 
@@ -1771,10 +1832,340 @@ export async function dalGetAdminAlumnos(
   }
 
   if (beltFilter && beltFilter !== "TODOS") {
-    list = list.filter((a) => a.cinturon_actual === beltFilter);
+    const targetBelt = beltFilter === "Azul" ? "Violeta" : beltFilter;
+    list = list.filter((a) => a.cinturon_actual === targetBelt);
   }
 
   return list;
+}
+
+/**
+ * Obtener ficha detallada de un alumno específico con desglose individual de asistencias
+ */
+export async function dalGetFichaAlumno(alumnoId: string): Promise<FichaAlumnoData> {
+  const currentUser = await requireProfesor();
+  const isAdmin = currentUser.rol === "ADMIN";
+
+  // 1. Intentar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbAlumno, error: alumnoError } = await supabase
+      .from("alumnos")
+      .select("*")
+      .eq("id", alumnoId)
+      .maybeSingle();
+
+    if (!alumnoError && dbAlumno) {
+      const cinturon: KarateBelt = (dbAlumno.cinturon_actual === "Azul" ? "Violeta" : dbAlumno.cinturon_actual) as KarateBelt;
+      const subcatValidas = SUBCATEGORIAS_POR_CINTURON[cinturon] || [];
+      const subcategoria: string | null = dbAlumno.subcategoria_actual || (subcatValidas.length === 1 ? subcatValidas[0] : null);
+
+      // Traer asistencias con datos de sesión y clase
+      const { data: dbAsistencias } = await supabase
+        .from("asistencias")
+        .select(`
+          id,
+          sesion_id,
+          alumno_id,
+          estado,
+          es_recuperacion,
+          marcado_en,
+          created_at,
+          sesion:sesiones_clase (
+            id,
+            fecha,
+            hora_apertura,
+            clase_id,
+            clase:clases (
+              id,
+              nombre
+            ),
+            profesor:usuarios!profesor_id (
+              nombre_completo
+            )
+          )
+        `)
+        .eq("alumno_id", alumnoId)
+        .order("marcado_en", { ascending: false });
+
+      // Traer graduaciones históricas
+      const { data: dbGraduaciones } = await supabase
+        .from("historial_graduaciones")
+        .select(`
+          id,
+          alumno_id,
+          cinturon,
+          subcategoria,
+          fecha_graduacion,
+          graduado_por,
+          observaciones,
+          created_at,
+          evaluador:usuarios!graduado_por (
+            nombre_completo
+          )
+        `)
+        .eq("alumno_id", alumnoId)
+        .order("fecha_graduacion", { ascending: false });
+
+      // Traer inscripciones activas
+      const { data: dbInscripciones } = await supabase
+        .from("inscripciones")
+        .select(`
+          id,
+          clase_id,
+          clase:clases (
+            id,
+            nombre,
+            hora_inicio,
+            hora_fin,
+            profesor:usuarios!profesor_id (
+              nombre_completo
+            )
+          )
+        `)
+        .eq("alumno_id", alumnoId)
+        .eq("activo", true);
+
+      const rawAsistencias = dbAsistencias || [];
+      const totalClases = rawAsistencias.length;
+      const totalPresentes = rawAsistencias.filter((a: any) => a.estado === "PRESENTE").length;
+      const totalTardes = rawAsistencias.filter((a: any) => a.estado === "TARDE").length;
+      const totalAusentes = rawAsistencias.filter((a: any) => a.estado === "AUSENTE").length;
+      const porcentajePresentismo =
+        totalClases > 0 ? Math.round(((totalPresentes + totalTardes) / totalClases) * 100) : 100;
+
+      // Clases en cinturón actual
+      const gradActual = (dbGraduaciones || []).find((g: any) => (g.cinturon === "Azul" ? "Violeta" : g.cinturon) === cinturon);
+      const fechaCinto = gradActual?.fecha_graduacion || "2020-01-01";
+      const clasesEnCinto = rawAsistencias.filter(
+        (a: any) => (a.estado === "PRESENTE" || a.estado === "TARDE") && (a.marcado_en || "") >= fechaCinto
+      ).length;
+
+      const historialAsistencias: FichaAlumnoAsistenciaItem[] = rawAsistencias.map((a: any) => ({
+        id: a.id,
+        sesionId: a.sesion_id,
+        fecha: a.sesion?.fecha || a.marcado_en?.split("T")[0] || "Fecha s/d",
+        claseNombre: a.sesion?.clase?.nombre || "Clase de Karate",
+        estado: a.estado as AsistenciaEstado,
+        esRecuperacion: !!a.es_recuperacion,
+        marcadoEn: a.marcado_en || a.created_at,
+        horaApertura: a.sesion?.hora_apertura,
+        profesorNombre: a.sesion?.profesor?.nombre_completo,
+      }));
+
+      const historialGraduaciones: HistorialGraduacion[] = (dbGraduaciones || []).map((g: any) => {
+        const isVioleta =
+          g.cinturon === "Azul" ||
+          g.cinturon === "Violeta" ||
+          (g.observaciones && g.observaciones.includes("[VIOLETA]"));
+        const cinturon: KarateBelt = isVioleta ? "Violeta" : g.cinturon;
+        let subcat = g.subcategoria;
+        if (!subcat && g.observaciones) {
+          const m = g.observaciones.match(/\[SUBCAT:([^\]]+)\]/);
+          if (m) subcat = m[1];
+        }
+        const cleanObs = g.observaciones
+          ? g.observaciones.replace(/\[SUBCAT:[^\]]*\]/g, "").replace(/\[VIOLETA\]/g, "").trim()
+          : g.observaciones;
+
+        return {
+          id: g.id,
+          alumno_id: g.alumno_id,
+          cinturon,
+          subcategoria: subcat || null,
+          fecha_graduacion: g.fecha_graduacion,
+          graduado_por: g.graduado_por,
+          graduado_por_nombre: g.evaluador?.nombre_completo || "Sensei Evaluador",
+          observaciones: cleanObs,
+          created_at: g.created_at,
+        };
+      });
+
+      // Cálculo de último pase y días transcurridos
+      const ultimoPase = historialGraduaciones.length > 0 ? historialGraduaciones[0] : null;
+      const fechaUltimoPase = ultimoPase?.fecha_graduacion || dbAlumno.created_at?.split("T")[0] || null;
+      let diasDesdeUltimoPase = 0;
+      if (fechaUltimoPase) {
+        const dGrad = new Date(`${fechaUltimoPase}T12:00:00`);
+        const hoy = new Date();
+        const diffTime = hoy.getTime() - dGrad.getTime();
+        diasDesdeUltimoPase = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+      }
+      const esAptoParaPase = diasDesdeUltimoPase >= 30 && clasesEnCinto >= 12;
+
+      const clasesInscriptas = (dbInscripciones || []).map((ins: any) => ({
+        id: ins.clase?.id || ins.clase_id,
+        nombre: ins.clase?.nombre || "Karate Do",
+        profesorNombre: ins.clase?.profesor?.nombre_completo,
+        horaInicio: ins.clase?.hora_inicio,
+        horaFin: ins.clase?.hora_fin,
+      }));
+
+      const { ids: profIds, nombres: profNombres } = getProfesoresForAlumno(dbAlumno.id);
+
+      const alumno: Alumno = {
+        id: dbAlumno.id,
+        nombre: dbAlumno.nombre,
+        apellido: dbAlumno.apellido,
+        fecha_nacimiento: dbAlumno.fecha_nacimiento,
+        telefono_contacto: dbAlumno.telefono_contacto,
+        contacto_emergencia: dbAlumno.contacto_emergencia,
+        cinturon_actual: cinturon,
+        subcategoria_actual: subcategoria,
+        estado: dbAlumno.estado,
+        notas_privadas: isAdmin ? dbAlumno.notas_privadas : null,
+        profesores_ids: profIds,
+        profesores_nombres: profNombres,
+        asistencias_resumen: {
+          total: totalClases,
+          presentes: totalPresentes,
+          tardes: totalTardes,
+          ausentes: totalAusentes,
+          porcentajePresentismo,
+          clasesEnCinturonActual: clasesEnCinto,
+          fechaUltimoPase,
+          diasDesdeUltimoPase,
+        },
+        created_at: dbAlumno.created_at,
+      };
+
+      return {
+        alumno,
+        estadisticas: {
+          totalClases,
+          totalPresentes,
+          totalTardes,
+          totalAusentes,
+          porcentajePresentismo,
+          clasesEnCinturonActual: clasesEnCinto,
+          fechaUltimoPase,
+          diasDesdeUltimoPase,
+          esAptoParaPase,
+        },
+        clasesInscriptas,
+        historialGraduaciones,
+        historialAsistencias,
+      };
+    }
+  } catch (err) {
+    console.error("Error in dalGetFichaAlumno Supabase:", err);
+  }
+
+  // 2. Fallback en memoria (dbState)
+  const rawAlumno = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (!rawAlumno) {
+    throw new Error("Alumno no encontrado");
+  }
+
+  const cinturon: KarateBelt = (rawAlumno.cinturon_actual === "Azul" ? "Violeta" : rawAlumno.cinturon_actual) as KarateBelt;
+  const subcatValidas = SUBCATEGORIAS_POR_CINTURON[cinturon] || [];
+  const subcategoria: string | null = rawAlumno.subcategoria_actual || (subcatValidas.length === 1 ? subcatValidas[0] : null);
+  const { ids: profIds, nombres: profNombres } = getProfesoresForAlumno(rawAlumno.id);
+
+  const asistenciasAlumno = dbState.asistencias.filter((a) => a.alumno_id === alumnoId);
+  const totalClases = asistenciasAlumno.length;
+  const totalPresentes = asistenciasAlumno.filter((a) => a.estado === "PRESENTE").length;
+  const totalTardes = asistenciasAlumno.filter((a) => a.estado === "TARDE").length;
+  const totalAusentes = asistenciasAlumno.filter((a) => a.estado === "AUSENTE").length;
+  const porcentajePresentismo =
+    totalClases > 0 ? Math.round(((totalPresentes + totalTardes) / totalClases) * 100) : 100;
+
+  const graduaciones = dbState.graduaciones
+    .filter((g) => g.alumno_id === alumnoId)
+    .sort((x, y) => y.fecha_graduacion.localeCompare(x.fecha_graduacion));
+
+  const gradActual = graduaciones.find(
+    (g) => (g.cinturon === "Azul" ? "Violeta" : g.cinturon) === cinturon
+  );
+  const fechaCinto = gradActual?.fecha_graduacion || "2020-01-01";
+  const clasesEnCinto = asistenciasAlumno.filter(
+    (a) => (a.estado === "PRESENTE" || a.estado === "TARDE") && a.marcado_en >= fechaCinto
+  ).length;
+
+  const ultimoPase = graduaciones.length > 0 ? graduaciones[0] : null;
+  const fechaUltimoPase = ultimoPase?.fecha_graduacion || rawAlumno.created_at?.split("T")[0] || null;
+  let diasDesdeUltimoPase = 0;
+  if (fechaUltimoPase) {
+    const dGrad = new Date(`${fechaUltimoPase}T12:00:00`);
+    const hoy = new Date();
+    const diffTime = hoy.getTime() - dGrad.getTime();
+    diasDesdeUltimoPase = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+  }
+  const esAptoParaPase = diasDesdeUltimoPase >= 30 && clasesEnCinto >= 12;
+
+  const historialAsistencias: FichaAlumnoAsistenciaItem[] = asistenciasAlumno
+    .map((a) => {
+      const sesion = dbState.sesiones.find((s) => s.id === a.sesion_id);
+      const clase = sesion ? dbState.clases.find((c) => c.id === sesion.clase_id) : null;
+      const prof = sesion ? dbState.usuarios.find((u) => u.id === sesion.profesor_id) : null;
+      return {
+        id: a.id,
+        sesionId: a.sesion_id,
+        fecha: sesion?.fecha || a.marcado_en.split("T")[0],
+        claseNombre: clase?.nombre || sesion?.clase_nombre || "Clase de Karate",
+        estado: a.estado,
+        esRecuperacion: a.es_recuperacion,
+        marcadoEn: a.marcado_en,
+        horaApertura: sesion?.hora_apertura,
+        profesorNombre: prof?.nombre_completo,
+      };
+    })
+    .sort((x, y) => y.marcadoEn.localeCompare(x.marcadoEn));
+
+  const inscripciones = dbState.inscripciones.filter(
+    (i) => i.alumno_id === alumnoId && i.activo
+  );
+  const clasesInscriptas = inscripciones.map((ins) => {
+    const c = dbState.clases.find((clase) => clase.id === ins.clase_id);
+    const prof = c ? dbState.usuarios.find((u) => u.id === c.profesor_id) : null;
+    return {
+      id: ins.clase_id,
+      nombre: c?.nombre || "Karate Do",
+      profesorNombre: prof?.nombre_completo,
+      horaInicio: c?.hora_inicio,
+      horaFin: c?.hora_fin,
+    };
+  });
+
+  const alumno: Alumno = {
+    ...rawAlumno,
+    cinturon_actual: cinturon,
+    subcategoria_actual: subcategoria,
+    notas_privadas: isAdmin ? rawAlumno.notas_privadas : null,
+    profesores_ids: profIds,
+    profesores_nombres: profNombres,
+    asistencias_resumen: {
+      total: totalClases,
+      presentes: totalPresentes,
+      tardes: totalTardes,
+      ausentes: totalAusentes,
+      porcentajePresentismo,
+      clasesEnCinturonActual: clasesEnCinto,
+      fechaUltimoPase,
+      diasDesdeUltimoPase,
+    },
+  };
+
+  return {
+    alumno,
+    estadisticas: {
+      totalClases,
+      totalPresentes,
+      totalTardes,
+      totalAusentes,
+      porcentajePresentismo,
+      clasesEnCinturonActual: clasesEnCinto,
+      fechaUltimoPase,
+      diasDesdeUltimoPase,
+      esAptoParaPase,
+    },
+    clasesInscriptas,
+    historialGraduaciones: graduaciones.map((g) => ({
+      ...g,
+      cinturon: (g.cinturon === "Azul" ? "Violeta" : g.cinturon) as KarateBelt,
+    })),
+    historialAsistencias,
+  };
 }
 
 /**
@@ -1786,35 +2177,172 @@ export async function dalGetAdminClases(): Promise<Clase[]> {
 }
 
 /**
- * Registrar nueva graduación de cinto (con histórico y actualización en alumno)
+ * Registrar nueva graduación de cinto / categoría (con histórico y actualización en alumno)
  */
 export async function dalRegistrarGraduacion(
   alumnoId: string,
   nuevoCinturon: KarateBelt,
-  observaciones?: string
+  observaciones?: string | null,
+  subcategoria?: string | null,
+  fechaGraduacionInput?: string
 ): Promise<HistorialGraduacion> {
   const admin = await requireAdmin();
+
+  // 1. Normalizar cinturón Violeta
+  const cintoEfectivo: KarateBelt = (nuevoCinturon === "Azul" ? "Violeta" : nuevoCinturon) as KarateBelt;
+
+  // 2. Validar correspondencia estricta de subcategoría con el color
+  const subcategoriasValidas = SUBCATEGORIAS_POR_CINTURON[cintoEfectivo] || [];
+  let subcatEfectiva: string | null = subcategoria?.trim() || null;
+
+  if (subcatEfectiva && !subcategoriasValidas.includes(subcatEfectiva)) {
+    throw new Error(
+      `La categoría "${subcatEfectiva}" no corresponde al cinturón ${cintoEfectivo}. Categorías permitidas: ${subcategoriasValidas.join(", ")}`
+    );
+  }
+
+  if (!subcatEfectiva && subcategoriasValidas.length === 1) {
+    subcatEfectiva = subcategoriasValidas[0];
+  }
+
+  // 3. REGLA ESTRICTA DE NO RETROCESO: Bloquear cualquier intento de descender de grado o color
+  let currentCinturon: KarateBelt = "Blanco";
+  let currentSubcategoria: string | null = null;
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbAl } = await supabase
+      .from("alumnos")
+      .select("cinturon_actual, subcategoria_actual")
+      .eq("id", alumnoId)
+      .maybeSingle();
+    if (dbAl) {
+      currentCinturon = (dbAl.cinturon_actual === "Azul" ? "Violeta" : dbAl.cinturon_actual) as KarateBelt;
+      currentSubcategoria = dbAl.subcategoria_actual || null;
+    }
+  } catch {}
+
+  const memAl = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (memAl && (!currentCinturon || currentCinturon === "Blanco")) {
+    currentCinturon = (memAl.cinturon_actual === "Azul" ? "Violeta" : memAl.cinturon_actual) as KarateBelt;
+    currentSubcategoria = memAl.subcategoria_actual || currentSubcategoria;
+  }
+
+  const currentRank = getGradoRank(currentCinturon, currentSubcategoria);
+  const newRank = getGradoRank(cintoEfectivo, subcatEfectiva);
+
+  if (newRank < currentRank) {
+    throw new Error(
+      `Movimiento no permitido: Un alumno no puede descender a una categoría o cinturón inferior (${cintoEfectivo} ${subcatEfectiva || ""}). Grado actual del alumno: ${currentCinturon} ${currentSubcategoria || ""}.`
+    );
+  }
+
+  const now = new Date().toISOString();
+  const fechaGraduacion = fechaGraduacionInput || now.split("T")[0];
+
+  // 4. Persistencia en Supabase con tolerancia a columnas/enums aún no migrados
+  const cleanObsText = (observaciones || `Graduación a ${cintoEfectivo}${subcatEfectiva ? ` (${subcatEfectiva})` : ""} en Nievas Academia Deportiva`).trim();
+  const encodedObs = `[SUBCAT:${subcatEfectiva || ""}][VIOLETA] ${cleanObsText}`.trim();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    let dbGrad: any = null;
+    const insertRes = await supabase
+      .from("historial_graduaciones")
+      .insert({
+        alumno_id: alumnoId,
+        cinturon: cintoEfectivo,
+        subcategoria: subcatEfectiva,
+        fecha_graduacion: fechaGraduacion,
+        graduado_por: admin.id,
+        observaciones: encodedObs,
+      })
+      .select()
+      .maybeSingle();
+
+    if (insertRes.error) {
+      // Fallback si la BD en Supabase aún tiene el enum viejo o no tiene columna subcategoria
+      const dbCinturon = cintoEfectivo === "Violeta" ? "Azul" : cintoEfectivo;
+      const retryRes = await supabase
+        .from("historial_graduaciones")
+        .insert({
+          alumno_id: alumnoId,
+          cinturon: dbCinturon,
+          fecha_graduacion: fechaGraduacion,
+          graduado_por: admin.id,
+          observaciones: encodedObs,
+        })
+        .select()
+        .maybeSingle();
+
+      dbGrad = retryRes.data;
+    } else {
+      dbGrad = insertRes.data;
+    }
+
+    const updateRes = await supabase
+      .from("alumnos")
+      .update({
+        cinturon_actual: cintoEfectivo,
+        subcategoria_actual: subcatEfectiva,
+      })
+      .eq("id", alumnoId);
+
+    if (updateRes.error) {
+      const dbCinturon = cintoEfectivo === "Violeta" ? "Azul" : cintoEfectivo;
+      await supabase
+        .from("alumnos")
+        .update({
+          cinturon_actual: dbCinturon,
+        })
+        .eq("id", alumnoId);
+    }
+
+    if (dbGrad) {
+      const al = dbState.alumnos.find((a) => a.id === alumnoId);
+      if (al) {
+        al.cinturon_actual = cintoEfectivo;
+        al.subcategoria_actual = subcatEfectiva;
+      }
+      return {
+        id: dbGrad.id,
+        alumno_id: alumnoId,
+        cinturon: cintoEfectivo,
+        subcategoria: subcatEfectiva,
+        fecha_graduacion: fechaGraduacion,
+        graduado_por: admin.id,
+        graduado_por_nombre: admin.nombre_completo,
+        observaciones: cleanObsText,
+        created_at: dbGrad.created_at || now,
+      };
+    }
+  } catch (err) {
+    console.warn("dalRegistrarGraduacion Supabase fallback to in-memory:", err);
+  }
+
+  // 4. Fallback dbState
   const alumno = dbState.alumnos.find((a) => a.id === alumnoId);
   if (!alumno) {
     throw new Error("Alumno no encontrado");
   }
 
-  const now = new Date().toISOString();
-  const fechaGraduacion = now.split("T")[0];
-
   const graduacion: HistorialGraduacion = {
     id: "g" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
     alumno_id: alumnoId,
-    cinturon: nuevoCinturon,
+    cinturon: cintoEfectivo,
+    subcategoria: subcatEfectiva,
     fecha_graduacion: fechaGraduacion,
     graduado_por: admin.id,
     graduado_por_nombre: admin.nombre_completo,
-    observaciones: observaciones || `Graduación a ${nuevoCinturon} en Nievas Academia Deportiva`,
+    observaciones:
+      observaciones ||
+      `Graduación a ${cintoEfectivo}${subcatEfectiva ? ` (${subcatEfectiva})` : ""} en Nievas Academia Deportiva`,
     created_at: now,
   };
 
   dbState.graduaciones.push(graduacion);
-  alumno.cinturon_actual = nuevoCinturon;
+  alumno.cinturon_actual = cintoEfectivo;
+  alumno.subcategoria_actual = subcatEfectiva;
 
   return graduacion;
 }
@@ -2757,33 +3285,83 @@ export async function dalGetProfesores(): Promise<Usuario[]> {
 }
 
 /**
- * Actualizar cinturón de un alumno (permite a cualquier Admin editar el cinturón al cargar listas)
+ * Actualizar cinturón y subcategoría de un alumno (permite a Admin/Profesor editar cinturón de inmediato)
  */
 export async function dalActualizarCinturonAlumno(
   alumnoId: string,
-  nuevoCinturon: KarateBelt
+  nuevoCinturon: KarateBelt,
+  nuevaSubcategoria?: string | null
 ): Promise<Alumno> {
   const currentUser = await requireProfesor();
-  const alumno = dbState.alumnos.find((a) => a.id === alumnoId);
-  if (!alumno) {
-    throw new Error("Alumno no encontrado");
+  const cintoEfectivo: KarateBelt = (nuevoCinturon === "Azul" ? "Violeta" : nuevoCinturon) as KarateBelt;
+  const subcategoriasValidas = SUBCATEGORIAS_POR_CINTURON[cintoEfectivo] || [];
+  let subcatEfectiva: string | null = nuevaSubcategoria?.trim() || null;
+
+  if (subcatEfectiva && !subcategoriasValidas.includes(subcatEfectiva)) {
+    subcatEfectiva = subcategoriasValidas[0] || null;
+  }
+  if (!subcatEfectiva && subcategoriasValidas.length === 1) {
+    subcatEfectiva = subcategoriasValidas[0];
   }
 
-  alumno.cinturon_actual = nuevoCinturon;
-
   const now = new Date().toISOString();
-  dbState.graduaciones.push({
-    id: "g" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
-    alumno_id: alumnoId,
-    cinturon: nuevoCinturon,
-    fecha_graduacion: now.split("T")[0],
-    graduado_por: currentUser.id,
-    graduado_por_nombre: currentUser.nombre_completo,
-    observaciones: `Cinturón actualizado por ${currentUser.nombre_completo}`,
-    created_at: now,
-  });
 
-  return alumno;
+  // 1. Sincronizar en Supabase
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase
+      .from("alumnos")
+      .update({
+        cinturon_actual: cintoEfectivo,
+        subcategoria_actual: subcatEfectiva,
+      })
+      .eq("id", alumnoId);
+
+    await supabase.from("historial_graduaciones").insert({
+      alumno_id: alumnoId,
+      cinturon: cintoEfectivo,
+      subcategoria: subcatEfectiva,
+      fecha_graduacion: now.split("T")[0],
+      graduado_por: currentUser.id,
+      observaciones: `Cinturón actualizado a ${cintoEfectivo}${subcatEfectiva ? ` (${subcatEfectiva})` : ""} por ${currentUser.nombre_completo}`,
+    });
+  } catch (err) {
+    console.warn("dalActualizarCinturonAlumno Supabase fallback:", err);
+  }
+
+  // 2. Fallback dbState
+  const alumno = dbState.alumnos.find((a) => a.id === alumnoId);
+  if (alumno) {
+    alumno.cinturon_actual = cintoEfectivo;
+    alumno.subcategoria_actual = subcatEfectiva;
+
+    dbState.graduaciones.push({
+      id: "g" + Math.random().toString(36).substring(2, 9) + "-" + Date.now().toString(36),
+      alumno_id: alumnoId,
+      cinturon: cintoEfectivo,
+      subcategoria: subcatEfectiva,
+      fecha_graduacion: now.split("T")[0],
+      graduado_por: currentUser.id,
+      graduado_por_nombre: currentUser.nombre_completo,
+      observaciones: `Cinturón actualizado a ${cintoEfectivo}${subcatEfectiva ? ` (${subcatEfectiva})` : ""} por ${currentUser.nombre_completo}`,
+      created_at: now,
+    });
+
+    return alumno;
+  }
+
+  return {
+    id: alumnoId,
+    nombre: "",
+    apellido: "",
+    fecha_nacimiento: "",
+    telefono_contacto: "",
+    contacto_emergencia: "",
+    cinturon_actual: cintoEfectivo,
+    subcategoria_actual: subcatEfectiva,
+    estado: "ACTIVO",
+    created_at: now,
+  };
 }
 
 /**

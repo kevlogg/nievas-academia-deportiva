@@ -6,22 +6,23 @@ export const KarateBeltEnum = z.enum([
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
+  "Azul",
 ]);
 
 export const AsistenciaEstadoEnum = z.enum(["PRESENTE", "AUSENTE", "TARDE"]);
 
 export const MarcarAsistenciaSchema = z.object({
-  sesionId: z.string().uuid("ID de sesión inválido"),
-  alumnoId: z.string().uuid("ID de alumno inválido"),
+  sesionId: z.string().min(1, "ID de sesión inválido"),
+  alumnoId: z.string().min(1, "ID de alumno inválido"),
   estado: AsistenciaEstadoEnum,
   esRecuperacion: z.boolean().default(false),
 });
 
 export const InscribirAlumnoSchema = z.object({
-  claseId: z.string().uuid("ID de clase inválido"),
+  claseId: z.string().min(1, "ID de clase inválido"),
   nombre: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   apellido: z.string().min(2, "El apellido debe tener al menos 2 caracteres"),
   fechaNacimiento: z
@@ -37,18 +38,19 @@ export const InscribirAlumnoSchema = z.object({
 });
 
 export const AgregarRecuperacionSchema = z.object({
-  sesionId: z.string().uuid("ID de sesión inválido"),
-  alumnoId: z.string().uuid("ID de alumno inválido"),
+  sesionId: z.string().min(1, "ID de sesión inválido"),
+  alumnoId: z.string().min(1, "ID de alumno inválido"),
 });
 
 export const RegistrarGraduacionSchema = z.object({
-  alumnoId: z.string().uuid("ID de alumno inválido"),
+  alumnoId: z.string().min(1, "ID de alumno inválido"),
   nuevoCinturon: KarateBeltEnum,
+  subcategoria: z.string().optional().nullable(),
   fechaGraduacion: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato AAAA-MM-DD")
     .default(() => new Date().toISOString().split("T")[0]),
-  observaciones: z.string().optional(),
+  observaciones: z.string().optional().nullable(),
 });
 
 export const ActualizarNotaPrivadaSchema = z.object({

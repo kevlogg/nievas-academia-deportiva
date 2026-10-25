@@ -8,6 +8,7 @@ import { BeltBadge } from "@/components/ui/BeltBadge";
 import { ModalGraduacion } from "./ModalGraduacion";
 import { ModalNotaPrivada } from "./ModalNotaPrivada";
 import { ModalImportarAlumnosCsv } from "./ModalImportarAlumnosCsv";
+import { ModalFichaAlumno } from "./ModalFichaAlumno";
 import { actualizarCinturonAction } from "@/lib/actions/alumnos.actions";
 import {
   Users,
@@ -19,6 +20,10 @@ import {
   Calendar,
   Check,
   FileSpreadsheet,
+  FileText,
+  CheckCircle2,
+  Clock,
+  XCircle,
 } from "lucide-react";
 
 interface AdminAlumnosClientProps {
@@ -30,22 +35,20 @@ interface AdminAlumnosClientProps {
 const BELTS: Array<KarateBelt | "TODOS"> = [
   "TODOS",
   "Blanco",
-  "Blanco/Amarillo",
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
 ];
 
 const BELT_OPTIONS: KarateBelt[] = [
   "Blanco",
-  "Blanco/Amarillo",
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
 ];
@@ -67,6 +70,7 @@ export function AdminAlumnosClient({
   const [search, setSearch] = useState("");
   const [beltFilter, setBeltFilter] = useState<KarateBelt | "TODOS">("TODOS");
 
+  const [fichaAlumno, setFichaAlumno] = useState<Alumno | null>(null);
   const [graduandoAlumno, setGraduandoAlumno] = useState<Alumno | null>(null);
   const [editandoNotaAlumno, setEditandoNotaAlumno] = useState<Alumno | null>(null);
   const [cambiandoCintoId, setCambiandoCintoId] = useState<string | null>(null);
@@ -103,7 +107,7 @@ export function AdminAlumnosClient({
       const res = await actualizarCinturonAction(alumnoId, nuevoCinturon);
       if (res.success) {
         setAlumnos((prev) =>
-          prev.map((a) => (a.id === alumnoId ? { ...a, cinturon_actual: nuevoCinturon } : a))
+          prev.map((a) => (a.id === alumnoId ? { ...a, cinturon_actual: res.data.cinturon_actual, subcategoria_actual: res.data.subcategoria_actual } : a))
         );
       } else {
         alert(res.error || "No se pudo actualizar el cinturón");
@@ -155,7 +159,7 @@ export function AdminAlumnosClient({
               {cleanNombre}
             </h1>
             <p className="text-[11px] text-blue-200 font-medium truncate">
-              Gestión de alumnos, graduaciones y cinturones
+              Gestión de alumnos, graduaciones y fichas individuales
             </p>
           </div>
         </div>
@@ -284,26 +288,37 @@ export function AdminAlumnosClient({
           filteredAlumnos.map((alumno) => (
             <div
               key={alumno.id}
-              className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-blue-400 rounded-2xl shadow-xl shadow-blue-950/15 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all"
+              className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] hover:border-cyan-400/80 rounded-2xl shadow-xl shadow-blue-950/15 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center font-black text-sm text-cyan-300 shrink-0">
+              <div
+                onClick={() => setFichaAlumno(alumno)}
+                className="flex items-start gap-3 cursor-pointer group flex-1"
+                title="Haga clic para abrir la ficha individual completa"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/20 group-hover:border-cyan-300 flex items-center justify-center font-black text-sm text-cyan-300 shadow-sm shrink-0 transition-all">
                   {alumno.nombre[0]}
                   {alumno.apellido[0]}
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="font-bold text-white text-base">
+                    <span className="font-black text-white text-base group-hover:text-cyan-300 transition-colors">
                       {alumno.nombre} {alumno.apellido}
                     </span>
-                    <BeltBadge belt={alumno.cinturon_actual} size="sm" />
+                    <BeltBadge
+                      belt={alumno.cinturon_actual}
+                      subcategoria={alumno.subcategoria_actual}
+                      size="sm"
+                    />
 
                     {/* SELECTOR INLINE DE CINTURÓN (Permite al Admin cambiarlo de inmediato) */}
-                    <div className="flex items-center gap-1 bg-[#0A2E65] border border-[#2056A8] rounded-lg px-2 py-0.5">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 bg-[#0A2E65] border border-[#2056A8] rounded-lg px-2 py-0.5"
+                    >
                       <span className="text-[10px] text-blue-200 font-bold">Editar:</span>
                       <select
-                        value={alumno.cinturon_actual}
+                        value={alumno.cinturon_actual === "Azul" ? "Violeta" : alumno.cinturon_actual}
                         disabled={cambiandoCintoId === alumno.id}
                         onChange={(e) => handleCambiarCinturon(alumno.id, e.target.value as KarateBelt)}
                         className="bg-transparent text-cyan-300 text-xs font-bold focus:outline-none cursor-pointer"
@@ -317,7 +332,34 @@ export function AdminAlumnosClient({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-blue-200 font-medium flex-wrap">
+                  {/* Resumen de Asistencia en el Tatami (Presentes, Tardes, Ausentes) */}
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    {alumno.asistencias_resumen && alumno.asistencias_resumen.total > 0 ? (
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                        <span className="flex items-center gap-1 text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-500/40">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          <span>{alumno.asistencias_resumen.presentes} Pres</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-500/40">
+                          <Clock className="w-3 h-3 text-amber-400" />
+                          <span>{alumno.asistencias_resumen.tardes} Tard</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-rose-300 bg-rose-950/60 px-2 py-0.5 rounded-lg border border-rose-500/40">
+                          <XCircle className="w-3 h-3 text-rose-400" />
+                          <span>{alumno.asistencias_resumen.ausentes} Aus</span>
+                        </span>
+                        <span className="text-blue-200 font-medium text-[10px]">
+                          ({alumno.asistencias_resumen.porcentajePresentismo}% presentismo)
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-blue-300/80 font-medium">
+                        0 clases computadas
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-blue-200 font-medium flex-wrap pt-0.5">
                     <span className="flex items-center gap-1">
                       <Phone className="w-3.5 h-3.5 text-cyan-300" />
                       <span>{alumno.telefono_contacto}</span>
@@ -346,16 +388,27 @@ export function AdminAlumnosClient({
               {/* Botones de Acción Directa */}
               <div className="flex items-center gap-2 self-end md:self-center shrink-0">
                 <button
+                  onClick={() => setFichaAlumno(alumno)}
+                  className="px-3.5 py-2 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95"
+                  title="Ver ficha individual del alumno con detalle de asistencias y graduaciones"
+                >
+                  <FileText className="w-4 h-4 text-slate-950" />
+                  <span>Ver Ficha</span>
+                </button>
+
+                <button
                   onClick={() => setEditandoNotaAlumno(alumno)}
-                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1.5 touch-target-safe cursor-pointer transition-colors"
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 flex items-center gap-1.5 touch-target-safe cursor-pointer transition-colors"
+                  title="Editar nota privada confidencial"
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-cyan-300" />
-                  <span>Nota Privada</span>
+                  <span className="hidden sm:inline">Nota</span>
                 </button>
 
                 <button
                   onClick={() => setGraduandoAlumno(alumno)}
-                  className="px-4 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95"
+                  className="px-3.5 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95"
+                  title="Realizar pase oficial de cinturón o categoría"
                 >
                   <Award className="w-4 h-4 text-amber-600" />
                   <span>Pase Oficial</span>
@@ -367,16 +420,33 @@ export function AdminAlumnosClient({
       </div>
 
       {/* Modales */}
+      <ModalFichaAlumno
+        alumno={fichaAlumno}
+        isOpen={!!fichaAlumno}
+        onClose={() => setFichaAlumno(null)}
+        onOpenPaseOficial={(a) => {
+          setFichaAlumno(null);
+          setGraduandoAlumno(a);
+        }}
+        onNotaUpdated={(alumnoId, nuevaNota) => {
+          handleNotaActualizada(alumnoId, nuevaNota);
+        }}
+      />
+
       <ModalGraduacion
         alumno={graduandoAlumno}
         isOpen={!!graduandoAlumno}
         onClose={() => setGraduandoAlumno(null)}
-        onSuccess={(nuevoCinturon) => {
+        onSuccess={(nuevoCinturon, nuevaSubcategoria) => {
           if (graduandoAlumno) {
             setAlumnos((prev) =>
               prev.map((a) =>
                 a.id === graduandoAlumno.id
-                  ? { ...a, cinturon_actual: nuevoCinturon }
+                  ? {
+                      ...a,
+                      cinturon_actual: nuevoCinturon,
+                      subcategoria_actual: nuevaSubcategoria ?? a.subcategoria_actual,
+                    }
                   : a
               )
             );

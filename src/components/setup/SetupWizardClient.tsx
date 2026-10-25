@@ -47,7 +47,7 @@ export function SetupWizardClient() {
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 DO $$ BEGIN CREATE TYPE rol_usuario AS ENUM ('ADMIN', 'PROFESOR'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE cinturon_karate AS ENUM ('Blanco', 'Blanco/Amarillo', 'Amarillo', 'Naranja', 'Verde', 'Azul', 'Marrón', 'Negro'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE cinturon_karate AS ENUM ('Blanco', 'Amarillo', 'Naranja', 'Verde', 'Violeta', 'Marrón', 'Negro', 'Azul'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE estado_alumno AS ENUM ('ACTIVO', 'INACTIVO'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE estado_sesion AS ENUM ('ABIERTA', 'FINALIZADA'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE estado_asistencia AS ENUM ('PRESENTE', 'AUSENTE', 'TARDE'); EXCEPTION WHEN duplicate_object THEN null; END $$;

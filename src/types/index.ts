@@ -6,9 +6,133 @@ export type KarateBelt =
   | "Amarillo"
   | "Naranja"
   | "Verde"
-  | "Azul"
+  | "Violeta"
   | "Marrón"
-  | "Negro";
+  | "Negro"
+  | "Azul";
+
+export type SubcategoriaCinturon =
+  | "9° kyu"
+  | "8t kyu"
+  | "8° kyu"
+  | "7t"
+  | "7°"
+  | "6t"
+  | "6°"
+  | "5t"
+  | "5°"
+  | "4t"
+  | "4°"
+  | "3t"
+  | "3°"
+  | "2t"
+  | "2°"
+  | "1t"
+  | "1°"
+  | "1 dan"
+  | "2 dan"
+  | "3 dan";
+
+export const SUBCATEGORIAS_POR_CINTURON: Record<KarateBelt, string[]> = {
+  Blanco: ["9° kyu"],
+  "Blanco/Amarillo": ["9° kyu", "8t kyu"],
+  Amarillo: ["8t kyu"],
+  Naranja: ["8° kyu"],
+  Verde: ["7t", "7°", "6t", "6°"],
+  Violeta: ["5t", "5°", "4t", "4°"],
+  Marrón: ["3t", "3°", "2t", "2°", "1t", "1°"],
+  Negro: ["1 dan", "2 dan", "3 dan"],
+  Azul: ["5t", "5°", "4t", "4°"], // Alias de compatibilidad
+};
+
+export const CINTURON_POR_SUBCATEGORIA: Record<string, KarateBelt> = {
+  "9° kyu": "Blanco",
+  "8t kyu": "Amarillo",
+  "8° kyu": "Naranja",
+  "7t": "Verde",
+  "7°": "Verde",
+  "6t": "Verde",
+  "6°": "Verde",
+  "5t": "Violeta",
+  "5°": "Violeta",
+  "4t": "Violeta",
+  "4°": "Violeta",
+  "3t": "Marrón",
+  "3°": "Marrón",
+  "2t": "Marrón",
+  "2°": "Marrón",
+  "1t": "Marrón",
+  "1°": "Marrón",
+  "1 dan": "Negro",
+  "2 dan": "Negro",
+  "3 dan": "Negro",
+};
+
+export interface GradoKarate {
+  cinturon: KarateBelt;
+  subcategoria: string;
+  rank: number;
+  label: string;
+}
+
+/**
+ * Escalafón jerárquico canónico estricto de Nievas Academia Deportiva.
+ * Los alumnos únicamente pueden progresar hacia adelante (rank >= rank_actual).
+ * Queda terminantemente bloqueado descender a un grado o color inferior.
+ */
+export const ESCALAFON_KARATE: GradoKarate[] = [
+  { cinturon: "Blanco", subcategoria: "9° kyu", rank: 0, label: "Blanco (9° kyu)" },
+  { cinturon: "Amarillo", subcategoria: "8t kyu", rank: 1, label: "Amarillo (8t kyu)" },
+  { cinturon: "Naranja", subcategoria: "8° kyu", rank: 2, label: "Naranja (8° kyu)" },
+  { cinturon: "Verde", subcategoria: "7t", rank: 3, label: "Verde (7t)" },
+  { cinturon: "Verde", subcategoria: "7°", rank: 4, label: "Verde (7°)" },
+  { cinturon: "Verde", subcategoria: "6t", rank: 5, label: "Verde (6t)" },
+  { cinturon: "Verde", subcategoria: "6°", rank: 6, label: "Verde (6°)" },
+  { cinturon: "Violeta", subcategoria: "5t", rank: 7, label: "Violeta (5t)" },
+  { cinturon: "Violeta", subcategoria: "5°", rank: 8, label: "Violeta (5°)" },
+  { cinturon: "Violeta", subcategoria: "4t", rank: 9, label: "Violeta (4t)" },
+  { cinturon: "Violeta", subcategoria: "4°", rank: 10, label: "Violeta (4°)" },
+  { cinturon: "Marrón", subcategoria: "3t", rank: 11, label: "Marrón (3t)" },
+  { cinturon: "Marrón", subcategoria: "3°", rank: 12, label: "Marrón (3°)" },
+  { cinturon: "Marrón", subcategoria: "2t", rank: 13, label: "Marrón (2t)" },
+  { cinturon: "Marrón", subcategoria: "2°", rank: 14, label: "Marrón (2°)" },
+  { cinturon: "Marrón", subcategoria: "1t", rank: 15, label: "Marrón (1t)" },
+  { cinturon: "Marrón", subcategoria: "1°", rank: 16, label: "Marrón (1°)" },
+  { cinturon: "Negro", subcategoria: "1 dan", rank: 17, label: "Negro (1 dan)" },
+  { cinturon: "Negro", subcategoria: "2 dan", rank: 18, label: "Negro (2 dan)" },
+  { cinturon: "Negro", subcategoria: "3 dan", rank: 19, label: "Negro (3 dan)" },
+];
+
+/**
+ * Obtener el rango numérico (0 a 19) de un cinturón y subcategoría
+ */
+export function getGradoRank(cinturon: KarateBelt, subcategoria?: string | null): number {
+  const normBelt = cinturon === "Azul" ? "Violeta" : cinturon;
+  if (subcategoria) {
+    const cleanSub = subcategoria.trim().toLowerCase();
+    const match = ESCALAFON_KARATE.find(
+      (g) =>
+        g.cinturon === normBelt &&
+        (g.subcategoria.toLowerCase() === cleanSub ||
+          cleanSub.startsWith(g.subcategoria.toLowerCase()) ||
+          g.subcategoria.toLowerCase().replace(/[°\s]/g, "") === cleanSub.replace(/[°\s]/g, ""))
+    );
+    if (match) return match.rank;
+  }
+  // Si no tiene subcategoría, tomar el rango base del color
+  const base = ESCALAFON_KARATE.find((g) => g.cinturon === normBelt);
+  return base ? base.rank : 0;
+}
+
+/**
+ * Rango máximo alcanzable por un color de cinturón
+ */
+export function getMaxRankForBelt(cinturon: KarateBelt): number {
+  const normBelt = cinturon === "Azul" ? "Violeta" : cinturon;
+  const items = ESCALAFON_KARATE.filter((g) => g.cinturon === normBelt);
+  if (items.length === 0) return 0;
+  return Math.max(...items.map((i) => i.rank));
+}
 
 export type AlumnoEstado = "ACTIVO" | "INACTIVO";
 export type SesionEstado = "ABIERTA" | "FINALIZADA";
@@ -64,13 +188,21 @@ export const BELT_CONFIG: Record<KarateBelt, BeltStyle> = {
     indicatorBg: "#10B981",
     kanji: "緑",
   },
+  Violeta: {
+    label: "Violeta",
+    bgClass: "bg-purple-100 dark:bg-purple-950/50",
+    textClass: "text-purple-900 dark:text-purple-300 font-semibold",
+    borderClass: "border-purple-500 dark:border-purple-500",
+    indicatorBg: "#8B5CF6",
+    kanji: "紫",
+  },
   Azul: {
-    label: "Azul",
-    bgClass: "bg-blue-100 dark:bg-blue-950/50",
-    textClass: "text-blue-900 dark:text-blue-300 font-semibold",
-    borderClass: "border-blue-500 dark:border-blue-500",
-    indicatorBg: "#3B82F6",
-    kanji: "青",
+    label: "Violeta", // Reemplazado oficialmente por Violeta
+    bgClass: "bg-purple-100 dark:bg-purple-950/50",
+    textClass: "text-purple-900 dark:text-purple-300 font-semibold",
+    borderClass: "border-purple-500 dark:border-purple-500",
+    indicatorBg: "#8B5CF6",
+    kanji: "紫",
   },
   Marrón: {
     label: "Marrón",
@@ -133,10 +265,21 @@ export interface Alumno {
   telefono_contacto: string;
   contacto_emergencia: string;
   cinturon_actual: KarateBelt;
+  subcategoria_actual?: string | null;
   estado: AlumnoEstado;
   notas_privadas?: string | null;
   profesores_ids?: string[];
   profesores_nombres?: string[];
+  asistencias_resumen?: {
+    total: number;
+    presentes: number;
+    tardes: number;
+    ausentes: number;
+    porcentajePresentismo: number;
+    clasesEnCinturonActual?: number;
+    fechaUltimoPase?: string | null;
+    diasDesdeUltimoPase?: number;
+  };
   created_at: string;
 }
 
@@ -221,11 +364,48 @@ export interface HistorialGraduacion {
   id: string;
   alumno_id: string;
   cinturon: KarateBelt;
+  subcategoria?: string | null;
   fecha_graduacion: string;
   graduado_por?: string | null;
   graduado_por_nombre?: string | null;
   observaciones?: string | null;
   created_at: string;
+}
+
+export interface FichaAlumnoAsistenciaItem {
+  id: string;
+  sesionId: string;
+  fecha: string;
+  claseNombre: string;
+  estado: AsistenciaEstado;
+  esRecuperacion: boolean;
+  marcadoEn: string;
+  horaApertura?: string;
+  profesorNombre?: string;
+}
+
+export interface FichaAlumnoData {
+  alumno: Alumno;
+  estadisticas: {
+    totalClases: number;
+    totalPresentes: number;
+    totalTardes: number;
+    totalAusentes: number;
+    porcentajePresentismo: number;
+    clasesEnCinturonActual: number;
+    fechaUltimoPase?: string | null;
+    diasDesdeUltimoPase: number;
+    esAptoParaPase: boolean;
+  };
+  clasesInscriptas: Array<{
+    id: string;
+    nombre: string;
+    profesorNombre?: string;
+    horaInicio?: string;
+    horaFin?: string;
+  }>;
+  historialGraduaciones: HistorialGraduacion[];
+  historialAsistencias: FichaAlumnoAsistenciaItem[];
 }
 
 // Modelos enriquecidos para la UI del tatami

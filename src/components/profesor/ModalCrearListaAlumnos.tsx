@@ -32,11 +32,10 @@ interface ModalCrearListaAlumnosProps {
 
 const KARATE_BELTS: KarateBelt[] = [
   "Blanco",
-  "Blanco/Amarillo",
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
 ];

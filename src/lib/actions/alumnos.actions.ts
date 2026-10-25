@@ -6,16 +6,17 @@ import {
   dalBuscarAlumnosGlobalParaRecuperacion,
   dalRegistrarGraduacion,
   dalActualizarCinturonAlumno,
+  dalGetFichaAlumno,
 } from "@/lib/dal";
 import {
   ActualizarNotaPrivadaSchema,
   RegistrarGraduacionSchema,
 } from "@/schemas";
-import { Alumno, HistorialGraduacion, KarateBelt } from "@/types";
+import { Alumno, HistorialGraduacion, KarateBelt, FichaAlumnoData } from "@/types";
 import { ActionResponse } from "./asistencia.actions";
 
 /**
- * Registrar nueva graduación de cinto (Solo ADMIN / Headmaster)
+ * Registrar nueva graduación de cinto o subcategoría (Solo ADMIN / Headmaster)
  */
 export async function registrarGraduacionAction(
   formData: Record<string, unknown>
@@ -34,7 +35,9 @@ export async function registrarGraduacionAction(
     const graduacion = await dalRegistrarGraduacion(
       parseResult.data.alumnoId,
       parseResult.data.nuevoCinturon,
-      parseResult.data.observaciones
+      parseResult.data.observaciones,
+      parseResult.data.subcategoria,
+      parseResult.data.fechaGraduacion
     );
 
     revalidatePath(`/admin/dashboard`);
@@ -45,7 +48,7 @@ export async function registrarGraduacionAction(
     return {
       success: true,
       data: graduacion,
-      message: `¡Graduación registrada! Nuevo cinturón: ${parseResult.data.nuevoCinturon}`,
+      message: `¡Graduación registrada! Nuevo cinturón: ${parseResult.data.nuevoCinturon}${parseResult.data.subcategoria ? ` (${parseResult.data.subcategoria})` : ""}`,
     };
   } catch (err: unknown) {
     const msg =
@@ -118,14 +121,15 @@ export async function buscarAlumnosRecuperacionAction(
 }
 
 /**
- * Actualizar cinturón de alumno directamente (por Admin o SuperAdmin)
+ * Actualizar cinturón y subcategoría de alumno directamente (por Admin o SuperAdmin)
  */
 export async function actualizarCinturonAction(
   alumnoId: string,
-  nuevoCinturon: KarateBelt
+  nuevoCinturon: KarateBelt,
+  nuevaSubcategoria?: string | null
 ): Promise<ActionResponse<Alumno>> {
   try {
-    const alumno = await dalActualizarCinturonAlumno(alumnoId, nuevoCinturon);
+    const alumno = await dalActualizarCinturonAlumno(alumnoId, nuevoCinturon, nuevaSubcategoria);
 
     revalidatePath("/profesor/clases");
     revalidatePath("/admin/dashboard");
@@ -136,11 +140,33 @@ export async function actualizarCinturonAction(
     return {
       success: true,
       data: alumno,
-      message: `Cinturón de ${alumno.nombre} ${alumno.apellido} actualizado a ${nuevoCinturon}`,
+      message: `Cinturón de ${alumno.nombre} ${alumno.apellido} actualizado a ${nuevoCinturon}${nuevaSubcategoria ? ` (${nuevaSubcategoria})` : ""}`,
     };
   } catch (err: unknown) {
     const msg =
       err instanceof Error ? err.message : "Error al actualizar cinturón";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Obtener ficha detallada del alumno para el Admin / Profesor
+ */
+export async function obtenerFichaAlumnoAction(
+  alumnoId: string
+): Promise<ActionResponse<FichaAlumnoData>> {
+  try {
+    if (!alumnoId) {
+      return { success: false, error: "ID de alumno no provisto" };
+    }
+    const ficha = await dalGetFichaAlumno(alumnoId);
+    return {
+      success: true,
+      data: ficha,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al obtener ficha del alumno";
     return { success: false, error: msg };
   }
 }

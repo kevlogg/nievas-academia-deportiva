@@ -33,11 +33,10 @@ interface ParsedAlumno {
 
 const VALID_BELTS: KarateBelt[] = [
   "Blanco",
-  "Blanco/Amarillo",
   "Amarillo",
   "Naranja",
   "Verde",
-  "Azul",
+  "Violeta",
   "Marrón",
   "Negro",
 ];
@@ -50,11 +49,11 @@ function normalizeBelt(raw?: string): KarateBelt {
     .toLowerCase()
     .trim();
 
-  if (clean.includes("blanco/amarillo") || clean.includes("blanco amarillo")) return "Blanco/Amarillo";
+  if (clean.includes("blanco/amarillo") || clean.includes("blanco amarillo")) return "Blanco";
   if (clean.includes("amarillo")) return "Amarillo";
   if (clean.includes("naranja")) return "Naranja";
   if (clean.includes("verde")) return "Verde";
-  if (clean.includes("azul")) return "Azul";
+  if (clean.includes("violeta") || clean.includes("purpura") || clean.includes("morado") || clean.includes("azul")) return "Violeta";
   if (clean.includes("marron")) return "Marrón";
   if (clean.includes("negro")) return "Negro";
   return "Blanco";

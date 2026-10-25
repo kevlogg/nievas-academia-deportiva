@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface BeltBadgeProps {
   belt: KarateBelt;
+  subcategoria?: string | null;
   size?: "sm" | "md" | "lg";
   showKanji?: boolean;
   className?: string;
@@ -11,14 +12,17 @@ interface BeltBadgeProps {
 
 export function BeltBadge({
   belt,
+  subcategoria,
   size = "md",
   showKanji = true,
   className,
 }: BeltBadgeProps) {
-  const config = BELT_CONFIG[belt] || BELT_CONFIG["Blanco"];
+  // Normalizar cinturón antiguo "Azul" a "Violeta"
+  const normalizedBelt: KarateBelt = (belt === "Azul" ? "Violeta" : belt) as KarateBelt;
+  const config = BELT_CONFIG[normalizedBelt] || BELT_CONFIG["Blanco"];
 
   const sizeClasses = {
-    sm: "text-xs px-2 py-0.5 gap-1",
+    sm: "text-[11px] px-2 py-0.5 gap-1",
     md: "text-xs px-2.5 py-1 gap-1.5 font-medium",
     lg: "text-sm px-3.5 py-1.5 gap-2 font-semibold",
   };
@@ -33,7 +37,7 @@ export function BeltBadge({
         sizeClasses[size],
         className
       )}
-      title={`Cinturón ${belt}`}
+      title={`Cinturón ${config.label}${subcategoria ? ` (${subcategoria})` : ""}`}
     >
       <span
         className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20 dark:border-white/20"
@@ -42,7 +46,12 @@ export function BeltBadge({
         }}
         aria-hidden="true"
       />
-      <span>{belt}</span>
+      <span>{config.label}</span>
+      {subcategoria && (
+        <span className="font-black px-1.5 py-0.2 rounded-md bg-black/10 dark:bg-white/15 text-[10px] tracking-tight">
+          {subcategoria}
+        </span>
+      )}
       {showKanji && (
         <span
           className="text-[10px] opacity-75 font-serif font-normal"
