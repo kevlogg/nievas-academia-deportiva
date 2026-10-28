@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProfesorTerminalItem } from "@/types";
 import {
@@ -23,6 +24,7 @@ import {
   X,
   Delete,
   ArrowRight,
+  ArrowLeft,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -314,8 +316,8 @@ export function TerminalKioskClient({ initialProfesores }: TerminalKioskClientPr
           </div>
         </div>
 
-        {/* Reloj Digital & Botón de Salida Admin */}
-        <div className="flex items-center gap-3">
+        {/* Reloj Digital & Botones de Navegación / Salida */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:flex flex-col text-right pr-2 border-r border-white/15">
             <span className="text-xl sm:text-2xl font-black tracking-tight text-white font-mono">
               {currentTime || "00:00:00"}
@@ -324,6 +326,24 @@ export function TerminalKioskClient({ initialProfesores }: TerminalKioskClientPr
               {currentDate || "Cargando fecha..."}
             </span>
           </div>
+
+          {/* Botón Volver al Panel (Directo, para cuando un admin entra a inspeccionar el terminal) */}
+          <Link
+            href="/admin/dashboard"
+            onClick={() => {
+              try {
+                localStorage.removeItem("nievas_kiosk_mode");
+                window.dispatchEvent(new Event("kiosk_mode_change"));
+              } catch {
+                // Ignorar
+              }
+            }}
+            title="Volver al panel directivo"
+            className="px-3 py-2 sm:px-3.5 sm:py-2.5 bg-white/10 hover:bg-white/15 border border-white/20 rounded-2xl text-xs font-bold text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer touch-target-safe"
+          >
+            <ArrowLeft className="w-4 h-4 text-blue-200" />
+            <span>Volver</span>
+          </Link>
 
           {/* Botón Salir de Kiosk */}
           <button

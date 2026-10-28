@@ -56,6 +56,11 @@ body {
   min-width: 48px;
 }
 
+/* Safe Area Padding for Mobile Bottom Bar (iOS bar / Android gesture nav) */
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem));
+}
+
 /* Animación Parpadeo para Clase Abierta */
 @keyframes open-class-glow {
   0%, 100% {

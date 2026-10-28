@@ -13,28 +13,7 @@ interface BottomBarProps {
 
 export function BottomBar({ userRole }: BottomBarProps) {
   const pathname = usePathname();
-  const [isKiosk, setIsKiosk] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkKiosk = () => {
-      try {
-        const stored = localStorage.getItem("nievas_kiosk_mode") === "true";
-        const hasParam = window.location.search.includes("terminal=1");
-        setIsKiosk(stored || hasParam);
-      } catch {
-        setIsKiosk(false);
-      }
-    };
-    checkKiosk();
-    window.addEventListener("kiosk_mode_change", checkKiosk);
-    window.addEventListener("storage", checkKiosk);
-    return () => {
-      window.removeEventListener("kiosk_mode_change", checkKiosk);
-      window.removeEventListener("storage", checkKiosk);
-    };
-  }, []);
-
-  if (!userRole || pathname === "/login" || pathname === "/setup" || pathname === "/terminal" || isKiosk) {
+  if (!userRole || pathname === "/login" || pathname === "/setup" || pathname === "/terminal") {
     return null;
   }
 

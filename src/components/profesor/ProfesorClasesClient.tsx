@@ -222,13 +222,13 @@ export function ProfesorClasesClient({
 
   // Detección reactiva de Modo Tablet / Kiosk
   const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
-
   React.useEffect(() => {
     const checkKiosk = () => {
       try {
         const isKiosk =
-          localStorage.getItem("nievas_kiosk_mode") === "true" ||
-          (typeof window !== "undefined" && window.location.search.includes("terminal=1"));
+          currentUser.rol !== "ADMIN" &&
+          (localStorage.getItem("nievas_kiosk_mode") === "true" ||
+            (typeof window !== "undefined" && window.location.search.includes("terminal=1")));
         setIsKioskMode(isKiosk);
       } catch {
         setIsKioskMode(false);

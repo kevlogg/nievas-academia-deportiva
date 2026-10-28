@@ -15,28 +15,22 @@ interface NavbarProps {
 export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
   const isAdmin = currentUser?.rol === "ADMIN";
-  const [isKiosk, setIsKiosk] = React.useState(false);
-
+  // Limpieza preventiva: si el usuario está fuera de /terminal, aseguramos que ningún modo tablet residual bloquee componentes
   React.useEffect(() => {
-    const checkKiosk = () => {
+    if (pathname !== "/terminal" && typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("nievas_kiosk_mode") === "true";
-        const hasParam = window.location.search.includes("terminal=1");
-        setIsKiosk(stored || hasParam);
+        if (localStorage.getItem("nievas_kiosk_mode") === "true") {
+          localStorage.removeItem("nievas_kiosk_mode");
+          window.dispatchEvent(new Event("kiosk_mode_change"));
+        }
       } catch {
-        setIsKiosk(false);
+        // Ignorar
       }
-    };
-    checkKiosk();
-    window.addEventListener("kiosk_mode_change", checkKiosk);
-    window.addEventListener("storage", checkKiosk);
-    return () => {
-      window.removeEventListener("kiosk_mode_change", checkKiosk);
-      window.removeEventListener("storage", checkKiosk);
-    };
-  }, []);
+    }
+  }, [pathname]);
 
-  if (pathname === "/terminal" || isKiosk) {
+  // Únicamente ocultar Navbar en la pantalla fija de bloqueo del terminal
+  if (pathname === "/terminal") {
     return null;
   }
 
