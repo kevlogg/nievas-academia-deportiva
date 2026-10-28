@@ -451,11 +451,60 @@ export function HistorialClasesClient({
           </div>
         </div>
 
-        {/* Fila 2: Filtros rápidos siempre visibles (Píldoras de período de fecha) */}
-        <div className="space-y-1.5 pt-1 border-t border-white/10">
+        {/* Fila 2: Filtro por Clase (PRIORITARIO Y VISIBLE POR DEFECTO) */}
+        <div className="space-y-2 pt-1 border-t border-white/10">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-blue-200 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-cyan-300" /> Filtrar por Período:
+              <ClipboardCheck className="w-3.5 h-3.5 text-cyan-300" /> Filtrar por Tipo de Clase:
+            </span>
+            {tipoClase !== "TODAS" && (
+              <button
+                type="button"
+                onClick={() => setTipoClase("TODAS")}
+                className="text-[10px] text-cyan-300 hover:text-white underline font-semibold cursor-pointer"
+              >
+                Ver todas las clases
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setTipoClase("TODAS")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                tipoClase === "TODAS"
+                  ? "bg-cyan-400 text-[#072450] font-black shadow-sm"
+                  : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
+              }`}
+            >
+              Todas las clases ({items.length})
+            </button>
+            {opcionesClases.map((nom) => {
+              const cant = items.filter((it) => it.clase.nombre === nom).length;
+              return (
+                <button
+                  key={nom}
+                  type="button"
+                  onClick={() => setTipoClase(nom)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    tipoClase === nom
+                      ? "bg-cyan-400 text-[#072450] font-black shadow-sm"
+                      : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
+                  }`}
+                >
+                  {nom} ({cant})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Fila 3: Filtro por Período de Fecha (Invertido, después de clase) */}
+        <div className="space-y-1.5 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-blue-200 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-cyan-300" /> Filtrar por Fecha:
             </span>
             <span className="text-[10px] text-blue-300 font-medium">
               Orden actual: <strong className="text-white">{orden === "FECHA_DESC" ? "Más recientes" : orden === "FECHA_ASC" ? "Más antiguas" : "Por asistencia"}</strong>
@@ -477,7 +526,7 @@ export function HistorialClasesClient({
                 onClick={() => setPeriodoFecha(p.id as PeriodoFecha)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   periodoFecha === p.id
-                    ? "bg-cyan-400 text-[#072450] font-black shadow-sm"
+                    ? "bg-white text-[#0F3E86] font-black shadow-sm"
                     : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
                 }`}
               >
@@ -525,33 +574,9 @@ export function HistorialClasesClient({
           )}
         </div>
 
-        {/* Fila 3: Filtros avanzados desplegables */}
+        {/* Fila 4: Filtros avanzados desplegables (Profesor, Asistencia y Orden) */}
         {(mostrarFiltrosAvanzados || tieneFiltrosActivos) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-white/10 animate-fade-in">
-            {/* Filtro: Tipo de Clase */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-blue-200 block">
-                Tipo / Nombre de Clase:
-              </label>
-              <select
-                value={tipoClase}
-                onChange={(e) => setTipoClase(e.target.value)}
-                className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
-              >
-                <option value="TODAS" className="bg-[#0F3E86] text-white">
-                  Todas las clases ({items.length})
-                </option>
-                {opcionesClases.map((nom) => {
-                  const cant = items.filter((it) => it.clase.nombre === nom).length;
-                  return (
-                    <option key={nom} value={nom} className="bg-[#0F3E86] text-white">
-                      {nom} ({cant})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/10 animate-fade-in">
             {/* Filtro: Profesor / Sensei */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-blue-200 block">
