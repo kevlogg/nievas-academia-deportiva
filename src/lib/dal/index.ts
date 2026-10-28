@@ -3760,7 +3760,7 @@ export async function dalGetUltimasClasesProfesor(
 export async function dalGetHistorialClasesProfesor(
   profesorId?: string
 ): Promise<ClaseHistorialItem[]> {
-  return dalGetUltimasClasesProfesor(profesorId, 50);
+  return dalGetUltimasClasesProfesor(profesorId, 300);
 }
 
 /**
