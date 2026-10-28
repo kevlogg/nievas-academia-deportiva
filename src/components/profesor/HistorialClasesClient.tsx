@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   ArrowUpDown,
   User,
+  ChevronDown,
 } from "lucide-react";
 import { ModalEditarClaseHistorial } from "./ModalEditarClaseHistorial";
 
@@ -113,7 +114,7 @@ export function HistorialClasesClient({
   const [fechaHasta, setFechaHasta] = useState<string>("");
   const [nivelAsistencia, setNivelAsistencia] = useState<NivelAsistencia>("TODAS");
   const [orden, setOrden] = useState<CriterioOrden>("FECHA_DESC");
-  const [mostrarFiltrosAvanzados, setMostrarFiltrosAvanzados] = useState(false);
+  const [mostrarFiltroPeriodo, setMostrarFiltroPeriodo] = useState(false);
 
   // Modal para edición
   const [claseParaEditar, setClaseParaEditar] = useState<ClaseHistorialItem | null>(null);
@@ -160,6 +161,11 @@ export function HistorialClasesClient({
     });
     return Array.from(nombres).sort();
   }, [items, profesoresDisponibles]);
+
+  // Verificar si hay algún filtro de fecha activo
+  const tieneFiltroFechaActivo = useMemo(() => {
+    return periodoFecha !== "TODAS" || fechaDesde !== "" || fechaHasta !== "";
+  }, [periodoFecha, fechaDesde, fechaHasta]);
 
   // Verificar si hay algún filtro activo que modifique la vista por defecto
   const tieneFiltrosActivos = useMemo(() => {
@@ -398,9 +404,9 @@ export function HistorialClasesClient({
         </div>
       </div>
 
-      {/* 3. Panel de Búsqueda y Filtros Avanzados */}
+      {/* 3. Panel de Búsqueda y Filtros Principales Visibles a Simple Vista */}
       <div className="p-4 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-2xl shadow-md space-y-3.5">
-        {/* Fila 1: Buscador de texto + Toggle de filtros avanzados + Limpiar filtros */}
+        {/* Fila 1: Buscador de texto + Botón para desplegar Período de Fecha + Limpiar filtros */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-blue-300" />
@@ -415,7 +421,7 @@ export function HistorialClasesClient({
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-3 top-2.5 text-blue-300 hover:text-white transition-colors"
+                className="absolute right-3 top-2.5 text-blue-300 hover:text-white transition-colors cursor-pointer"
                 title="Limpiar búsqueda"
               >
                 <X className="w-4 h-4" />
@@ -424,17 +430,22 @@ export function HistorialClasesClient({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Botón para desplegar/ocultar el filtro de Período de Fechas */}
             <button
               type="button"
-              onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
+              onClick={() => setMostrarFiltroPeriodo(!mostrarFiltroPeriodo)}
               className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                mostrarFiltrosAvanzados || tieneFiltrosActivos
-                  ? "bg-white text-[#0F3E86] shadow-sm font-black"
+                mostrarFiltroPeriodo || tieneFiltroFechaActivo
+                  ? "bg-cyan-400 text-[#072450] shadow-sm font-black"
                   : "bg-white/10 text-blue-100 border border-white/20 hover:bg-white/20"
               }`}
+              title="Abrir selector de fechas y períodos"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Filtros {tieneFiltrosActivos ? "(Activos)" : ""}</span>
+              <Calendar className="w-3.5 h-3.5" />
+              <span>
+                Fecha {tieneFiltroFechaActivo ? `(${periodoFecha === "PERSONALIZADO" ? "Rango" : periodoFecha === "TODAS" ? "Filtro" : periodoFecha})` : ""}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${mostrarFiltroPeriodo ? "rotate-180" : ""}`} />
             </button>
 
             {tieneFiltrosActivos && (
@@ -451,191 +462,176 @@ export function HistorialClasesClient({
           </div>
         </div>
 
-        {/* Fila 2: Filtro por Clase (PRIORITARIO Y VISIBLE POR DEFECTO) */}
-        <div className="space-y-2 pt-1 border-t border-white/10">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-200 flex items-center gap-1">
-              <ClipboardCheck className="w-3.5 h-3.5 text-cyan-300" /> Filtrar por Tipo de Clase:
-            </span>
-            {tipoClase !== "TODAS" && (
-              <button
-                type="button"
-                onClick={() => setTipoClase("TODAS")}
-                className="text-[10px] text-cyan-300 hover:text-white underline font-semibold cursor-pointer"
-              >
-                Ver todas las clases
-              </button>
-            )}
+        {/* Fila 2: Los 4 Filtros Principales en Listas Desplegables VISIBLES A SIMPLE VISTA */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-white/10">
+          {/* 1. Tipo / Nombre de Clase (Lista Desplegable) */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-blue-200 block">
+              Tipo / Nombre de Clase:
+            </label>
+            <select
+              value={tipoClase}
+              onChange={(e) => setTipoClase(e.target.value)}
+              className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
+            >
+              <option value="TODAS" className="bg-[#0F3E86] text-white">
+                Todas las clases ({items.length})
+              </option>
+              {opcionesClases.map((nom) => {
+                const cant = items.filter((it) => it.clase.nombre === nom).length;
+                return (
+                  <option key={nom} value={nom} className="bg-[#0F3E86] text-white">
+                    {nom} ({cant})
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setTipoClase("TODAS")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                tipoClase === "TODAS"
-                  ? "bg-cyan-400 text-[#072450] font-black shadow-sm"
-                  : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
-              }`}
+          {/* 2. Profesor / Sensei a cargo */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-blue-200 block">
+              Profesor a cargo:
+            </label>
+            <select
+              value={profesorFiltro}
+              onChange={(e) => setProfesorFiltro(e.target.value)}
+              className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
             >
-              Todas las clases ({items.length})
-            </button>
-            {opcionesClases.map((nom) => {
-              const cant = items.filter((it) => it.clase.nombre === nom).length;
-              return (
+              <option value="TODOS" className="bg-[#0F3E86] text-white">
+                Todos los profesores
+              </option>
+              {opcionesProfesores.map((prof) => (
+                <option key={prof} value={prof} className="bg-[#0F3E86] text-white">
+                  Sensei {prof}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Nivel de Asistencia */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-blue-200 block">
+              Nivel de Asistencia:
+            </label>
+            <select
+              value={nivelAsistencia}
+              onChange={(e) => setNivelAsistencia(e.target.value as NivelAsistencia)}
+              className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
+            >
+              <option value="TODAS" className="bg-[#0F3E86] text-white">Todos los niveles</option>
+              <option value="CON_ASISTENCIA" className="bg-[#0F3E86] text-white">Con presentes marcados</option>
+              <option value="ALTA" className="bg-[#0F3E86] text-white">Alta asistencia (≥ 80%)</option>
+              <option value="MEDIA" className="bg-[#0F3E86] text-white">Media asistencia (50% a 79%)</option>
+              <option value="BAJA" className="bg-[#0F3E86] text-white">Baja asistencia (&lt; 50%)</option>
+              <option value="CON_AUSENCIAS" className="bg-[#0F3E86] text-white">Con ausencias</option>
+              <option value="CON_TARDANZAS" className="bg-[#0F3E86] text-white">Con tardanzas registradas</option>
+              <option value="PENDIENTES" className="bg-[#0F3E86] text-white">Pendientes (0 presentes)</option>
+            </select>
+          </div>
+
+          {/* 4. Criterio de Ordenamiento */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-blue-200 block">
+              Ordenar lista por:
+            </label>
+            <select
+              value={orden}
+              onChange={(e) => setOrden(e.target.value as CriterioOrden)}
+              className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
+            >
+              <option value="FECHA_DESC" className="bg-[#0F3E86] text-white">Más recientes primero</option>
+              <option value="FECHA_ASC" className="bg-[#0F3E86] text-white">Más antiguas primero</option>
+              <option value="ASISTENCIA_DESC" className="bg-[#0F3E86] text-white">Mayor % de asistencia</option>
+              <option value="ASISTENCIA_ASC" className="bg-[#0F3E86] text-white">Menor % de asistencia</option>
+              <option value="ALUMNOS_DESC" className="bg-[#0F3E86] text-white">Mayor cant. de alumnos</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Fila 3: Filtro de Período de Fecha (OCULTO POR DEFECTO, SE ABRE AL APRETAR EL BOTÓN) */}
+        {mostrarFiltroPeriodo && (
+          <div className="space-y-2 pt-3 border-t border-white/10 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-blue-200 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-cyan-300" /> Seleccionar Período de Fecha:
+              </span>
+              {tieneFiltroFechaActivo && (
                 <button
-                  key={nom}
                   type="button"
-                  onClick={() => setTipoClase(nom)}
+                  onClick={() => {
+                    setPeriodoFecha("TODAS");
+                    setFechaDesde("");
+                    setFechaHasta("");
+                  }}
+                  className="text-[10px] text-cyan-300 hover:text-white underline font-semibold cursor-pointer"
+                >
+                  Restablecer a cualquier fecha
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: "TODAS", label: "Todas las fechas" },
+                { id: "HOY", label: "Hoy" },
+                { id: "7_DIAS", label: "Últimos 7 días" },
+                { id: "ESTE_MES", label: "Este mes" },
+                { id: "MES_ANTERIOR", label: "Mes anterior" },
+                { id: "PERSONALIZADO", label: "Rango personalizado..." },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPeriodoFecha(p.id as PeriodoFecha)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    tipoClase === nom
+                    periodoFecha === p.id
                       ? "bg-cyan-400 text-[#072450] font-black shadow-sm"
                       : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
                   }`}
                 >
-                  {nom} ({cant})
+                  {p.label}
                 </button>
-              );
-            })}
-          </div>
-        </div>
+              ))}
+            </div>
 
-        {/* Fila 3: Filtro por Período de Fecha (Invertido, después de clase) */}
-        <div className="space-y-1.5 pt-2 border-t border-white/10">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-200 flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-cyan-300" /> Filtrar por Fecha:
-            </span>
-            <span className="text-[10px] text-blue-300 font-medium">
-              Orden actual: <strong className="text-white">{orden === "FECHA_DESC" ? "Más recientes" : orden === "FECHA_ASC" ? "Más antiguas" : "Por asistencia"}</strong>
-            </span>
-          </div>
+            {/* Rango de fechas manual si seleccionó Personalizado */}
+            {periodoFecha === "PERSONALIZADO" && (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-[#0A2E65] border border-[#2056A8] rounded-xl mt-2 animate-fade-in">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-blue-200">Desde:</span>
+                  <input
+                    type="date"
+                    value={fechaDesde}
+                    onChange={(e) => setFechaDesde(e.target.value)}
+                    className="bg-[#082552] border border-[#2056A8] text-white rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
+                  />
+                </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {[
-              { id: "TODAS", label: "Todas las fechas" },
-              { id: "HOY", label: "Hoy" },
-              { id: "7_DIAS", label: "Últimos 7 días" },
-              { id: "ESTE_MES", label: "Este mes" },
-              { id: "MES_ANTERIOR", label: "Mes anterior" },
-              { id: "PERSONALIZADO", label: "Rango personalizado..." },
-            ].map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setPeriodoFecha(p.id as PeriodoFecha)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  periodoFecha === p.id
-                    ? "bg-white text-[#0F3E86] font-black shadow-sm"
-                    : "bg-white/10 text-blue-100 border border-white/15 hover:bg-white/20"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-bold text-blue-200">Hasta:</span>
+                  <input
+                    type="date"
+                    value={fechaHasta}
+                    onChange={(e) => setFechaHasta(e.target.value)}
+                    className="bg-[#082552] border border-[#2056A8] text-white rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
+                  />
+                </div>
 
-          {/* Rango de fechas manual si seleccionó Personalizado */}
-          {periodoFecha === "PERSONALIZADO" && (
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-[#0A2E65] border border-[#2056A8] rounded-xl mt-2 animate-fade-in">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-bold text-blue-200">Desde:</span>
-                <input
-                  type="date"
-                  value={fechaDesde}
-                  onChange={(e) => setFechaDesde(e.target.value)}
-                  className="bg-[#082552] border border-[#2056A8] text-white rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
-                />
+                {(fechaDesde || fechaHasta) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFechaDesde("");
+                      setFechaHasta("");
+                    }}
+                    className="text-[11px] text-cyan-300 hover:text-white underline font-semibold ml-auto cursor-pointer"
+                  >
+                    Limpiar rango
+                  </button>
+                )}
               </div>
-
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-bold text-blue-200">Hasta:</span>
-                <input
-                  type="date"
-                  value={fechaHasta}
-                  onChange={(e) => setFechaHasta(e.target.value)}
-                  className="bg-[#082552] border border-[#2056A8] text-white rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
-                />
-              </div>
-
-              {(fechaDesde || fechaHasta) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFechaDesde("");
-                    setFechaHasta("");
-                  }}
-                  className="text-[11px] text-cyan-300 hover:text-white underline font-semibold ml-auto"
-                >
-                  Restablecer fechas
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Fila 4: Filtros avanzados desplegables (Profesor, Asistencia y Orden) */}
-        {(mostrarFiltrosAvanzados || tieneFiltrosActivos) && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/10 animate-fade-in">
-            {/* Filtro: Profesor / Sensei */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-blue-200 block">
-                Profesor a cargo:
-              </label>
-              <select
-                value={profesorFiltro}
-                onChange={(e) => setProfesorFiltro(e.target.value)}
-                className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
-              >
-                <option value="TODOS" className="bg-[#0F3E86] text-white">
-                  Todos los profesores
-                </option>
-                {opcionesProfesores.map((prof) => (
-                  <option key={prof} value={prof} className="bg-[#0F3E86] text-white">
-                    Sensei {prof}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Filtro: Nivel de Asistencia */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-blue-200 block">
-                Nivel de Asistencia:
-              </label>
-              <select
-                value={nivelAsistencia}
-                onChange={(e) => setNivelAsistencia(e.target.value as NivelAsistencia)}
-                className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
-              >
-                <option value="TODAS" className="bg-[#0F3E86] text-white">Todos los niveles</option>
-                <option value="CON_ASISTENCIA" className="bg-[#0F3E86] text-white">Con presentes marcados</option>
-                <option value="ALTA" className="bg-[#0F3E86] text-white">Alta asistencia (≥ 80%)</option>
-                <option value="MEDIA" className="bg-[#0F3E86] text-white">Media asistencia (50% a 79%)</option>
-                <option value="BAJA" className="bg-[#0F3E86] text-white">Baja asistencia (&lt; 50%)</option>
-                <option value="CON_AUSENCIAS" className="bg-[#0F3E86] text-white">Con ausencias</option>
-                <option value="CON_TARDANZAS" className="bg-[#0F3E86] text-white">Con tardanzas registradas</option>
-                <option value="PENDIENTES" className="bg-[#0F3E86] text-white">Pendientes (0 presentes)</option>
-              </select>
-            </div>
-
-            {/* Filtro: Ordenamiento */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-blue-200 block">
-                Ordenar lista por:
-              </label>
-              <select
-                value={orden}
-                onChange={(e) => setOrden(e.target.value as CriterioOrden)}
-                className="w-full bg-[#0A2E65] border border-[#2056A8] rounded-xl px-2.5 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
-              >
-                <option value="FECHA_DESC" className="bg-[#0F3E86] text-white">Más recientes primero</option>
-                <option value="FECHA_ASC" className="bg-[#0F3E86] text-white">Más antiguas primero</option>
-                <option value="ASISTENCIA_DESC" className="bg-[#0F3E86] text-white">Mayor % de asistencia</option>
-                <option value="ASISTENCIA_ASC" className="bg-[#0F3E86] text-white">Menor % de asistencia</option>
-                <option value="ALUMNOS_DESC" className="bg-[#0F3E86] text-white">Mayor cant. de alumnos</option>
-              </select>
-            </div>
+            )}
           </div>
         )}
       </div>
