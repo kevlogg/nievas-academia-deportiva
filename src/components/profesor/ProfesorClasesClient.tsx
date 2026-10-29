@@ -142,8 +142,6 @@ export function ProfesorClasesClient({
     { dia: 3, nombre: "Miércoles", corto: "MIÉ" },
     { dia: 4, nombre: "Jueves", corto: "JUE" },
     { dia: 5, nombre: "Viernes", corto: "VIE" },
-    { dia: 6, nombre: "Sábado", corto: "SÁB" },
-    { dia: 0, nombre: "Domingo", corto: "DOM" },
   ];
 
   const diaActualHoy = new Date().getDay();
@@ -727,8 +725,8 @@ export function ProfesorClasesClient({
                 })}
               </div>
 
-              {/* Contenedor de Días del Calendario */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {/* Contenedor de 5 Días de la Semana lado a lado */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
                 {DIAS_CALENDARIO.filter(
                   (d) => diaFiltro === "TODOS" || diaFiltro === d.dia
                 ).map((dia) => {
@@ -740,103 +738,93 @@ export function ProfesorClasesClient({
                       key={dia.dia}
                       className={`flex flex-col rounded-2xl border transition-all ${
                         esHoy
-                          ? "bg-gradient-to-b from-[#0B3573] to-[#08295E] border-cyan-400 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-400/50"
+                          ? "bg-gradient-to-b from-[#0B3573] to-[#08295E] border-cyan-400 shadow-md shadow-cyan-950/40 ring-1 ring-cyan-400/50"
                           : "bg-[#0A2E65] border-[#2056A8]"
                       }`}
                     >
-                      {/* Cabecera del Día */}
-                      <div className={`p-3 border-b flex items-center justify-between ${esHoy ? "border-cyan-400/40 bg-white/5" : "border-[#2056A8] bg-[#072554]/50"}`}>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-black uppercase tracking-wider ${esHoy ? "text-cyan-300" : "text-white"}`}>
+                      {/* Cabecera del Día Compacta */}
+                      <div className={`px-2.5 py-2 border-b flex items-center justify-between ${esHoy ? "border-cyan-400/40 bg-white/5" : "border-[#2056A8] bg-[#072554]/50"}`}>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`text-[11px] font-black uppercase tracking-wider truncate ${esHoy ? "text-cyan-300" : "text-white"}`}>
                             {dia.nombre}
                           </span>
                           {esHoy && (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-400 text-slate-950 shadow-xs animate-pulse">
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full bg-cyan-400 text-slate-950 shrink-0">
                               HOY
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] font-bold text-blue-200">
-                          {clasesDelDia.length} {clasesDelDia.length === 1 ? "clase" : "clases"}
+                        <span className="text-[10px] font-bold text-blue-300 shrink-0 ml-1">
+                          {clasesDelDia.length}
                         </span>
                       </div>
 
                       {/* Lista de Clases del Día */}
-                      <div className="p-2.5 flex-1 space-y-2">
+                      <div className="p-1.5 flex-1 space-y-1.5">
                         {clasesDelDia.length === 0 ? (
-                          <div className="py-6 px-3 text-center text-xs text-blue-300/70 italic bg-white/5 rounded-xl border border-dashed border-white/10">
-                            Sin clases programadas este día
+                          <div className="py-5 px-2 text-center text-[11px] text-blue-300/60 italic bg-white/5 rounded-xl border border-dashed border-white/10">
+                            Sin clases
                           </div>
                         ) : (
                           clasesDelDia.map((lista) => {
-                            const isMenuOpen = menuAbiertoId === `cal-${dia.dia}-${lista.id}`;
-
                             return (
                               <div
                                 key={`${dia.dia}-${lista.id}`}
-                                className="p-3 bg-[#082552] border border-[#1E57A8] hover:border-cyan-400/60 rounded-xl space-y-2.5 transition-all shadow-xs relative group"
+                                className="p-2 bg-[#082552] border border-[#1E57A8] hover:border-cyan-400/70 rounded-xl space-y-1.5 transition-all shadow-xs group"
                               >
-                                {/* Horario y Badge de Alumnos */}
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-[11px] font-black text-cyan-300">
-                                    <Clock className="w-3.5 h-3.5 text-cyan-300" />
-                                    <span>{lista.horario || "Horario a convenir"}</span>
+                                {/* FILA 1 (Máx 1): Horario + Nombre de Clase + Total Alumnos */}
+                                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <span className="px-1.5 py-0.5 rounded-md bg-cyan-950/90 border border-cyan-500/40 text-[10px] font-black text-cyan-300 shrink-0 font-mono">
+                                      {lista.horario ? lista.horario.replace(/\s*hs/i, "") + " hs" : "Clase"}
+                                    </span>
+                                    <h4 className="font-bold text-xs text-white truncate" title={lista.nombre}>
+                                      {lista.nombre}
+                                    </h4>
                                   </div>
-                                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-blue-200">
-                                    <Users className="w-3 h-3 text-cyan-300" />
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-blue-200 shrink-0">
+                                    <Users className="w-2.5 h-2.5 text-cyan-300" />
                                     <span>{lista.total_alumnos || lista.alumnos_ids.length}</span>
+                                  </span>
+                                </div>
+
+                                {/* FILA 2 (Máx 2): Detalle/Sensei + Acciones Rápidas (Iniciar, Ver, Editar) */}
+                                <div className="flex items-center justify-between gap-1.5 min-w-0 pt-1 border-t border-white/5">
+                                  <span className="text-[10px] text-blue-200/75 truncate flex-1" title={lista.descripcion || (lista.profesores_nombres?.join(", "))}>
+                                    {lista.descripcion || (lista.profesores_nombres && lista.profesores_nombres.length > 0 ? `Sensei: ${lista.profesores_nombres.join(", ")}` : "Tatami")}
+                                  </span>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleIniciarClaseConLista(lista.id)}
+                                      className="py-1 px-2 bg-cyan-400 hover:bg-cyan-300 active:scale-95 text-slate-950 text-[10px] font-black rounded-md shadow-xs flex items-center gap-1 transition-all cursor-pointer"
+                                      title="Iniciar clase con esta lista"
+                                    >
+                                      <Play className="w-2.5 h-2.5 fill-current" />
+                                      <span>Iniciar</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setListaParaVer(lista)}
+                                      className="p-1 hover:bg-white/15 text-blue-300 hover:text-white rounded-md transition-colors cursor-pointer"
+                                      title="Ver alumnos integrantes"
+                                      aria-label="Ver alumnos"
+                                    >
+                                      <Eye className="w-3 h-3 text-cyan-300" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setListaParaEditar(lista)}
+                                      className="p-1 hover:bg-white/15 text-blue-300 hover:text-white rounded-md transition-colors cursor-pointer"
+                                      title="Editar lista"
+                                      aria-label="Editar lista"
+                                    >
+                                      <Edit2 className="w-3 h-3 text-blue-200" />
+                                    </button>
                                   </div>
-                                </div>
-
-                                {/* Título de la Clase */}
-                                <div>
-                                  <h4 className="font-bold text-xs sm:text-sm text-white leading-tight">
-                                    {lista.nombre}
-                                  </h4>
-                                  {lista.descripcion && (
-                                    <p className="text-[11px] text-blue-200/90 line-clamp-2 mt-0.5">
-                                      {lista.descripcion}
-                                    </p>
-                                  )}
-                                  {lista.profesores_nombres && lista.profesores_nombres.length > 0 && (
-                                    <p className="text-[10px] text-blue-300 mt-1 flex items-center gap-1">
-                                      <User className="w-3 h-3 text-cyan-300" />
-                                      <span>Sensei: {lista.profesores_nombres.join(", ")}</span>
-                                    </p>
-                                  )}
-                                </div>
-
-                                {/* Botón de Acción Principal para Iniciar Clase con esta Lista */}
-                                <div className="pt-1 flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleIniciarClaseConLista(lista.id)}
-                                    className="flex-1 py-2 px-2.5 bg-cyan-400 hover:bg-cyan-300 active:scale-98 text-slate-950 text-xs font-black rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                                    title="Iniciar clase directa en tatami con esta lista"
-                                  >
-                                    <Play className="w-3.5 h-3.5 fill-current" />
-                                    <span>Iniciar Clase</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setListaParaVer(lista)}
-                                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors cursor-pointer"
-                                    title="Ver alumnos integrantes"
-                                    aria-label="Ver alumnos"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-cyan-300" />
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setListaParaEditar(lista)}
-                                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors cursor-pointer"
-                                    title="Editar lista"
-                                    aria-label="Editar lista"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5 text-blue-200" />
-                                  </button>
                                 </div>
                               </div>
                             );
