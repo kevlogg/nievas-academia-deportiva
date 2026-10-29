@@ -132,19 +132,142 @@ export async function dalGetProfesorClases(profesorId?: string): Promise<Clase[]
 }
 
 /**
- * Helper para extraer profesores de la descripción: "[PROFS:id1,id2] Mi descripción"
+ * Helper robusto para extraer profesores, días de semana, horario y descripción limpia
+ * Soporta tags explícitos: [PROFS:id1,id2] [DIAS:1,3] [HORARIO:17:30 hs] [HORAS:17:30,18:30]
+ * Y si no vienen tags explícitos, infiere inteligentemente los días y horarios del texto libre.
  */
-function parseProfesoresFromDescripcion(desc?: string | null): {
+export function parseListaMetadata(desc?: string | null, listaNombre?: string): {
+  profesoresIds: string[];
+  dias_semana: number[];
+  horario: string;
+  hora_inicio: string;
+  hora_fin: string;
+  cleanDescripcion: string;
+} {
+  if (!desc && !listaNombre) {
+    return {
+      profesoresIds: [],
+      dias_semana: [],
+      horario: "",
+      hora_inicio: "",
+      hora_fin: "",
+      cleanDescripcion: "",
+    };
+  }
+
+  let text = (desc || "").trim();
+  let profesoresIds: string[] = [];
+  let dias_semana: number[] = [];
+  let horario = "";
+  let hora_inicio = "";
+  let hora_fin = "";
+
+  // 1. Extraer [PROFS:id1,id2]
+  const profsMatch = text.match(/\[PROFS:([^\]]+)\]/i);
+  if (profsMatch) {
+    profesoresIds = profsMatch[1].split(",").map((s) => s.trim()).filter(Boolean);
+    text = text.replace(profsMatch[0], "").trim();
+  }
+
+  // 2. Extraer [DIAS:1,2,3]
+  const diasMatch = text.match(/\[DIAS:([^\]]+)\]/i);
+  if (diasMatch) {
+    dias_semana = diasMatch[1]
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !isNaN(n) && n >= 0 && n <= 6);
+    text = text.replace(diasMatch[0], "").trim();
+  }
+
+  // 3. Extraer [HORARIO:...]
+  const horarioMatch = text.match(/\[HORARIO:([^\]]+)\]/i);
+  if (horarioMatch) {
+    horario = horarioMatch[1].trim();
+    text = text.replace(horarioMatch[0], "").trim();
+  }
+
+  // 4. Extraer [HORAS:inicio,fin]
+  const horasMatch = text.match(/\[HORAS:([^,\]]+)(?:,([^\]]+))?\]/i);
+  if (horasMatch) {
+    hora_inicio = horasMatch[1]?.trim() || "";
+    hora_fin = horasMatch[2]?.trim() || "";
+    text = text.replace(horasMatch[0], "").trim();
+  }
+
+  // 5. Inferencia inteligente si no hay tags explícitos de días
+  if (dias_semana.length === 0 && text) {
+    const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/lunes/.test(lower)) dias_semana.push(1);
+    if (/martes/.test(lower)) dias_semana.push(2);
+    if (/miercoles/.test(lower)) dias_semana.push(3);
+    if (/jueves/.test(lower)) dias_semana.push(4);
+    if (/viernes/.test(lower)) dias_semana.push(5);
+    if (/sabado/.test(lower)) dias_semana.push(6);
+    if (/domingo/.test(lower)) dias_semana.push(0);
+  }
+
+  // Inferencia inteligente de horario si no hay tag explícito
+  if (!horario && text) {
+    const timeMatch = text.match(/(\d{1,2}(?:[:.]\d{2})?\s*(?:\/|-|a|\s*a\s*)\s*\d{1,2}(?:[:.]\d{2})?\s*(?:hs|hrs|h)?|\d{1,2}[:.]\d{2}\s*(?:hs|hrs|h)?)/i);
+    if (timeMatch) {
+      horario = timeMatch[0].trim();
+      const cleanTime = horario.replace(/hs|hrs|h/gi, "").trim();
+      if (cleanTime.includes("/") || cleanTime.includes("-") || cleanTime.includes("a")) {
+        const parts = cleanTime.split(/\/|-|a/).map((s) => s.trim().replace(".", ":"));
+        if (parts[0]) hora_inicio = parts[0].includes(":") ? parts[0].padStart(5, "0") : `${parts[0].padStart(2, "0")}:00`;
+        if (parts[1]) hora_fin = parts[1].includes(":") ? parts[1].padStart(5, "0") : `${parts[1].padStart(2, "0")}:00`;
+      } else {
+        const single = cleanTime.replace(".", ":");
+        hora_inicio = single.includes(":") ? single.padStart(5, "0") : `${single.padStart(2, "0")}:00`;
+      }
+    }
+  }
+
+  // Si por nombre de lista sabemos días conocidos de dojo (ej. Infantiles/Juveniles Avanzado)
+  if (dias_semana.length === 0 && listaNombre) {
+    const lNorm = listaNombre.toLowerCase();
+    if (lNorm.includes("avanzado") && (lNorm.includes("juvenil") || lNorm.includes("infantil"))) {
+      dias_semana = [1, 3, 5]; // Lunes, Miércoles y Viernes por defecto
+      if (!horario) {
+        horario = lNorm.includes("juvenil") ? "19:30 hs" : "18:15 hs";
+        hora_inicio = lNorm.includes("juvenil") ? "19:30" : "18:15";
+        hora_fin = lNorm.includes("juvenil") ? "20:45" : "19:30";
+      }
+    }
+  }
+
+  // Limpiar texto si los días u horario estaban incrustados en la descripción
+  let cleanDescripcion = text;
+  if (dias_semana.length > 0) {
+    cleanDescripcion = cleanDescripcion.replace(/(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:[,\s]+y\s+|[,\s]+)?/gi, "");
+  }
+  if (horario) {
+    cleanDescripcion = cleanDescripcion.replace(horario, "");
+  }
+  cleanDescripcion = cleanDescripcion.replace(/^[\s,.\-\/]+|[\s,.\-\/]+$/g, "").trim();
+
+  return {
+    profesoresIds,
+    dias_semana,
+    horario,
+    hora_inicio,
+    hora_fin,
+    cleanDescripcion,
+  };
+}
+
+/**
+ * Helper retrocompatible para parsear descripción
+ */
+function parseProfesoresFromDescripcion(desc?: string | null, listaNombre?: string): {
   profesoresIds: string[];
   cleanDescripcion: string;
 } {
-  if (!desc) return { profesoresIds: [], cleanDescripcion: "" };
-  const match = desc.match(/^\[PROFS:([^\]]+)\]\s*([\s\S]*)$/i);
-  if (match) {
-    const ids = match[1].split(",").map((s) => s.trim()).filter(Boolean);
-    return { profesoresIds: ids, cleanDescripcion: match[2].trim() };
-  }
-  return { profesoresIds: [], cleanDescripcion: desc.trim() };
+  const meta = parseListaMetadata(desc, listaNombre);
+  return {
+    profesoresIds: meta.profesoresIds,
+    cleanDescripcion: meta.cleanDescripcion,
+  };
 }
 
 /**
@@ -3090,17 +3213,21 @@ export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
       const userMap = new Map((usuarios || []).map((u: any) => [u.id, u.nombre_completo]));
 
       const mappedListas: ListaAlumnos[] = listas.map((l: any) => {
-        const { profesoresIds, cleanDescripcion } = parseProfesoresFromDescripcion(l.descripcion);
-        const profesoresNombres = profesoresIds
+        const meta = parseListaMetadata(l.descripcion, l.nombre);
+        const profesoresNombres = meta.profesoresIds
           .map((id) => userMap.get(id))
           .filter(Boolean) as string[];
 
         return {
           id: l.id,
           nombre: l.nombre,
-          descripcion: cleanDescripcion,
+          descripcion: meta.cleanDescripcion,
+          dias_semana: meta.dias_semana,
+          horario: meta.horario,
+          hora_inicio: meta.hora_inicio,
+          hora_fin: meta.hora_fin,
           alumnos_ids: (l.items || []).map((i: any) => i.alumno_id),
-          profesores_ids: profesoresIds,
+          profesores_ids: meta.profesoresIds,
           profesores_nombres: profesoresNombres,
           creado_por_id: l.creado_por,
           creado_por_nombre: l.creado_por_usuario?.nombre_completo || "Sensei",
@@ -3142,7 +3269,7 @@ export async function dalGetListasAlumnos(): Promise<ListaAlumnos[]> {
 }
 
 /**
- * Crear nueva lista de alumnos con asignación de uno o múltiples profesores
+ * Crear nueva lista de alumnos con asignación de días, horario y profesores
  */
 export async function dalCrearListaAlumnos(
   input: CrearListaAlumnosInput & { profesoresIds?: string[] }
@@ -3156,6 +3283,15 @@ export async function dalCrearListaAlumnos(
   const profs = input.profesoresIds || [];
   if (profs.length > 0) {
     rawDesc = `[PROFS:${profs.join(",")}] ${rawDesc}`.trim();
+  }
+  if (input.dias_semana && input.dias_semana.length > 0) {
+    rawDesc = `[DIAS:${input.dias_semana.join(",")}] ${rawDesc}`.trim();
+  }
+  if (input.horario?.trim()) {
+    rawDesc = `[HORARIO:${input.horario.trim()}] ${rawDesc}`.trim();
+  }
+  if (input.hora_inicio || input.hora_fin) {
+    rawDesc = `[HORAS:${input.hora_inicio || ""},${input.hora_fin || ""}] ${rawDesc}`.trim();
   }
 
   try {
@@ -3180,12 +3316,16 @@ export async function dalCrearListaAlumnos(
     console.error("Error in dalCrearListaAlumnos Supabase:", err);
   }
 
-  const { cleanDescripcion } = parseProfesoresFromDescripcion(rawDesc);
+  const meta = parseListaMetadata(rawDesc, input.nombre);
 
   const nuevaLista: ListaAlumnos = {
     id: generatedId,
     nombre: input.nombre.trim(),
-    descripcion: cleanDescripcion,
+    descripcion: meta.cleanDescripcion,
+    dias_semana: input.dias_semana && input.dias_semana.length > 0 ? input.dias_semana : meta.dias_semana,
+    horario: input.horario?.trim() || meta.horario,
+    hora_inicio: input.hora_inicio || meta.hora_inicio,
+    hora_fin: input.hora_fin || meta.hora_fin,
     alumnos_ids: input.alumnosIds,
     profesores_ids: profs,
     creado_por_id: currentUser.id,
@@ -3211,6 +3351,15 @@ export async function dalActualizarListaAlumnos(
   const profs = input.profesoresIds || [];
   if (profs.length > 0) {
     rawDesc = `[PROFS:${profs.join(",")}] ${rawDesc}`.trim();
+  }
+  if (input.dias_semana && input.dias_semana.length > 0) {
+    rawDesc = `[DIAS:${input.dias_semana.join(",")}] ${rawDesc}`.trim();
+  }
+  if (input.horario?.trim()) {
+    rawDesc = `[HORARIO:${input.horario.trim()}] ${rawDesc}`.trim();
+  }
+  if (input.hora_inicio || input.hora_fin) {
+    rawDesc = `[HORAS:${input.hora_inicio || ""},${input.hora_fin || ""}] ${rawDesc}`.trim();
   }
 
   // 1. Intentar en Supabase
@@ -3238,12 +3387,16 @@ export async function dalActualizarListaAlumnos(
         await supabase.from("lista_alumnos_items").insert(items);
       }
 
-      const { cleanDescripcion } = parseProfesoresFromDescripcion(rawDesc);
+      const meta = parseListaMetadata(rawDesc, updatedDb.nombre);
 
       const updatedObj: ListaAlumnos = {
         id: updatedDb.id,
         nombre: updatedDb.nombre,
-        descripcion: cleanDescripcion,
+        descripcion: meta.cleanDescripcion,
+        dias_semana: input.dias_semana && input.dias_semana.length > 0 ? input.dias_semana : meta.dias_semana,
+        horario: input.horario?.trim() || meta.horario,
+        hora_inicio: input.hora_inicio || meta.hora_inicio,
+        hora_fin: input.hora_fin || meta.hora_fin,
         alumnos_ids: input.alumnosIds,
         profesores_ids: profs,
         creado_por_id: updatedDb.creado_por,
@@ -3267,30 +3420,31 @@ export async function dalActualizarListaAlumnos(
   }
 
   // 2. Fallback memoria
-  const lista = dbState.listas_alumnos.find((l) => l.id === listaId);
-  if (!lista) {
-    const newMemObj: ListaAlumnos = {
-      id: listaId,
-      nombre: input.nombre.trim(),
-      descripcion: input.descripcion?.trim() || "",
-      alumnos_ids: input.alumnosIds,
-      profesores_ids: profs,
-      creado_por_id: currentUser.id,
-      creado_por_nombre: currentUser.nombre_completo,
-      created_at: new Date().toISOString(),
-      total_alumnos: input.alumnosIds.length,
-    };
-    dbState.listas_alumnos.push(newMemObj);
-    return newMemObj;
+  const meta = parseListaMetadata(rawDesc, input.nombre);
+  const updatedObj: ListaAlumnos = {
+    id: listaId,
+    nombre: input.nombre.trim(),
+    descripcion: meta.cleanDescripcion,
+    dias_semana: input.dias_semana && input.dias_semana.length > 0 ? input.dias_semana : meta.dias_semana,
+    horario: input.horario?.trim() || meta.horario,
+    hora_inicio: input.hora_inicio || meta.hora_inicio,
+    hora_fin: input.hora_fin || meta.hora_fin,
+    alumnos_ids: input.alumnosIds,
+    profesores_ids: profs,
+    creado_por_id: currentUser.id,
+    creado_por_nombre: currentUser.nombre_completo,
+    created_at: new Date().toISOString(),
+    total_alumnos: input.alumnosIds.length,
+  };
+
+  const memIndex = dbState.listas_alumnos.findIndex((l) => l.id === listaId);
+  if (memIndex !== -1) {
+    dbState.listas_alumnos[memIndex] = updatedObj;
+  } else {
+    dbState.listas_alumnos.push(updatedObj);
   }
 
-  lista.nombre = input.nombre.trim();
-  lista.descripcion = input.descripcion?.trim() || "";
-  lista.alumnos_ids = input.alumnosIds;
-  lista.profesores_ids = profs;
-  lista.total_alumnos = input.alumnosIds.length;
-
-  return lista;
+  return updatedObj;
 }
 
 /**

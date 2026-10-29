@@ -301,6 +301,10 @@ export interface ListaAlumnos {
   id: string;
   nombre: string;
   descripcion?: string;
+  dias_semana?: number[]; // [0, 1, 2, 3, 4, 5, 6] (1=Lunes, 2=Martes, ..., 0=Domingo)
+  horario?: string; // Ej: "17:30 hs", "18:15 a 19:15 hs"
+  hora_inicio?: string; // Ej: "17:30"
+  hora_fin?: string; // Ej: "18:30"
   alumnos_ids: string[];
   profesores_ids?: string[];
   profesores_nombres?: string[];

@@ -44,6 +44,10 @@ import {
   AlertTriangle,
   XCircle,
   ArrowRight,
+  Calendar,
+  LayoutGrid,
+  Play,
+  Check,
 } from "lucide-react";
 
 interface ProfesorClasesClientProps {
@@ -86,6 +90,11 @@ export function ProfesorClasesClient({
   const [eliminandoListaId, setEliminandoListaId] = useState<string | null>(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
 
+  // Estados para Vista Calendario vs Tarjetas de Listas de Alumnos
+  const [vistaListas, setVistaListas] = useState<"calendario" | "lista">("calendario");
+  const [diaFiltro, setDiaFiltro] = useState<number | "TODOS">("TODOS");
+  const [listaParaIniciarClaseId, setListaParaIniciarClaseId] = useState<string | undefined>(undefined);
+
   // Estados para Ver Info, Editar Horario y Menú de Clases del Historial
   const [claseParaVerInfo, setClaseParaVerInfo] = useState<ClaseHistorialItem | null>(null);
   const [claseParaEditar, setClaseParaEditar] = useState<ClaseHistorialItem | null>(null);
@@ -125,6 +134,37 @@ export function ProfesorClasesClient({
     setListasAlumnos((prev) =>
       prev.map((l) => (l.id === listaActualizada.id ? listaActualizada : l))
     );
+  };
+
+  const DIAS_CALENDARIO = [
+    { dia: 1, nombre: "Lunes", corto: "LUN" },
+    { dia: 2, nombre: "Martes", corto: "MAR" },
+    { dia: 3, nombre: "Miércoles", corto: "MIÉ" },
+    { dia: 4, nombre: "Jueves", corto: "JUE" },
+    { dia: 5, nombre: "Viernes", corto: "VIE" },
+    { dia: 6, nombre: "Sábado", corto: "SÁB" },
+    { dia: 0, nombre: "Domingo", corto: "DOM" },
+  ];
+
+  const diaActualHoy = new Date().getDay();
+
+  const getListasPorDia = (diaNum: number) => {
+    return listasAlumnos
+      .filter((l) => l.dias_semana && l.dias_semana.includes(diaNum))
+      .sort((a, b) => {
+        const hA = a.hora_inicio || a.horario || "";
+        const hB = b.hora_inicio || b.horario || "";
+        return hA.localeCompare(hB);
+      });
+  };
+
+  const listasSinDias = listasAlumnos.filter(
+    (l) => !l.dias_semana || l.dias_semana.length === 0
+  );
+
+  const handleIniciarClaseConLista = (listaId: string) => {
+    setListaParaIniciarClaseId(listaId);
+    setIsCrearClaseOpen(true);
   };
 
   const handleEliminarLista = async (lista: ListaAlumnos) => {
@@ -595,16 +635,48 @@ export function ProfesorClasesClient({
         </div>
       </div>
 
-      {/* Resumen y Gestión de Listas de Alumnos Guardadas */}
+      {/* Resumen y Gestión de Listas de Alumnos Guardadas con Switcher Calendario / Tarjetas */}
       {listasAlumnos.length > 0 && (
-        <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-3.5 relative">
-          {/* Header de la Card: Sin botón de nueva lista (pedido expreso del usuario) */}
-          <div className="flex items-center gap-2 text-xs font-bold text-white">
-            <Sparkles className="w-4 h-4 text-cyan-300" />
-            <span>Listas de Alumnos Guardadas ({listasAlumnos.length})</span>
+        <div className="p-4 sm:p-5 bg-[#0F3E86] text-white border-2 border-[#1E57A8] rounded-3xl shadow-xl shadow-blue-950/15 space-y-4 relative">
+          {/* Header con Título y Switcher de Vista */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-cyan-300" />
+              <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
+                Listas & Calendario de Clases ({listasAlumnos.length})
+              </span>
+            </div>
+
+            {/* Selector de Vista: Calendario vs Tarjetas */}
+            <div className="flex items-center bg-[#082552] p-1 rounded-2xl border border-[#2056A8] self-start sm:self-auto shadow-inner">
+              <button
+                type="button"
+                onClick={() => setVistaListas("calendario")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  vistaListas === "calendario"
+                    ? "bg-cyan-400 text-slate-950 shadow-md font-black"
+                    : "text-blue-200 hover:text-white"
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Calendario Semanal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVistaListas("lista")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  vistaListas === "lista"
+                    ? "bg-white text-[#0F3E86] shadow-md font-black"
+                    : "text-blue-200 hover:text-white"
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Vista Tarjetas</span>
+              </button>
+            </div>
           </div>
 
-          {/* Backdrop invisible para cerrar el menú si está abierto al tocar afuera */}
+          {/* Backdrop invisible para cerrar menús al tocar afuera */}
           {menuAbiertoId && (
             <div
               className="fixed inset-0 z-20 cursor-default"
@@ -612,97 +684,316 @@ export function ProfesorClasesClient({
             />
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {listasAlumnos.map((lista) => {
-              const isMenuOpen = menuAbiertoId === lista.id;
-
-              return (
-                <div
-                  key={lista.id}
-                  className="p-3 bg-[#0A2E65] border border-[#2056A8] hover:border-cyan-400/50 rounded-2xl flex items-center justify-between gap-3 transition-all shadow-sm relative"
+          {/* VISTA 1: CALENDARIO SEMANAL */}
+          {vistaListas === "calendario" && (
+            <div className="space-y-3.5">
+              {/* Barra de Filtro Rápido por Día (Mobile/Tablet Friendly) */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setDiaFiltro("TODOS")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                    diaFiltro === "TODOS"
+                      ? "bg-white text-[#0F3E86] shadow-md font-black"
+                      : "bg-[#0A2E65] text-blue-200 hover:text-white border border-[#2056A8]"
+                  }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-xs sm:text-sm text-white truncate">
-                        {lista.nombre}
-                      </span>
-                      <span className="font-mono text-[10px] bg-white/15 px-1.5 py-0.2 rounded-md font-bold text-cyan-200 shrink-0">
-                        {lista.total_alumnos || lista.alumnos_ids.length}
-                      </span>
-                    </div>
-                    {lista.descripcion && (
-                      <p className="text-[11px] text-blue-200 truncate mt-0.5">
-                        {lista.descripcion}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Botón Hamburguesa con Opciones Encapsuladas */}
-                  <div className="relative shrink-0">
+                  Todos los días ({listasAlumnos.length})
+                </button>
+                {DIAS_CALENDARIO.map((d) => {
+                  const cant = getListasPorDia(d.dia).length;
+                  const esHoy = d.dia === diaActualHoy;
+                  const isActivo = diaFiltro === d.dia;
+                  return (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuAbiertoId(isMenuOpen ? null : lista.id);
-                      }}
-                      className={`p-2.5 rounded-xl transition-all cursor-pointer touch-target-safe flex items-center justify-center ${
-                        isMenuOpen
-                          ? "bg-white text-[#0F3E86] shadow-md scale-105"
-                          : "bg-white/10 hover:bg-white/20 text-white"
+                      key={d.dia}
+                      type="button"
+                      onClick={() => setDiaFiltro(d.dia)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isActivo
+                          ? "bg-cyan-400 text-slate-950 shadow-md font-black ring-2 ring-white"
+                          : esHoy
+                          ? "bg-[#0A2E65] text-cyan-300 border-2 border-cyan-400 font-black shadow-xs"
+                          : "bg-[#0A2E65] text-blue-200 hover:text-white border border-[#2056A8]"
                       }`}
-                      title="Opciones de la lista"
-                      aria-label={`Opciones de la lista ${lista.nombre}`}
                     >
-                      <Menu className="w-4 h-4" />
+                      <span>{d.corto}</span>
+                      {esHoy && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${isActivo ? "bg-slate-950/20 text-slate-950 font-black" : "bg-white/10 text-cyan-200"}`}>
+                        {cant}
+                      </span>
                     </button>
+                  );
+                })}
+              </div>
 
-                    {/* Menú Desplegable con Ver, Editar y Eliminar */}
-                    {isMenuOpen && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#082552] border border-[#2056A8] rounded-2xl shadow-2xl shadow-blue-950/80 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-                      >
-                        <button
-                          onClick={() => {
-                            setMenuAbiertoId(null);
-                            setListaParaVer(lista);
-                          }}
-                          className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-4 h-4 text-cyan-300 shrink-0" />
-                          <span>Ver Alumnos</span>
-                        </button>
+              {/* Contenedor de Días del Calendario */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {DIAS_CALENDARIO.filter(
+                  (d) => diaFiltro === "TODOS" || diaFiltro === d.dia
+                ).map((dia) => {
+                  const clasesDelDia = getListasPorDia(dia.dia);
+                  const esHoy = dia.dia === diaActualHoy;
 
-                        <button
-                          onClick={() => {
-                            setMenuAbiertoId(null);
-                            setListaParaEditar(lista);
-                          }}
-                          className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
-                        >
-                          <Edit2 className="w-4 h-4 text-blue-300 shrink-0" />
-                          <span>Editar Información</span>
-                        </button>
-
-                        <div className="my-1 border-t border-[#1E57A8]/80" />
-
-                        <button
-                          onClick={() => {
-                            setMenuAbiertoId(null);
-                            handleEliminarLista(lista);
-                          }}
-                          disabled={eliminandoListaId === lista.id}
-                          className="w-full px-3.5 py-2.5 text-left text-xs text-rose-300 hover:bg-rose-500/20 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
-                          <span>Eliminar Lista</span>
-                        </button>
+                  return (
+                    <div
+                      key={dia.dia}
+                      className={`flex flex-col rounded-2xl border transition-all ${
+                        esHoy
+                          ? "bg-gradient-to-b from-[#0B3573] to-[#08295E] border-cyan-400 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-400/50"
+                          : "bg-[#0A2E65] border-[#2056A8]"
+                      }`}
+                    >
+                      {/* Cabecera del Día */}
+                      <div className={`p-3 border-b flex items-center justify-between ${esHoy ? "border-cyan-400/40 bg-white/5" : "border-[#2056A8] bg-[#072554]/50"}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-black uppercase tracking-wider ${esHoy ? "text-cyan-300" : "text-white"}`}>
+                            {dia.nombre}
+                          </span>
+                          {esHoy && (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-400 text-slate-950 shadow-xs animate-pulse">
+                              HOY
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-blue-200">
+                          {clasesDelDia.length} {clasesDelDia.length === 1 ? "clase" : "clases"}
+                        </span>
                       </div>
-                    )}
+
+                      {/* Lista de Clases del Día */}
+                      <div className="p-2.5 flex-1 space-y-2">
+                        {clasesDelDia.length === 0 ? (
+                          <div className="py-6 px-3 text-center text-xs text-blue-300/70 italic bg-white/5 rounded-xl border border-dashed border-white/10">
+                            Sin clases programadas este día
+                          </div>
+                        ) : (
+                          clasesDelDia.map((lista) => {
+                            const isMenuOpen = menuAbiertoId === `cal-${dia.dia}-${lista.id}`;
+
+                            return (
+                              <div
+                                key={`${dia.dia}-${lista.id}`}
+                                className="p-3 bg-[#082552] border border-[#1E57A8] hover:border-cyan-400/60 rounded-xl space-y-2.5 transition-all shadow-xs relative group"
+                              >
+                                {/* Horario y Badge de Alumnos */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-[11px] font-black text-cyan-300">
+                                    <Clock className="w-3.5 h-3.5 text-cyan-300" />
+                                    <span>{lista.horario || "Horario a convenir"}</span>
+                                  </div>
+                                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-blue-200">
+                                    <Users className="w-3 h-3 text-cyan-300" />
+                                    <span>{lista.total_alumnos || lista.alumnos_ids.length}</span>
+                                  </div>
+                                </div>
+
+                                {/* Título de la Clase */}
+                                <div>
+                                  <h4 className="font-bold text-xs sm:text-sm text-white leading-tight">
+                                    {lista.nombre}
+                                  </h4>
+                                  {lista.descripcion && (
+                                    <p className="text-[11px] text-blue-200/90 line-clamp-2 mt-0.5">
+                                      {lista.descripcion}
+                                    </p>
+                                  )}
+                                  {lista.profesores_nombres && lista.profesores_nombres.length > 0 && (
+                                    <p className="text-[10px] text-blue-300 mt-1 flex items-center gap-1">
+                                      <User className="w-3 h-3 text-cyan-300" />
+                                      <span>Sensei: {lista.profesores_nombres.join(", ")}</span>
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Botón de Acción Principal para Iniciar Clase con esta Lista */}
+                                <div className="pt-1 flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleIniciarClaseConLista(lista.id)}
+                                    className="flex-1 py-2 px-2.5 bg-cyan-400 hover:bg-cyan-300 active:scale-98 text-slate-950 text-xs font-black rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                                    title="Iniciar clase directa en tatami con esta lista"
+                                  >
+                                    <Play className="w-3.5 h-3.5 fill-current" />
+                                    <span>Iniciar Clase</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setListaParaVer(lista)}
+                                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors cursor-pointer"
+                                    title="Ver alumnos integrantes"
+                                    aria-label="Ver alumnos"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-cyan-300" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setListaParaEditar(lista)}
+                                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors cursor-pointer"
+                                    title="Editar lista"
+                                    aria-label="Editar lista"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5 text-blue-200" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Si hay listas sin días asignados, mostrar alerta constructiva */}
+              {listasSinDias.length > 0 && (
+                <div className="p-3 bg-[#082552] border border-amber-500/40 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 text-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>
+                      Hay <strong>{listasSinDias.length}</strong> {listasSinDias.length === 1 ? "lista" : "listas"} sin días asignados. Puedes editarlas para que aparezcan en el calendario semanal.
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {listasSinDias.map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setListaParaEditar(l)}
+                        className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/50 rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
+                      >
+                        {l.nombre} (Asignar)
+                      </button>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
+
+          {/* VISTA 2: TARJETAS EN CUADRÍCULA (GRID) */}
+          {vistaListas === "lista" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {listasAlumnos.map((lista) => {
+                const isMenuOpen = menuAbiertoId === lista.id;
+
+                return (
+                  <div
+                    key={lista.id}
+                    className="p-3 bg-[#0A2E65] border border-[#2056A8] hover:border-cyan-400/50 rounded-2xl flex items-center justify-between gap-3 transition-all shadow-sm relative"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-xs sm:text-sm text-white truncate">
+                          {lista.nombre}
+                        </span>
+                        <span className="font-mono text-[10px] bg-white/15 px-1.5 py-0.2 rounded-md font-bold text-cyan-200 shrink-0">
+                          {lista.total_alumnos || lista.alumnos_ids.length}
+                        </span>
+                      </div>
+
+                      {/* Días y Horarios */}
+                      <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                        {lista.dias_semana && lista.dias_semana.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-cyan-300 font-semibold bg-[#082552] px-2 py-0.5 rounded-md border border-cyan-500/30">
+                            <Calendar className="w-3 h-3 text-cyan-300" />
+                            <span>{formatDaysList(lista.dias_semana)}</span>
+                          </span>
+                        )}
+                        {lista.horario && (
+                          <span className="inline-flex items-center gap-1 text-cyan-200 font-bold bg-[#082552] px-2 py-0.5 rounded-md border border-cyan-500/30">
+                            <Clock className="w-3 h-3 text-cyan-300" />
+                            <span>{lista.horario}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {lista.descripcion && (
+                        <p className="text-[11px] text-blue-200 truncate">
+                          {lista.descripcion}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Botón Hamburguesa con Opciones Encapsuladas */}
+                    <div className="relative shrink-0 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleIniciarClaseConLista(lista.id)}
+                        className="p-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all cursor-pointer shadow-xs"
+                        title="Iniciar clase con esta lista"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuAbiertoId(isMenuOpen ? null : lista.id);
+                        }}
+                        className={`p-2.5 rounded-xl transition-all cursor-pointer touch-target-safe flex items-center justify-center ${
+                          isMenuOpen
+                            ? "bg-white text-[#0F3E86] shadow-md scale-105"
+                            : "bg-white/10 hover:bg-white/20 text-white"
+                        }`}
+                        title="Opciones de la lista"
+                        aria-label={`Opciones de la lista ${lista.nombre}`}
+                      >
+                        <Menu className="w-4 h-4" />
+                      </button>
+
+                      {/* Menú Desplegable con Ver, Editar y Eliminar */}
+                      {isMenuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#082552] border border-[#2056A8] rounded-2xl shadow-2xl shadow-blue-950/80 py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                        >
+                          <button
+                            onClick={() => {
+                              setMenuAbiertoId(null);
+                              setListaParaVer(lista);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4 text-cyan-300 shrink-0" />
+                            <span>Ver Alumnos</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setMenuAbiertoId(null);
+                              setListaParaEditar(lista);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-white hover:bg-white/10 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-4 h-4 text-blue-300 shrink-0" />
+                            <span>Editar Información</span>
+                          </button>
+
+                          <div className="my-1 border-t border-[#1E57A8]/80" />
+
+                          <button
+                            onClick={() => {
+                              setMenuAbiertoId(null);
+                              handleEliminarLista(lista);
+                            }}
+                            disabled={eliminandoListaId === lista.id}
+                            className="w-full px-3.5 py-2.5 text-left text-xs text-rose-300 hover:bg-rose-500/20 flex items-center gap-2.5 font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
+                            <span>Eliminar Lista</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -879,8 +1170,12 @@ export function ProfesorClasesClient({
       {/* Modales */}
       <ModalCrearClaseProfesor
         isOpen={isCrearClaseOpen}
-        onClose={() => setIsCrearClaseOpen(false)}
+        onClose={() => {
+          setIsCrearClaseOpen(false);
+          setListaParaIniciarClaseId(undefined);
+        }}
         listasDisponibles={listasAlumnos}
+        initialListaId={listaParaIniciarClaseId}
         onOpenCrearLista={() => {
           setIsCrearClaseOpen(false);
           setIsCrearListaOpen(true);

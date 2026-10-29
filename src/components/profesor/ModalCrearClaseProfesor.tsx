@@ -24,6 +24,7 @@ interface ModalCrearClaseProfesorProps {
   onOpenCrearLista: () => void;
   profesorId?: string;
   onClaseCreada?: (nuevaClase: Clase) => void;
+  initialListaId?: string;
 }
 
 export function ModalCrearClaseProfesor({
@@ -33,28 +34,41 @@ export function ModalCrearClaseProfesor({
   onOpenCrearLista,
   profesorId,
   onClaseCreada,
+  initialListaId,
 }: ModalCrearClaseProfesorProps) {
   const router = useRouter();
 
   const [listaAlumnosId, setListaAlumnosId] = useState<string>(
-    listasDisponibles.length > 0 ? listasDisponibles[0].id : ""
+    initialListaId || (listasDisponibles.length > 0 ? listasDisponibles[0].id : "")
   );
   const [horaInicio, setHoraInicio] = useState<string>("");
   const [horaFin, setHoraFin] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mantener sincronizado si cambian las listas e inicializar horarios en hora local Argentina
+  // Mantener sincronizado si cambian las listas o initialListaId
   React.useEffect(() => {
     if (isOpen) {
-      const { horaInicioInput, horaFinInput } = getArgentinaDateTime();
-      if (!horaInicio) setHoraInicio(horaInicioInput);
-      if (!horaFin) setHoraFin(horaFinInput);
+      const targetId = initialListaId || listaAlumnosId || (listasDisponibles.length > 0 ? listasDisponibles[0].id : "");
+      if (targetId) setListaAlumnosId(targetId);
+
+      const foundList = listasDisponibles.find((l) => l.id === targetId);
+      if (foundList?.hora_inicio) {
+        setHoraInicio(foundList.hora_inicio.slice(0, 5));
+        if (foundList.hora_fin) {
+          setHoraFin(foundList.hora_fin.slice(0, 5));
+        } else {
+          const [h, m] = foundList.hora_inicio.split(":").map(Number);
+          const endH = (h + 1).toString().padStart(2, "0");
+          setHoraFin(`${endH}:${(m || 0).toString().padStart(2, "0")}`);
+        }
+      } else {
+        const { horaInicioInput, horaFinInput } = getArgentinaDateTime();
+        if (!horaInicio) setHoraInicio(horaInicioInput);
+        if (!horaFin) setHoraFin(horaFinInput);
+      }
     }
-    if (!listaAlumnosId && listasDisponibles.length > 0) {
-      setListaAlumnosId(listasDisponibles[0].id);
-    }
-  }, [isOpen, listasDisponibles, listaAlumnosId, horaInicio, horaFin]);
+  }, [isOpen, initialListaId, listasDisponibles]);
 
   if (!isOpen) return null;
 

@@ -3,7 +3,8 @@
 import React from "react";
 import { ListaAlumnos, Alumno } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
-import { X, Users, Phone, Edit, Calendar } from "lucide-react";
+import { formatDaysList } from "@/lib/utils";
+import { X, Users, Phone, Edit, Calendar, Clock } from "lucide-react";
 
 interface ModalVerListaAlumnosProps {
   lista: ListaAlumnos | null;
@@ -53,11 +54,28 @@ export function ModalVerListaAlumnos({
           </button>
         </div>
 
-        {/* Contenido / Descripción */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Contenido / Días, Horario y Descripción */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
+          {((lista.dias_semana && lista.dias_semana.length > 0) || lista.horario) && (
+            <div className="p-3 bg-[#0A2E65] rounded-2xl border border-[#2056A8] flex flex-wrap items-center gap-2">
+              {lista.dias_semana && lista.dias_semana.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#082552] border border-cyan-500/40 rounded-xl text-xs font-bold text-cyan-300">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                  <span>{formatDaysList(lista.dias_semana)}</span>
+                </div>
+              )}
+              {lista.horario && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#082552] border border-cyan-500/40 rounded-xl text-xs font-bold text-cyan-200">
+                  <Clock className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                  <span>{lista.horario}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {lista.descripcion && (
             <div className="p-3 bg-[#082552] rounded-xl border border-[#1E57A8] text-xs text-blue-200">
-              <span className="font-bold text-cyan-300 block mb-0.5">Descripción:</span>
+              <span className="font-bold text-cyan-300 block mb-0.5">Notas / Descripción:</span>
               <span>{lista.descripcion}</span>
             </div>
           )}

@@ -84,6 +84,10 @@ export const CrearClaseSchema = z.object({
 export const CrearListaAlumnosSchema = z.object({
   nombre: z.string().min(3, "El nombre de la lista debe tener al menos 3 caracteres"),
   descripcion: z.string().optional(),
+  dias_semana: z.array(z.number().min(0).max(6)).optional().default([]),
+  horario: z.string().optional().default(""),
+  hora_inicio: z.string().optional(),
+  hora_fin: z.string().optional(),
   alumnosIds: z.array(z.string()).min(1, "Debe seleccionar al menos un alumno"),
   profesoresIds: z.array(z.string()).optional(),
 });

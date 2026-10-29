@@ -17,6 +17,8 @@ import {
   PlusCircle,
   Sparkles,
   Edit2,
+  Calendar,
+  Clock,
 } from "lucide-react";
 
 interface ModalEditarListaAlumnosProps {
@@ -40,6 +42,16 @@ const BELT_OPTIONS: KarateBelt[] = [
   "Negro",
 ];
 
+const DIAS_OPCIONES = [
+  { id: 1, label: "Lun", nombre: "Lunes" },
+  { id: 2, label: "Mar", nombre: "Martes" },
+  { id: 3, label: "Mié", nombre: "Miércoles" },
+  { id: 4, label: "Jue", nombre: "Jueves" },
+  { id: 5, label: "Vie", nombre: "Viernes" },
+  { id: 6, label: "Sáb", nombre: "Sábado" },
+  { id: 0, label: "Dom", nombre: "Domingo" },
+];
+
 type TabModo = "TODOS" | "MIS_CLASES" | "OTRO_SENSEI" | "NUEVO_ALUMNO";
 
 export function ModalEditarListaAlumnos({
@@ -54,6 +66,10 @@ export function ModalEditarListaAlumnos({
 }: ModalEditarListaAlumnosProps) {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [diasSemana, setDiasSemana] = useState<number[]>([]);
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFin, setHoraFin] = useState("");
+  const [horario, setHorario] = useState("");
   const [selectedAlumnos, setSelectedAlumnos] = useState<string[]>([]);
   const [selectedProfesorIds, setSelectedProfesorIds] = useState<string[]>([]);
   const [alumnosList, setAlumnosList] = useState<Alumno[]>(alumnosDisponibles);
@@ -61,6 +77,14 @@ export function ModalEditarListaAlumnos({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingBeltAlumnoId, setEditingBeltAlumnoId] = useState<string | null>(null);
+
+  const toggleDia = (diaId: number) => {
+    setDiasSemana((prev) =>
+      prev.includes(diaId)
+        ? prev.filter((d) => d !== diaId)
+        : [...prev, diaId].sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+    );
+  };
 
   // Modo de Selección de Alumnos (Pestañas)
   const [activeTab, setActiveTab] = useState<TabModo>("TODOS");
@@ -78,6 +102,10 @@ export function ModalEditarListaAlumnos({
     if (lista) {
       setNombre(lista.nombre);
       setDescripcion(lista.descripcion || "");
+      setDiasSemana(lista.dias_semana || []);
+      setHoraInicio(lista.hora_inicio || "");
+      setHoraFin(lista.hora_fin || "");
+      setHorario(lista.horario || "");
       setSelectedAlumnos(lista.alumnos_ids || []);
       setSelectedProfesorIds(
         lista.profesores_ids && lista.profesores_ids.length > 0
@@ -283,6 +311,10 @@ export function ModalEditarListaAlumnos({
       const res = await actualizarListaAlumnosAction(lista.id, {
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
+        dias_semana: diasSemana,
+        horario: horario.trim(),
+        hora_inicio: horaInicio ? (horaInicio.length === 5 ? `${horaInicio}:00` : horaInicio) : undefined,
+        hora_fin: horaFin ? (horaFin.length === 5 ? `${horaFin}:00` : horaFin) : undefined,
         alumnosIds: selectedAlumnos,
         profesoresIds:
           selectedProfesorIds.length > 0
@@ -345,7 +377,7 @@ export function ModalEditarListaAlumnos({
             </div>
           )}
 
-          {/* Nombre y Descripción */}
+          {/* Nombre y Días / Horario de la Lista */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-blue-100 uppercase tracking-wider">
               Nombre de la Lista *
@@ -360,15 +392,104 @@ export function ModalEditarListaAlumnos({
             />
           </div>
 
+          {/* Días y Horarios de Dictado */}
+          <div className="p-3.5 bg-[#092652] rounded-2xl border border-[#2056A8] space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-blue-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-cyan-300" />
+                <span>Días de Dictado & Horario</span>
+              </label>
+              <span className="text-[11px] text-cyan-300 font-bold bg-cyan-950/70 border border-cyan-600/50 px-2 py-0.5 rounded-full">
+                {diasSemana.length} {diasSemana.length === 1 ? "día" : "días"}
+              </span>
+            </div>
+
+            {/* Selector de Días */}
+            <div>
+              <p className="text-[11px] text-blue-200 mb-2">Selecciona qué días se dicta esta clase:</p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {DIAS_OPCIONES.map((dia) => {
+                  const isSelected = diasSemana.includes(dia.id);
+                  return (
+                    <button
+                      key={dia.id}
+                      type="button"
+                      onClick={() => toggleDia(dia.id)}
+                      className={`py-2 px-1 text-center rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30 scale-102 ring-2 ring-white"
+                          : "bg-white/10 text-white hover:bg-white/20 border border-white/15"
+                      }`}
+                      title={dia.nombre}
+                    >
+                      {dia.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Horario */}
+            <div className="pt-2 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-[11px] font-semibold text-blue-200 flex items-center gap-1 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-cyan-300" />
+                  <span>Horario de clase:</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={horaInicio}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setHoraInicio(val);
+                      if (!horario || horario.includes("a") || horario.includes("hs")) {
+                        const fin = horaFin ? ` a ${horaFin}` : "";
+                        setHorario(val ? `${val}${fin} hs` : "");
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-[#0B2E63] border border-[#2056A8] rounded-xl text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
+                  />
+                  <span className="text-blue-300 text-xs">a</span>
+                  <input
+                    type="time"
+                    value={horaFin}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setHoraFin(val);
+                      if (horaInicio) {
+                        setHorario(`${horaInicio} a ${val} hs`);
+                      }
+                    }}
+                    className="w-full px-2.5 py-1.5 bg-[#0B2E63] border border-[#2056A8] rounded-xl text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-blue-200 mb-1 block">
+                  Etiqueta de horario (ej: 17:30 hs):
+                </label>
+                <input
+                  type="text"
+                  value={horario}
+                  onChange={(e) => setHorario(e.target.value)}
+                  placeholder="Ej: 17:30 hs, 17:15 / 18:15 hs"
+                  className="w-full px-2.5 py-1.5 bg-[#0B2E63] border border-[#2056A8] rounded-xl text-white placeholder:text-blue-300/60 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-300"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-blue-100 uppercase tracking-wider">
-              Descripción (Opcional)
+              Notas u Observaciones (Opcional)
             </label>
             <input
               type="text"
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Ej: Turno tarde lunes y miércoles"
+              placeholder="Ej: Alumnos hasta cinto verde, traer protectores..."
               className="w-full px-3.5 py-2 bg-[#0B2E63] border border-[#2056A8] rounded-xl text-white placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-white text-xs font-medium transition-all"
             />
           </div>
