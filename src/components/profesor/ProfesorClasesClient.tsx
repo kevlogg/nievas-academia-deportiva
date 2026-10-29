@@ -770,36 +770,32 @@ export function ProfesorClasesClient({
                             return (
                               <div
                                 key={`${dia.dia}-${lista.id}`}
-                                className="p-2 bg-[#082552] border border-[#1E57A8] hover:border-cyan-400/70 rounded-xl space-y-1.5 transition-all shadow-xs group"
+                                className="p-2.5 bg-[#082552] border border-[#1E57A8] hover:border-cyan-400/70 rounded-xl space-y-2 transition-all shadow-xs group"
                               >
-                                {/* FILA 1 (Máx 1): Horario + Nombre de Clase + Total Alumnos */}
-                                <div className="flex items-center justify-between gap-1.5 min-w-0">
-                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                    <span className="px-1.5 py-0.5 rounded-md bg-cyan-950/90 border border-cyan-500/40 text-[10px] font-black text-cyan-300 shrink-0 font-mono">
-                                      {lista.horario ? lista.horario.replace(/\s*hs/i, "") + " hs" : "Clase"}
-                                    </span>
-                                    <h4 className="font-bold text-xs text-white truncate" title={lista.nombre}>
-                                      {lista.nombre}
-                                    </h4>
-                                  </div>
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-blue-200 shrink-0">
+                                {/* FILA 1: Nombre Completo de la Clase (lo más importante) + Total Alumnos */}
+                                <div className="flex items-start justify-between gap-1.5 min-w-0">
+                                  <h4 className="font-black text-xs text-white leading-snug flex-1" title={lista.nombre}>
+                                    {lista.nombre}
+                                  </h4>
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-bold text-blue-200 shrink-0 mt-0.5">
                                     <Users className="w-2.5 h-2.5 text-cyan-300" />
                                     <span>{lista.total_alumnos || lista.alumnos_ids.length}</span>
                                   </span>
                                 </div>
 
-                                {/* FILA 2 (Máx 2): Detalle/Sensei + Acciones Rápidas (Iniciar, Ver, Editar) */}
-                                <div className="flex items-center justify-between gap-1.5 min-w-0 pt-1 border-t border-white/5">
-                                  <span className="text-[10px] text-blue-200/75 truncate flex-1" title={lista.descripcion || (lista.profesores_nombres?.join(", "))}>
-                                    {lista.descripcion || (lista.profesores_nombres && lista.profesores_nombres.length > 0 ? `Sensei: ${lista.profesores_nombres.join(", ")}` : "Tatami")}
-                                  </span>
+                                {/* FILA 2: Horario de Clase + Acciones Rápidas (Iniciar, Ver, Editar) */}
+                                <div className="flex items-center justify-between gap-1.5 min-w-0 pt-1.5 border-t border-white/10">
+                                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-950/90 border border-cyan-500/40 text-[10px] font-black text-cyan-300 shrink-0 font-mono">
+                                    <Clock className="w-2.5 h-2.5 text-cyan-300" />
+                                    <span>{lista.horario ? lista.horario.replace(/\s*hs/i, "") + " hs" : "Clase"}</span>
+                                  </div>
 
                                   <div className="flex items-center gap-1 shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => handleIniciarClaseConLista(lista.id)}
                                       className="py-1 px-2 bg-cyan-400 hover:bg-cyan-300 active:scale-95 text-slate-950 text-[10px] font-black rounded-md shadow-xs flex items-center gap-1 transition-all cursor-pointer"
-                                      title="Iniciar clase con esta lista"
+                                      title="Iniciar clase directa con esta lista"
                                     >
                                       <Play className="w-2.5 h-2.5 fill-current" />
                                       <span>Iniciar</span>
@@ -809,10 +805,10 @@ export function ProfesorClasesClient({
                                       type="button"
                                       onClick={() => setListaParaVer(lista)}
                                       className="p-1 hover:bg-white/15 text-blue-300 hover:text-white rounded-md transition-colors cursor-pointer"
-                                      title="Ver alumnos integrantes"
+                                      title="Ver alumnos y detalles"
                                       aria-label="Ver alumnos"
                                     >
-                                      <Eye className="w-3 h-3 text-cyan-300" />
+                                      <Eye className="w-3.5 h-3.5 text-cyan-300" />
                                     </button>
 
                                     <button
@@ -822,7 +818,7 @@ export function ProfesorClasesClient({
                                       title="Editar lista"
                                       aria-label="Editar lista"
                                     >
-                                      <Edit2 className="w-3 h-3 text-blue-200" />
+                                      <Edit2 className="w-3.5 h-3.5 text-blue-200" />
                                     </button>
                                   </div>
                                 </div>
