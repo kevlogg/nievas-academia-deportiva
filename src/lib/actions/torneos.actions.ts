@@ -15,6 +15,7 @@ export interface CrearTorneoInput {
   fecha: string;
   lugar?: string | null;
   descripcion?: string | null;
+  categorias?: string[];
   participaciones: Array<{
     alumno_id: string;
     categoria?: string | null;

@@ -4559,6 +4559,68 @@ export async function dalReincorporarAlumno(alumnoId: string): Promise<{ success
 // ======================================================================================
 
 /**
+ * Helper para parsear categorías y metadatos de torneos
+ */
+export function parseTorneoMetadata(
+  rawDescripcion?: string | null,
+  participaciones?: Array<{ categoria?: string | null }>
+): { cleanedDescripcion: string | null; categorias: string[] } {
+  let cleaned = rawDescripcion ? rawDescripcion.trim() : null;
+  const catsSet = new Set<string>();
+
+  if (cleaned) {
+    const catMatch = cleaned.match(/\[CATEGORIAS:\s*([^\]]+)\]/i);
+    if (catMatch && catMatch[1]) {
+      catMatch[1]
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .forEach((c) => catsSet.add(c));
+      cleaned = cleaned.replace(catMatch[0], "").trim();
+    }
+  }
+
+  // Incluir categorías presentes en las participaciones
+  if (participaciones && participaciones.length > 0) {
+    for (const p of participaciones) {
+      if (p.categoria && p.categoria.trim()) {
+        catsSet.add(p.categoria.trim());
+      }
+    }
+  }
+
+  return {
+    cleanedDescripcion: cleaned && cleaned.length > 0 ? cleaned : null,
+    categorias: Array.from(catsSet),
+  };
+}
+
+/**
+ * Helper para serializar descripción y categorías de torneos
+ */
+export function serializeTorneoDescripcion(
+  descripcion?: string | null,
+  categorias?: string[]
+): string | null {
+  let baseDesc = descripcion ? descripcion.trim() : "";
+  baseDesc = baseDesc.replace(/\[CATEGORIAS:[^\]]*\]/gi, "").trim();
+
+  const tags: string[] = [];
+  if (categorias && categorias.length > 0) {
+    const cleanCats = Array.from(new Set(categorias.map((c) => c.trim()).filter(Boolean)));
+    if (cleanCats.length > 0) {
+      tags.push(`[CATEGORIAS:${cleanCats.join(",")}]`);
+    }
+  }
+
+  if (tags.length === 0) {
+    return baseDesc ? baseDesc : null;
+  }
+
+  return baseDesc ? `${baseDesc}\n${tags.join(" ")}`.trim() : tags.join(" ");
+}
+
+/**
  * Obtener todos los torneos registrados con sus competidores y premios
  */
 export async function dalGetTorneos(): Promise<Torneo[]> {
@@ -4583,16 +4645,8 @@ export async function dalGetTorneos(): Promise<Torneo[]> {
       .order("fecha", { ascending: false });
 
     if (!error && dbTorneos) {
-      return dbTorneos.map((t: any) => ({
-        id: t.id,
-        nombre: t.nombre,
-        fecha: t.fecha,
-        lugar: t.lugar,
-        descripcion: t.descripcion,
-        creado_por: t.creado_por,
-        creado_por_nombre: t.creado_por_nombre,
-        created_at: t.created_at,
-        participaciones: (t.participaciones || []).map((p: any) => ({
+      return dbTorneos.map((t: any) => {
+        const parts = (t.participaciones || []).map((p: any) => ({
           id: p.id,
           torneo_id: p.torneo_id,
           alumno_id: p.alumno_id,
@@ -4604,8 +4658,23 @@ export async function dalGetTorneos(): Promise<Torneo[]> {
           medalla: p.medalla as TipoMedalla,
           notas: p.notas,
           created_at: p.created_at,
-        })),
-      }));
+        }));
+
+        const meta = parseTorneoMetadata(t.descripcion, parts);
+
+        return {
+          id: t.id,
+          nombre: t.nombre,
+          fecha: t.fecha,
+          lugar: t.lugar,
+          descripcion: meta.cleanedDescripcion,
+          categorias: meta.categorias,
+          creado_por: t.creado_por,
+          creado_por_nombre: t.creado_por_nombre,
+          created_at: t.created_at,
+          participaciones: parts,
+        };
+      });
     }
   } catch (err) {
     console.warn("dalGetTorneos Supabase fallback to dbState:", err);
@@ -4624,8 +4693,12 @@ export async function dalGetTorneos(): Promise<Torneo[]> {
           alumno_subcategoria: al ? al.subcategoria_actual : p.alumno_subcategoria,
         };
       });
+
+    const meta = parseTorneoMetadata(t.descripcion, parts);
     return {
       ...t,
+      descripcion: meta.cleanedDescripcion,
+      categorias: meta.categorias.length > 0 ? meta.categorias : t.categorias || [],
       participaciones: parts,
     };
   });
@@ -4640,13 +4713,14 @@ export async function dalGetTorneoById(torneoId: string): Promise<Torneo | null>
 }
 
 /**
- * Crear un nuevo torneo con sus competidores y premios
+ * Crear un nuevo torneo con sus categorías, competidores y premios
  */
 export async function dalCrearTorneo(input: {
   nombre: string;
   fecha: string;
   lugar?: string | null;
   descripcion?: string | null;
+  categorias?: string[];
   participaciones: Array<{
     alumno_id: string;
     categoria?: string | null;
@@ -4658,6 +4732,7 @@ export async function dalCrearTorneo(input: {
   const admin = await requireAdmin();
 
   let createdTorneo: Torneo | null = null;
+  const serializedDesc = serializeTorneoDescripcion(input.descripcion, input.categorias);
 
   try {
     const supabase = await createServerSupabaseClient();
@@ -4667,7 +4742,7 @@ export async function dalCrearTorneo(input: {
         nombre: input.nombre.trim(),
         fecha: input.fecha,
         lugar: input.lugar?.trim() || null,
-        descripcion: input.descripcion?.trim() || null,
+        descripcion: serializedDesc,
         creado_por: admin.id,
         creado_por_nombre: admin.nombre_completo,
       })
@@ -4693,12 +4768,15 @@ export async function dalCrearTorneo(input: {
         insertedParts = pData || [];
       }
 
+      const meta = parseTorneoMetadata(newT.descripcion, insertedParts);
+
       createdTorneo = {
         id: newT.id,
         nombre: newT.nombre,
         fecha: newT.fecha,
         lugar: newT.lugar,
-        descripcion: newT.descripcion,
+        descripcion: meta.cleanedDescripcion,
+        categorias: meta.categorias.length > 0 ? meta.categorias : (input.categorias || []),
         creado_por: newT.creado_por,
         creado_por_nombre: newT.creado_por_nombre,
         created_at: newT.created_at,
@@ -4740,12 +4818,20 @@ export async function dalCrearTorneo(input: {
     };
   });
 
+  const resolvedCats = Array.from(
+    new Set([
+      ...(input.categorias || []),
+      ...input.participaciones.map((p) => p.categoria?.trim()).filter(Boolean) as string[],
+    ])
+  );
+
   const fallbackTorneo: Torneo = createdTorneo || {
     id: fallbackTorneoId,
     nombre: input.nombre.trim(),
     fecha: input.fecha,
     lugar: input.lugar?.trim() || null,
     descripcion: input.descripcion?.trim() || null,
+    categorias: resolvedCats,
     creado_por: admin.id,
     creado_por_nombre: admin.nombre_completo,
     participaciones: fallbackParts,
@@ -4768,6 +4854,7 @@ export async function dalActualizarTorneo(
     fecha: string;
     lugar?: string | null;
     descripcion?: string | null;
+    categorias?: string[];
     participaciones: Array<{
       alumno_id: string;
       categoria?: string | null;
@@ -4778,6 +4865,7 @@ export async function dalActualizarTorneo(
   }
 ): Promise<Torneo> {
   await requireAdmin();
+  const serializedDesc = serializeTorneoDescripcion(input.descripcion, input.categorias);
 
   try {
     const supabase = await createServerSupabaseClient();
@@ -4787,7 +4875,7 @@ export async function dalActualizarTorneo(
         nombre: input.nombre.trim(),
         fecha: input.fecha,
         lugar: input.lugar?.trim() || null,
-        descripcion: input.descripcion?.trim() || null,
+        descripcion: serializedDesc,
       })
       .eq("id", torneoId);
 
@@ -4829,6 +4917,13 @@ export async function dalActualizarTorneo(
     };
   });
 
+  const resolvedCats = Array.from(
+    new Set([
+      ...(input.categorias || []),
+      ...input.participaciones.map((p) => p.categoria?.trim()).filter(Boolean) as string[],
+    ])
+  );
+
   if (idx !== -1) {
     dbState.torneos[idx] = {
       ...dbState.torneos[idx],
@@ -4836,6 +4931,7 @@ export async function dalActualizarTorneo(
       fecha: input.fecha,
       lugar: input.lugar?.trim() || null,
       descripcion: input.descripcion?.trim() || null,
+      categorias: resolvedCats,
       participaciones: updatedParts,
     };
   }

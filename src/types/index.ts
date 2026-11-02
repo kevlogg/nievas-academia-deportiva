@@ -464,6 +464,7 @@ export interface Torneo {
   fecha: string;
   lugar?: string | null;
   descripcion?: string | null;
+  categorias?: string[];
   creado_por?: string | null;
   creado_por_nombre?: string | null;
   participaciones: TorneoParticipacion[];
