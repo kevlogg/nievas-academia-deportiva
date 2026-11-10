@@ -9,6 +9,11 @@ const MP_ACCESS_TOKEN =
   process.env.MP_ACCESS_TOKEN ||
   "APP_USR-6048028823134972-082614-9caa0aa0e151104c1769457fec0a3bfa-322263721";
 
+// Plan oficial de débito recurrente para Nievas Academia Deportiva ($55.000 / mes)
+// Al usar preapproval_plan_id, Mercado Pago no restringe el pago a un payer_email específico,
+// permitiendo que el cliente pague y asocie la tarjeta desde su cuenta personal de Mercado Pago en su app/teléfono.
+export const NIEVAS_PREAPPROVAL_PLAN_ID = "dda0583fc8e3464e9dff9a26976c7c77";
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -16,31 +21,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const payerEmail = (
-      body.email ||
-      user.email ||
-      "francisco.nievas@nievasacademia.com"
-    )
-      .trim()
-      .toLowerCase();
-
-    // Determinar la URL base de retorno (Mercado Pago requiere HTTPS en producción)
-    const hostHeader =
-      req.headers.get("x-forwarded-host") ||
-      req.headers.get("host") ||
-      "nievas-academia-deportiva.vercel.app";
-    const isLocal = hostHeader.includes("localhost") || hostHeader.includes("127.0.0.1");
-    const baseUrl = isLocal
-      ? "https://nievas-academia-deportiva.vercel.app"
-      : `https://${hostHeader}`;
-
-    // 1. Verificación previa de suscripciones activas
+    // 1. Verificación previa de suscripciones activas vinculadas a este plan
     try {
       const searchRes = await fetch(
-        `https://api.mercadopago.com/preapproval/search?payer_email=${encodeURIComponent(
-          payerEmail
-        )}`,
+        `https://api.mercadopago.com/preapproval/search?preapproval_plan_id=${NIEVAS_PREAPPROVAL_PLAN_ID}`,
         {
           headers: {
             Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
@@ -67,63 +51,26 @@ export async function POST(req: Request) {
         }
       }
     } catch (checkErr) {
-      console.warn("[Subscribe] Error verificando suscripciones previas:", checkErr);
+      console.warn("[Subscribe] Error verificando suscripciones previas del plan:", checkErr);
     }
 
-    // 2. Crear suscripción recurrente en Mercado Pago
-    const backUrl = `${baseUrl}/admin/dashboard?tab=plan&sub=success`;
-    const notificationUrl = `${baseUrl}/api/admin/billing/webhook`;
-
-    const subPayload = {
-      payer_email: payerEmail,
-      back_url: backUrl,
-      notification_url: notificationUrl,
-      reason: "Plan KevDev - Nievas Academia Deportiva",
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: 55000,
-        currency_id: "ARS",
-      },
-      external_reference: "nievas_plan_kevdev",
-      status: "pending",
-    };
-
-    const mpRes = await fetch("https://api.mercadopago.com/preapproval", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(subPayload),
-    });
-
-    const data = await mpRes.json();
-
-    if (!mpRes.ok) {
-      console.error("[Subscribe] Error creando preapproval en Mercado Pago:", data);
-      return NextResponse.json(
-        {
-          ok: false,
-          error: data.message || "Error al comunicarse con Mercado Pago",
-        },
-        { status: mpRes.status }
-      );
-    }
+    // 2. Retornar el punto de inicio del Plan Oficial de Mercado Pago
+    const initPoint = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${NIEVAS_PREAPPROVAL_PLAN_ID}`;
 
     return NextResponse.json({
       ok: true,
-      id: data.id,
-      init_point: data.init_point,
-      status: data.status,
-      next_payment_date: data.next_payment_date,
+      plan_id: NIEVAS_PREAPPROVAL_PLAN_ID,
+      init_point: initPoint,
+      status: "active",
+      frequency: 1,
+      frequency_type: "months",
+      amount: 55000,
     });
   } catch (err: any) {
-    console.error("[Subscribe] Error inesperado:", err);
+    console.error("[Subscribe] Error en endpoint subscribe:", err);
     return NextResponse.json(
-      { ok: false, error: err.message || "Error interno del servidor" },
+      { ok: false, error: err?.message || "Error al procesar suscripción" },
       { status: 500 }
     );
   }
 }
-

@@ -8,6 +8,8 @@ const MP_ACCESS_TOKEN =
   process.env.MP_ACCESS_TOKEN ||
   "APP_USR-6048028823134972-082614-9caa0aa0e151104c1769457fec0a3bfa-322263721";
 
+const NIEVAS_PREAPPROVAL_PLAN_ID = "dda0583fc8e3464e9dff9a26976c7c77";
+
 export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -24,59 +26,85 @@ export async function GET(req: Request) {
       .trim()
       .toLowerCase();
 
-    const searchUrl = `https://api.mercadopago.com/preapproval/search?payer_email=${encodeURIComponent(
-      email
-    )}`;
-
-    const mpRes = await fetch(searchUrl, {
-      headers: {
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
-        "Cache-Control": "no-cache",
-      },
-      cache: "no-store",
-    });
-
-    if (!mpRes.ok) {
-      console.warn("[SubscriptionStatus] Falló búsqueda en MP:", mpRes.status);
-      return NextResponse.json({
-        ok: true,
-        subscribed: false,
-        status: "error_querying_mp",
+    // 1. Buscar primero suscripciones activas asociadas al Plan de Nievas
+    try {
+      const planSearchUrl = `https://api.mercadopago.com/preapproval/search?preapproval_plan_id=${NIEVAS_PREAPPROVAL_PLAN_ID}`;
+      const planRes = await fetch(planSearchUrl, {
+        headers: {
+          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
       });
+
+      if (planRes.ok) {
+        const planData = await planRes.json();
+        const results = planData.results || [];
+        const activeSub = results.find((r: any) => r.status === "authorized");
+
+        if (activeSub) {
+          return NextResponse.json({
+            ok: true,
+            subscribed: true,
+            status: "authorized",
+            preapproval_id: activeSub.id,
+            next_payment_date: activeSub.next_payment_date || null,
+            amount: activeSub.auto_recurring?.transaction_amount || 55000,
+            date_created: activeSub.date_created || null,
+            payment_method_id: activeSub.payment_method_id || null,
+            payer_email: activeSub.payer_email || null,
+          });
+        }
+      }
+    } catch (planErr) {
+      console.warn("[SubscriptionStatus] Error buscando por plan:", planErr);
     }
 
-    const data = await mpRes.json();
-    const results = data.results || [];
-
-    const activeSub = results.find((r: any) => r.status === "authorized");
-
-    if (activeSub) {
-      return NextResponse.json({
-        ok: true,
-        subscribed: true,
-        status: "authorized",
-        preapproval_id: activeSub.id,
-        next_payment_date: activeSub.next_payment_date || null,
-        amount: activeSub.auto_recurring?.transaction_amount || 55000,
-        date_created: activeSub.date_created || null,
-        payment_method_id: activeSub.payment_method_id || null,
+    // 2. Buscar por email del pagador como fallback
+    try {
+      const emailSearchUrl = `https://api.mercadopago.com/preapproval/search?payer_email=${encodeURIComponent(
+        email
+      )}`;
+      const emailRes = await fetch(emailSearchUrl, {
+        headers: {
+          Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+          "Cache-Control": "no-cache",
+        },
+        cache: "no-store",
       });
-    }
 
-    const pendingSub = results.find((r: any) => r.status === "pending");
+      if (emailRes.ok) {
+        const emailData = await emailRes.json();
+        const results = emailData.results || [];
+        const activeSub = results.find((r: any) => r.status === "authorized");
+
+        if (activeSub) {
+          return NextResponse.json({
+            ok: true,
+            subscribed: true,
+            status: "authorized",
+            preapproval_id: activeSub.id,
+            next_payment_date: activeSub.next_payment_date || null,
+            amount: activeSub.auto_recurring?.transaction_amount || 55000,
+            date_created: activeSub.date_created || null,
+            payment_method_id: activeSub.payment_method_id || null,
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.warn("[SubscriptionStatus] Error buscando por email:", emailErr);
+    }
 
     return NextResponse.json({
       ok: true,
       subscribed: false,
-      status: pendingSub ? "pending" : "none",
-      pending_id: pendingSub?.id || null,
+      status: "none",
     });
   } catch (err: any) {
-    console.error("[SubscriptionStatus] Error:", err);
+    console.error("[SubscriptionStatus] Error general:", err);
     return NextResponse.json(
       { ok: false, error: err.message || "Error consultando estado de suscripción" },
       { status: 500 }
     );
   }
 }
-
