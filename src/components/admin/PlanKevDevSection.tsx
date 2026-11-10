@@ -47,6 +47,8 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subNextDate, setSubNextDate] = useState<string | null>(null);
   const [showSuccessBanner, setShowSuccessBanner] = useState(initialSubSuccess);
+  const [payerEmail, setPayerEmail] = useState("francisco.nievas@nievasacademia.com");
+  const [showEmailEdit, setShowEmailEdit] = useState(false);
 
   const planMonto = 55000;
   const fechaInicio = "10/11/2026";
@@ -101,7 +103,7 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: "francisco.nievas@nievasacademia.com",
+          email: payerEmail.trim(),
         }),
       });
 
@@ -129,8 +131,31 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
     );
   });
 
+  const getProximoDia10 = (alDia: boolean): string => {
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    const day = now.getDate();
+    if (!alDia && day <= 10) {
+      return `10/${String(month + 1).padStart(2, "0")}/${year}`;
+    }
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+    return `10/${String(month + 1).padStart(2, "0")}/${year}`;
+  };
+
+  const formattedSubDate = subNextDate
+    ? (() => {
+        const parts = subNextDate.split("-");
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : null;
+      })()
+    : null;
+
   const isAlDia = estadoPago === "AL_DIA" || hasFirstQuotaPaid;
-  const proximoVencimiento = isAlDia ? "10/12/2026" : "10/11/2026";
+  const proximoVencimiento = formattedSubDate || getProximoDia10(isAlDia);
   const saldoPendiente = isAlDia ? 0 : planMonto;
 
   const whatsappUrl = `https://wa.me/${whatsappKevDev}?text=${encodeURIComponent(
@@ -376,6 +401,34 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
                   <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
                     Aboná la cuota de este mes ($ {planMonto.toLocaleString("es-AR")}) asociando tu tarjeta de débito o crédito con Mercado Pago. A partir del próximo mes, tu servicio se debitará automáticamente cada día 10 para garantizar la continuidad ininterrumpida de tu servidor, tatami táctil y soporte.
                   </p>
+                  <div className="pt-1 flex items-center gap-2 text-xs text-blue-200">
+                    <span>Email titular MP: <strong className="text-white">{payerEmail}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailEdit(!showEmailEdit)}
+                      className="underline text-sky-300 hover:text-sky-200 font-bold text-[11px] cursor-pointer"
+                    >
+                      {showEmailEdit ? "cerrar" : "cambiar email"}
+                    </button>
+                  </div>
+                  {showEmailEdit && (
+                    <div className="pt-1 flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={payerEmail}
+                        onChange={(e) => setPayerEmail(e.target.value)}
+                        placeholder="tu-email-mercadopago@gmail.com"
+                        className="px-3 py-1.5 bg-slate-800 text-white rounded-lg border border-white/20 text-xs w-64 focus:outline-none focus:border-sky-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailEdit(false)}
+                        className="px-2.5 py-1.5 bg-sky-400 text-slate-950 font-bold rounded-lg text-xs cursor-pointer"
+                      >
+                        Listo
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Botón Principal Mercado Pago */}

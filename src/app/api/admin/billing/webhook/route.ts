@@ -11,12 +11,21 @@ const KEVDEV_PAYMENTS_SECRET =
   process.env.KEVDEV_PAYMENTS_SECRET || "kevdev_payments_sec_2026_key";
 const KEVDEV_API_URL = process.env.KEVDEV_API_URL || "https://www.kevdev.net.ar";
 
+export async function GET() {
+  return NextResponse.json({ ok: true, status: "alive" });
+}
+
 export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
     const body = await req.json().catch(() => ({}));
 
-    const eventType = body.type || body.action || url.searchParams.get("type") || "";
+    const eventType =
+      body.type ||
+      body.action ||
+      url.searchParams.get("type") ||
+      url.searchParams.get("topic") ||
+      "";
     const dataId =
       body?.data?.id ||
       body?.id ||
