@@ -100,6 +100,9 @@ export function getProfesoresForAlumno(alumnoId: string): { ids: string[]; nombr
     }
   }
 
+  // Excluir cuenta de desarrollador Kevin
+  profIdSet.delete("7a12f6b6-347a-490d-98cf-b7e573ffd951");
+
   const ids = Array.from(profIdSet);
   const nombres = ids.map((id) => {
     const prof = dbState.usuarios.find((u) => u.id === id);
@@ -2163,9 +2166,11 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
     // Directores o administradores que no dictan clases no figuran como docentes.
     const docentes = profesores.filter(
       (prof: any) =>
-        prof.rol === "PROFESOR" ||
-        clases.some((c: any) => c.profesor_id === prof.id) ||
-        sesiones.some((s: any) => s.profesor_id === prof.id)
+        prof.id !== "7a12f6b6-347a-490d-98cf-b7e573ffd951" &&
+        !(prof.email && prof.email.toLowerCase().includes("loggia")) &&
+        (prof.rol === "PROFESOR" ||
+          clases.some((c: any) => c.profesor_id === prof.id) ||
+          sesiones.some((s: any) => s.profesor_id === prof.id))
     );
 
     const desempenoProfesores = docentes.map((prof: any) => {
@@ -2318,6 +2323,8 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
   const docentes = dbState.usuarios.filter(
     (u) =>
       u.activo &&
+      u.id !== "7a12f6b6-347a-490d-98cf-b7e573ffd951" &&
+      !(u.email && u.email.toLowerCase().includes("loggia")) &&
       (u.rol === "PROFESOR" || dbState.clases.some((c) => c.profesor_id === u.id))
   );
   const historialBajasMem = await dalGetHistorialBajas();
@@ -3932,14 +3939,21 @@ export async function dalGetProfesores(): Promise<Usuario[]> {
 
     if (!error && dbUsuarios && dbUsuarios.length > 0) {
       return (dbUsuarios as Usuario[]).filter(
-        (u) => u.rol === "PROFESOR" || u.rol === "ADMIN"
+        (u) =>
+          u.id !== "7a12f6b6-347a-490d-98cf-b7e573ffd951" &&
+          !(u.email && u.email.toLowerCase().includes("loggia")) &&
+          (u.rol === "PROFESOR" || u.rol === "ADMIN")
       );
     }
   } catch (err) {
     console.error("Error in dalGetProfesores:", err);
   }
   return dbState.usuarios.filter(
-    (u) => u.activo && (u.rol === "PROFESOR" || u.rol === "ADMIN")
+    (u) =>
+      u.activo &&
+      u.id !== "7a12f6b6-347a-490d-98cf-b7e573ffd951" &&
+      !(u.email && u.email.toLowerCase().includes("loggia")) &&
+      (u.rol === "PROFESOR" || u.rol === "ADMIN")
   );
 }
 
