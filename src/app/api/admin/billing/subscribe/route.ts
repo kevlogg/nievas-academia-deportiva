@@ -78,7 +78,7 @@ export async function POST(req: Request) {
       payer_email: payerEmail,
       back_url: backUrl,
       notification_url: notificationUrl,
-      reason: "Plan KevDev - Soporte, Mantenimiento & Sistema Web (Nievas Academia Deportiva)",
+      reason: "Plan KevDev - Nievas Academia Deportiva",
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
