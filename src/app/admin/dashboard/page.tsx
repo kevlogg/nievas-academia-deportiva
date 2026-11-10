@@ -9,13 +9,18 @@ import { AdminDashboardClient } from "@/components/admin/AdminDashboardClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboardPage() {
+interface AdminDashboardPageProps {
+  searchParams?: Promise<{ tab?: string; sub?: string }>;
+}
+
+export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
   const currentUser = await requireAdmin();
 
-  const [metrics, clases, profesores] = await Promise.all([
+  const [metrics, clases, profesores, resolvedParams] = await Promise.all([
     dalGetAdminDashboardMetrics(),
     dalGetAdminClases(),
     dalGetProfesores(),
+    searchParams ? searchParams : Promise.resolve(undefined),
   ]);
 
   return (
@@ -24,6 +29,8 @@ export default async function AdminDashboardPage() {
       metrics={metrics}
       clases={clases}
       profesores={profesores}
+      initialTab={resolvedParams?.tab}
+      initialSubSuccess={resolvedParams?.sub === "success"}
     />
   );
 }

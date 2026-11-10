@@ -12,6 +12,7 @@ import {
 } from "@/types";
 import { ModalCrearClase } from "./ModalCrearClase";
 import { ModalGestionarPinProfesor } from "./ModalGestionarPinProfesor";
+import { PlanKevDevSection } from "./PlanKevDevSection";
 import { BeltBadge } from "@/components/ui/BeltBadge";
 import {
   marcarAlumnoContinuaAction,
@@ -43,6 +44,7 @@ import {
   Loader2,
   X,
   Archive,
+  CreditCard,
 } from "lucide-react";
 
 interface AdminDashboardClientProps {
@@ -50,6 +52,8 @@ interface AdminDashboardClientProps {
   metrics: AdminDashboardMetricsData;
   clases: Clase[];
   profesores: Usuario[];
+  initialTab?: string;
+  initialSubSuccess?: boolean;
 }
 
 export function AdminDashboardClient({
@@ -57,7 +61,12 @@ export function AdminDashboardClient({
   metrics,
   clases,
   profesores,
+  initialTab,
+  initialSubSuccess = false,
 }: AdminDashboardClientProps) {
+  const [activeTab, setActiveTab] = useState<"gestion" | "plan">(
+    initialTab === "plan" ? "plan" : "gestion"
+  );
   const [isCrearClaseOpen, setIsCrearClaseOpen] = useState(false);
   const [profesorParaPin, setProfesorParaPin] = useState<Usuario | null>(null);
 
@@ -198,20 +207,68 @@ export function AdminDashboardClient({
             title="Activar Modo Terminal en la tablet fija del dojo"
           >
             <Tablet className="w-4 h-4 text-slate-950" />
-            <span>Fijar Modo Tablet</span>
+            <span className="hidden sm:inline">Fijar Modo Tablet</span>
+            <span className="sm:hidden">Tablet</span>
           </Link>
+
+          <button
+            onClick={() => setActiveTab(activeTab === "plan" ? "gestion" : "plan")}
+            className={`px-3.5 py-2 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-all active:scale-95 shrink-0 ${
+              activeTab === "plan"
+                ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                : "bg-white/10 hover:bg-white/20 text-white border border-white/20"
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Plan KevDev</span>
+          </button>
 
           <button
             onClick={() => setIsCrearClaseOpen(true)}
             className="px-3.5 py-2 bg-white hover:bg-blue-50 text-[#0F3E86] font-extrabold text-xs rounded-xl shadow-sm flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 shrink-0"
           >
             <Plus className="w-4 h-4 text-[#0F3E86]" />
-            <span>Nueva Clase</span>
+            <span className="hidden sm:inline">Nueva Clase</span>
+            <span className="sm:hidden">Clase</span>
           </button>
         </div>
       </div>
 
-      {/* Resumen Directivo del Dojo - Cards Azules #0F3E86 */}
+      {/* Selector de Sub-Pestañas en Dirección */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl w-fit border border-slate-300/80">
+        <button
+          onClick={() => setActiveTab("gestion")}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "gestion"
+              ? "bg-[#0F3E86] text-white shadow-md shadow-blue-950/20"
+              : "text-slate-700 hover:text-slate-900 hover:bg-white/60"
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>Gestión del Dojo</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("plan")}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === "plan"
+              ? "bg-[#0F3E86] text-white shadow-md shadow-blue-950/20"
+              : "text-slate-700 hover:text-slate-900 hover:bg-white/60"
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Plan KevDev</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+            $ 55.000
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "plan" ? (
+        <PlanKevDevSection initialSubSuccess={initialSubSuccess} />
+      ) : (
+        <>
+          {/* Resumen Directivo del Dojo - Cards Azules #0F3E86 */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <div className="p-4 bg-[#0F3E86] text-white border-2 border-rose-400 rounded-2xl shadow-xl shadow-blue-950/15 space-y-1">
           <div className="flex items-center justify-between text-rose-300 text-xs font-bold">
@@ -940,6 +997,8 @@ export function AdminDashboardClient({
           ))}
         </div>
       </section>
+      </>
+      )}
 
       {/* Modal para Crear Nueva Clase */}
       <ModalCrearClase
