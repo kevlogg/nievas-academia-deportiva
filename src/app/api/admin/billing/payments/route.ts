@@ -25,7 +25,7 @@ const FALLBACK_DATA = {
       date: "2026-11-10",
       amount: 55000,
       concept: "Cuota Mensual",
-      medioPago: "Transferencia",
+      medioPago: "Mercado Pago",
       metodo: "pasarela",
       referencia: "",
       confirmed: false,
@@ -138,3 +138,4 @@ export async function DELETE(request: Request) {
     );
   }
 }
+

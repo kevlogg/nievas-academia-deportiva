@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  Copy,
   Check,
   ChevronDown,
   RefreshCw,
@@ -42,7 +41,6 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
   const [estadoPago, setEstadoPago] = useState<string>("PENDIENTE");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [copiedAlias, setCopiedAlias] = useState(false);
   const [conditionsOpen, setConditionsOpen] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
@@ -52,8 +50,6 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
 
   const planMonto = 55000;
   const fechaInicio = "10/11/2026";
-  const aliasKevDev = process.env.NEXT_PUBLIC_KEVDEV_ALIAS || "kevin.loggia.mp";
-  const titularKevDev = process.env.NEXT_PUBLIC_KEVDEV_TITULAR || "Kevin Loggia (KevDev)";
   const whatsappKevDev = process.env.NEXT_PUBLIC_KEVDEV_WHATSAPP || "5492235851419";
 
   const loadData = useCallback(async () => {
@@ -97,12 +93,6 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
     loadData();
   }, [loadData]);
 
-  const handleCopyAlias = () => {
-    navigator.clipboard.writeText(aliasKevDev);
-    setCopiedAlias(true);
-    setTimeout(() => setCopiedAlias(false), 2500);
-  };
-
   const handleSubscribeMP = async () => {
     setSubscribing(true);
     setSubscribeError(null);
@@ -144,9 +134,7 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
   const saldoPendiente = isAlDia ? 0 : planMonto;
 
   const whatsappUrl = `https://wa.me/${whatsappKevDev}?text=${encodeURIComponent(
-    `Hola Kevin! Te paso el comprobante de pago de la cuota de Nievas Academia Deportiva ($ ${planMonto.toLocaleString(
-      "es-AR"
-    )}).`
+    "Hola Kevin! Te contacto desde el panel de Dirección de Nievas Academia Deportiva por una consulta técnica o del servicio."
   )}`;
 
   return (
@@ -331,101 +319,112 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
           </div>
         </div>
 
-        {/* CAJA DE FORMAS DE PAGO (MERCADO PAGO + TRANSFERENCIA + WSP) */}
+        {/* CAJA DE PAGO Y DÉBITO AUTOMÁTICO (MERCADO PAGO) */}
         <div className="p-4 sm:p-5 bg-gradient-to-br from-slate-900 to-[#0F3E86] text-white rounded-2xl space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1 max-w-xl">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">💳</span>
-                <h3 className="text-sm sm:text-base font-black text-white">
-                  Pagar Cuota Mensual ($ {planMonto.toLocaleString("es-AR")})
-                </h3>
-              </div>
-              <p className="text-xs text-blue-100/90 leading-relaxed">
-                Podés abonar con tarjeta de débito o crédito asociándote a débito automático con Mercado Pago, o realizar una transferencia bancaria directa.
-              </p>
-            </div>
+          {isSubscribed ? (
+            /* Estado: Débito Automático Activo */
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 text-xl font-bold shrink-0">
+                    ✓
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-base text-white">
+                        Débito Automático Activo
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        EN REGLA
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-100/90 mt-0.5">
+                      Tu tarjeta está asociada con Mercado Pago. Los cobros de $ {planMonto.toLocaleString("es-AR")} se debitan automáticamente los días 10 de cada mes.
+                    </p>
+                  </div>
+                </div>
 
-            {/* Botón Principal Mercado Pago */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
-              <button
-                onClick={handleSubscribeMP}
-                disabled={subscribing}
-                className="px-4 py-2.5 bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60"
-              >
-                <CreditCard className="w-4 h-4 text-slate-950" />
-                <span>
-                  {subscribing
-                    ? "Generando enlace..."
-                    : `Pagar $ ${planMonto.toLocaleString("es-AR")} con Mercado Pago`}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {subscribeError && (
-            <p className="text-xs text-rose-300 bg-rose-950/60 p-2.5 rounded-xl border border-rose-500/50">
-              ⚠️ {subscribeError}
-            </p>
-          )}
-
-          {/* Opciones de Transferencia y WhatsApp */}
-          <div className="pt-3 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            {/* Opción Transferencia */}
-            <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1.5">
-              <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wide block">
-                Transferencia Bancaria
-              </span>
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <span className="text-slate-300">Alias: </span>
-                  <span className="font-mono font-bold text-white text-sm">
-                    {aliasKevDev}
+                <div className="shrink-0">
+                  <span className="inline-block px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-amber-300 text-xs font-bold">
+                    Próximo débito: {subNextDate || proximoVencimiento}
                   </span>
                 </div>
-                <button
-                  onClick={handleCopyAlias}
-                  className="px-2.5 py-1 bg-white/15 hover:bg-white/25 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
-                >
-                  {copiedAlias ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-300">Copiado</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copiar</span>
-                    </>
-                  )}
-                </button>
               </div>
-              <p className="text-[11px] text-blue-200">
-                Titular: <span className="font-semibold text-white">{titularKevDev}</span>
-              </p>
-            </div>
 
-            {/* Opción Enviar Comprobante por WhatsApp */}
-            <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-between gap-2">
-              <div className="space-y-0.5">
-                <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide block">
-                  Aviso Inmediato
+              <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-200">
+                <span className="flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Débito automático mensual activo a través de Mercado Pago</span>
                 </span>
-                <p className="text-[11px] text-blue-100">
-                  ¿Hiciste una transferencia? Enviale el comprobante a Kevin para acreditarlo en segundos.
-                </p>
+                <span className="text-emerald-300 font-bold flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Servicio protegido y al día con KevDev</span>
+                </span>
               </div>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 text-xs transition-transform active:scale-95"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                <span>Enviar comprobante por WhatsApp</span>
-              </a>
             </div>
-          </div>
+          ) : (
+            /* Estado: Pagar Cuota y Adherir al Débito Automático */
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚡</span>
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      Pagar Plan y Adherir al Débito Automático
+                    </h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+                    Aboná la cuota de este mes ($ {planMonto.toLocaleString("es-AR")}) asociando tu tarjeta de débito o crédito con Mercado Pago. A partir del próximo mes, tu servicio se debitará automáticamente cada día 10 para garantizar la continuidad ininterrumpida de tu servidor, tatami táctil y soporte.
+                  </p>
+                </div>
+
+                {/* Botón Principal Mercado Pago */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleSubscribeMP}
+                    disabled={subscribing}
+                    className="px-5 py-3 bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-60"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-950" />
+                    <span>
+                      {subscribing
+                        ? "Conectando con Mercado Pago..."
+                        : `Pagar $ ${planMonto.toLocaleString("es-AR")} con Mercado Pago`}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {subscribeError && (
+                <p className="text-xs text-rose-300 bg-rose-950/60 p-2.5 rounded-xl border border-rose-500/50">
+                  ⚠️ {subscribeError}
+                </p>
+              )}
+
+              {/* Badges oficiales de Mercado Pago y canal de soporte técnico */}
+              <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-blue-200">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1 text-white font-medium">
+                    🔒 Procesado 100% oficial por Mercado Pago
+                  </span>
+                  <span>•</span>
+                  <span>💳 Débito o Crédito (Visa, Mastercard, etc.)</span>
+                  <span>•</span>
+                  <span>🔄 Débito recurrente los días 10 de cada mes</span>
+                </div>
+
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-300 hover:text-white underline font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Soporte técnico con Kevin</span>
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -496,7 +495,7 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
                         {p.concept || "Cuota Mensual"}
                       </td>
                       <td className="py-3 px-3 text-slate-600">
-                        {p.medioPago || "Transferencia"}
+                        {p.medioPago || "Mercado Pago"}
                       </td>
                       <td className="py-3 px-3 font-black text-[#0F3E86] text-sm">
                         $ {Number(p.amount || 0).toLocaleString("es-AR")}
@@ -559,7 +558,7 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
                         {p.concept || "Cuota Mensual"}
                       </h4>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        📅 {formattedDate} • {p.medioPago || "Transferencia"}
+                        📅 {formattedDate} • {p.medioPago || "Mercado Pago"}
                       </p>
                     </div>
                     <span className="font-black text-[#0F3E86] text-sm">
@@ -691,3 +690,4 @@ export function PlanKevDevSection({ initialSubSuccess = false }: PlanKevDevSecti
     </div>
   );
 }
+
