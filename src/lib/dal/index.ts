@@ -43,6 +43,36 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getArgentinaDateTime } from "@/lib/utils";
 
+/**
+ * Helper para paginar y traer el 100% de los registros de Supabase
+ * superando el límite por defecto de 1.000 filas (max_rows) de PostgREST.
+ */
+async function fetchAllSupabaseRows<T = any>(
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: any }>
+): Promise<T[]> {
+  const pageSize = 1000;
+  let allData: T[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const res = await fetchPage(from, from + pageSize - 1);
+    const data = res.data;
+    const error = res.error;
+    if (error || !data || data.length === 0) {
+      break;
+    }
+    allData = allData.concat(data as T[]);
+    if (data.length < pageSize) {
+      hasMore = false;
+    } else {
+      from += pageSize;
+    }
+  }
+
+  return allData;
+}
+
 // ======================================================================================
 // ALMACÉN DE DATOS SEMILLA EN MEMORIA (FALLBACK SEED STORE)
 // Garantiza resiliencia 100% ante desconexiones, demo offline y pruebas inmediatas
@@ -1495,14 +1525,16 @@ export async function dalGetProfesorMetricasCompletas(
 
     const sesionesIds = new Set(sesionesFiltradas.map((s: any) => s.id));
 
-    // Asistencias de esas sesiones
+    // Asistencias de esas sesiones (paginado 100% completo)
     let dbAsistencias: any[] = [];
     if (sesionesIds.size > 0) {
-      const { data: asistData } = await supabase
-        .from("asistencias")
-        .select("*")
-        .in("sesion_id", Array.from(sesionesIds));
-      dbAsistencias = asistData || [];
+      dbAsistencias = await fetchAllSupabaseRows((from, to) =>
+        supabase
+          .from("asistencias")
+          .select("*")
+          .in("sesion_id", Array.from(sesionesIds))
+          .range(from, to)
+      );
     }
 
     const asistenciasPorSesion = new Map<string, any[]>();
@@ -1527,15 +1559,17 @@ export async function dalGetProfesorMetricasCompletas(
       };
     });
 
-    // Inscripciones del profesor
+    // Inscripciones del profesor (paginado 100% completo)
     let dbInscripciones: any[] = [];
     if (clasesIds.size > 0) {
-      const { data: inscData } = await supabase
-        .from("inscripciones")
-        .select("*")
-        .in("clase_id", Array.from(clasesIds))
-        .eq("activo", true);
-      dbInscripciones = inscData || [];
+      dbInscripciones = await fetchAllSupabaseRows((from, to) =>
+        supabase
+          .from("inscripciones")
+          .select("*")
+          .in("clase_id", Array.from(clasesIds))
+          .eq("activo", true)
+          .range(from, to)
+      );
     }
 
     const alumnoIdToClases = new Map<string, string[]>();
@@ -1575,14 +1609,16 @@ export async function dalGetProfesorMetricasCompletas(
       dbGraduaciones = gradData || [];
     }
 
-    // Todas las asistencias históricas del alumno para cálculo exacto de clases en cinto
+    // Todas las asistencias históricas del alumno para cálculo exacto de clases en cinto (paginado 100% completo)
     let dbTodasAsistencias: any[] = [];
     if (alumnosIdsList.length > 0) {
-      const { data: allAsist } = await supabase
-        .from("asistencias")
-        .select("alumno_id, estado, marcado_en, created_at")
-        .in("alumno_id", alumnosIdsList);
-      dbTodasAsistencias = allAsist || [];
+      dbTodasAsistencias = await fetchAllSupabaseRows((from, to) =>
+        supabase
+          .from("asistencias")
+          .select("alumno_id, estado, marcado_en, created_at")
+          .in("alumno_id", alumnosIdsList)
+          .range(from, to)
+      );
     }
 
     const asistenciasPorAlumno = new Map<string, any[]>();
@@ -1830,14 +1866,12 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
     const todasSesiones = dbSesiones || [];
     const sesionesIds = new Set(todasSesiones.map((s: any) => s.id));
 
-    // Todas las asistencias
-    let dbAsistencias: any[] = [];
-    if (sesionesIds.size > 0) {
-      const { data: asistData } = await supabase
-        .from("asistencias")
-        .select("*");
-      dbAsistencias = asistData || [];
-    }
+    // Todas las asistencias (paginado 100% completo, sin truncar a 1.000)
+    const dbAsistencias = sesionesIds.size > 0
+      ? await fetchAllSupabaseRows((from, to) =>
+          supabase.from("asistencias").select("*").range(from, to)
+        )
+      : [];
 
     const asistenciasPorSesion = new Map<string, any[]>();
     for (const a of dbAsistencias) {
@@ -1861,14 +1895,13 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
       };
     });
 
-    // Todas las inscripciones activas
-    const { data: dbInscripciones } = await supabase
-      .from("inscripciones")
-      .select("*")
-      .eq("activo", true);
+    // Todas las inscripciones activas (paginado 100% completo)
+    const dbInscripciones = await fetchAllSupabaseRows((from, to) =>
+      supabase.from("inscripciones").select("*").eq("activo", true).range(from, to)
+    );
 
     const alumnoIdToClases = new Map<string, string[]>();
-    for (const ins of (dbInscripciones || [])) {
+    for (const ins of dbInscripciones) {
       const nombreClase = clasesNombresMap.get(ins.clase_id);
       const existing = alumnoIdToClases.get(ins.alumno_id) || [];
       if (nombreClase && !existing.includes(nombreClase)) {
@@ -1877,12 +1910,10 @@ export async function dalGetDojoMetricasCompletas(): Promise<ProfesorMetricasCom
       alumnoIdToClases.set(ins.alumno_id, existing);
     }
 
-    // Todos los alumnos
-    const { data: dbAlumnos } = await supabase
-      .from("alumnos")
-      .select("*");
-
-    const todosAlumnos = dbAlumnos || [];
+    // Todos los alumnos (paginado 100% completo)
+    const todosAlumnos = await fetchAllSupabaseRows((from, to) =>
+      supabase.from("alumnos").select("*").range(from, to)
+    );
 
     // Graduaciones para clasesEnCinturonActual
     const { data: dbGraduaciones } = await supabase
@@ -2139,10 +2170,10 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
 
     const totalClasesDictadas = dbSesionesFinalizadas?.length || 0;
 
-    // 4. Todas las asistencias registradas
-    const { data: dbAsistencias } = await supabase
-      .from("asistencias")
-      .select("*");
+    // 4. Todas las asistencias registradas (paginado 100% completo, sin truncar a 1.000)
+    const dbAsistencias = await fetchAllSupabaseRows((from, to) =>
+      supabase.from("asistencias").select("*").range(from, to)
+    );
 
     // 5. Clases activas
     const { data: dbClases } = await supabase
@@ -2150,11 +2181,10 @@ export async function dalGetAdminDashboardMetrics(): Promise<AdminDashboardMetri
       .select("*")
       .eq("activa", true);
 
-    // 6. Inscripciones activas
-    const { data: dbInscripciones } = await supabase
-      .from("inscripciones")
-      .select("*")
-      .eq("activo", true);
+    // 6. Inscripciones activas (paginado 100% completo)
+    const dbInscripciones = await fetchAllSupabaseRows((from, to) =>
+      supabase.from("inscripciones").select("*").eq("activo", true).range(from, to)
+    );
 
     const profesores = dbProfesores || dbState.usuarios.filter((u) => u.activo);
     const sesiones = dbSesionesFinalizadas || [];
@@ -2373,10 +2403,13 @@ export async function dalGetAdminAlumnos(
 
     const { data: alumnos, error } = await query;
     if (!error && alumnos && alumnos.length > 0) {
-      // Traer todas las asistencias para computar métricas rápidas de los alumnos
-      const { data: allAsistencias } = await supabase
-        .from("asistencias")
-        .select("alumno_id, estado, marcado_en");
+      // Traer todas las asistencias para computar métricas rápidas de los alumnos (paginado 100% completo)
+      const allAsistencias = await fetchAllSupabaseRows((from, to) =>
+        supabase
+          .from("asistencias")
+          .select("alumno_id, estado, marcado_en")
+          .range(from, to)
+      );
 
       const asistenciasMap = new Map<string, { presentes: number; tardes: number; ausentes: number; total: number }>();
       for (const asis of allAsistencias || []) {
