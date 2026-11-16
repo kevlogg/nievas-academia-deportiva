@@ -25,6 +25,8 @@ import {
   FolderPlus,
   Pencil,
   Sparkles,
+  Check,
+  Filter,
 } from "lucide-react";
 import { Torneo, Alumno, TipoMedalla, Usuario, KarateBelt } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -33,6 +35,10 @@ import {
   actualizarTorneoAction,
   eliminarTorneoAction,
 } from "@/lib/actions/torneos.actions";
+import {
+  CATEGORIAS_OFICIALES_TORNEO,
+  CategoriaOficialTorneo,
+} from "@/lib/constants/torneoCategorias";
 
 interface AdminTorneosClientProps {
   currentUser: Usuario;
@@ -51,17 +57,6 @@ interface CompetidorDraft {
   medalla: TipoMedalla;
   notas: string;
 }
-
-const CATEGORIAS_SUGERIDAS = [
-  "Kata Infantiles",
-  "Kata Juveniles",
-  "Kata Mayores",
-  "Kumite Sub-12",
-  "Kumite Sub-14",
-  "Kumite Sub-17",
-  "Kumite Mayores",
-  "Open",
-];
 
 export function AdminTorneosClient({
   currentUser,
@@ -90,6 +85,15 @@ export function AdminTorneosClient({
   const catInputRef = useRef<HTMLInputElement>(null);
   const [editingCatIndex, setEditingCatIndex] = useState<number | null>(null);
   const [editingCatValue, setEditingCatValue] = useState("");
+
+  // Estados del catálogo interactivo de 211 categorías oficiales
+  const [catSearchQuery, setCatSearchQuery] = useState("");
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("TODOS");
+  const [selectedDisciplinaFilter, setSelectedDisciplinaFilter] = useState<
+    "TODAS" | "KATA" | "KUMITE" | "PARA-KARATE"
+  >("TODAS");
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [showManualCategoryInput, setShowManualCategoryInput] = useState(false);
 
   // Competidores asignados a categorías
   const [competidores, setCompetidores] = useState<CompetidorDraft[]>([]);
@@ -122,6 +126,11 @@ export function AdminTorneosClient({
     setActiveCatTab("");
     setNewCatInput("");
     setCatError(null);
+    setCatSearchQuery("");
+    setSelectedGroupFilter("TODOS");
+    setSelectedDisciplinaFilter("TODAS");
+    setShowOnlySelected(false);
+    setShowManualCategoryInput(false);
     setEditingCatIndex(null);
     setCompetidores([]);
     setAlumnoSearch("");
@@ -153,6 +162,11 @@ export function AdminTorneosClient({
     setActiveCatTab(parsedCats[0] || "");
     setNewCatInput("");
     setCatError(null);
+    setCatSearchQuery("");
+    setSelectedGroupFilter("TODOS");
+    setSelectedDisciplinaFilter("TODAS");
+    setShowOnlySelected(false);
+    setShowManualCategoryInput(false);
     setEditingCatIndex(null);
 
     setCompetidores(
@@ -178,12 +192,110 @@ export function AdminTorneosClient({
   };
 
   // -------------------------------------------------------------
-  // Gestión de Categorías en el Modal
+  // Filtrado y Selección de las 145 Categorías Oficiales
+  // -------------------------------------------------------------
+  const filteredCategoriasOficiales = useMemo(() => {
+    const q = catSearchQuery.toLowerCase().trim();
+
+    return CATEGORIAS_OFICIALES_TORNEO.filter((cat) => {
+      // Filtro de solo seleccionadas
+      if (showOnlySelected && !categorias.includes(cat.nombre)) {
+        return false;
+      }
+
+      // Filtro por disciplina
+      if (selectedDisciplinaFilter !== "TODAS" && cat.disciplina !== selectedDisciplinaFilter) {
+        return false;
+      }
+
+      // Filtro por grupo
+      if (selectedGroupFilter !== "TODOS" && cat.grupo !== selectedGroupFilter) {
+        return false;
+      }
+
+      // Filtro por búsqueda de texto
+      if (q) {
+        const matchCode = cat.codigo.toLowerCase().includes(q);
+        const matchName = cat.nombre.toLowerCase().includes(q);
+        const matchGroup = cat.grupo.toLowerCase().includes(q);
+        const matchDisc = cat.disciplina.toLowerCase().includes(q);
+        const matchGen = cat.genero.toLowerCase().includes(q);
+        return matchCode || matchName || matchGroup || matchDisc || matchGen;
+      }
+
+      return true;
+    });
+  }, [catSearchQuery, selectedDisciplinaFilter, selectedGroupFilter, showOnlySelected, categorias]);
+
+  const handleToggleCategoria = (catNombre: string) => {
+    if (categorias.includes(catNombre)) {
+      const count = competidores.filter((c) => c.categoria === catNombre).length;
+      if (
+        count > 0 &&
+        !confirm(
+          `La categoría "${catNombre}" tiene ${count} alumno(s) asignado(s). Si la quitas, se removerán esas inscripciones. ¿Deseas continuar?`
+        )
+      ) {
+        return;
+      }
+
+      const updated = categorias.filter((c) => c !== catNombre);
+      setCategorias(updated);
+      setCompetidores((prev) => prev.filter((c) => c.categoria !== catNombre));
+      if (activeCatTab === catNombre) {
+        setActiveCatTab(updated[0] || "");
+      }
+    } else {
+      const updated = [...categorias, catNombre];
+      setCategorias(updated);
+      if (!activeCatTab) {
+        setActiveCatTab(catNombre);
+      }
+    }
+    setCatError(null);
+  };
+
+  const handleSelectAllFiltered = () => {
+    const toAdd = filteredCategoriasOficiales
+      .map((c) => c.nombre)
+      .filter((nombre) => !categorias.includes(nombre));
+    if (toAdd.length === 0) return;
+    const updated = [...categorias, ...toAdd];
+    setCategorias(updated);
+    if (!activeCatTab) {
+      setActiveCatTab(updated[0] || "");
+    }
+    setCatError(null);
+  };
+
+  const handleDeselectAllFiltered = () => {
+    const toRemove = new Set(filteredCategoriasOficiales.map((c) => c.nombre));
+    const enrolledInFiltered = competidores.filter((c) => toRemove.has(c.categoria)).length;
+    if (
+      enrolledInFiltered > 0 &&
+      !confirm(
+        `Hay ${enrolledInFiltered} inscripción(es) en las categorías visibles. ¿Deseas deseleccionarlas y remover sus alumnos?`
+      )
+    ) {
+      return;
+    }
+
+    const updated = categorias.filter((c) => !toRemove.has(c));
+    setCategorias(updated);
+    setCompetidores((prev) => prev.filter((c) => !toRemove.has(c.categoria)));
+    if (toRemove.has(activeCatTab)) {
+      setActiveCatTab(updated[0] || "");
+    }
+    setCatError(null);
+  };
+
+  // -------------------------------------------------------------
+  // Gestión de Categorías Manuales / Renombrar
   // -------------------------------------------------------------
   const handleAddCategoriaWithName = (catName: string) => {
     const trimmed = catName.trim();
     if (!trimmed) {
-      setCatError("Debés escribir el nombre de la categoría (ej: Sub-12, Kata, Kumite) antes de crearla.");
+      setCatError("Debés escribir el nombre de la categoría antes de crearla.");
       catInputRef.current?.focus();
       return;
     }
@@ -198,7 +310,9 @@ export function AdminTorneosClient({
 
     const updated = [...categorias, trimmed];
     setCategorias(updated);
-    setActiveCatTab(trimmed);
+    if (!activeCatTab) {
+      setActiveCatTab(trimmed);
+    }
     setNewCatInput("");
     setCatError(null);
     setErrorMsg(null);
@@ -209,15 +323,7 @@ export function AdminTorneosClient({
   };
 
   const handleRemoveCategoria = (catName: string) => {
-    const updated = categorias.filter((c) => c !== catName);
-    setCategorias(updated);
-    // Quitar también los competidores anotados en esa categoría
-    setCompetidores((prev) => prev.filter((c) => c.categoria !== catName));
-
-    if (activeCatTab === catName) {
-      setActiveCatTab(updated[0] || "");
-    }
-    setCatError(null);
+    handleToggleCategoria(catName);
   };
 
   const handleStartRenameCat = (index: number) => {
@@ -1031,132 +1137,387 @@ export function AdminTorneosClient({
                 </div>
               </div>
 
-              {/* 2. SECCIÓN CATEGORÍAS DEL TORNEO */}
+              {/* 2. SECCIÓN CATEGORÍAS DEL TORNEO (CATÁLOGO OFICIAL 145) */}
               <div className="pt-4 border-t border-white/15 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="text-xs font-black uppercase text-amber-300 tracking-wider flex items-center gap-2">
                       <Layers className="w-4 h-4" />
-                      <span>2. Categorías del Torneo ({categorias.length})</span>
+                      <span>2. Categorías del Torneo ({categorias.length} seleccionadas)</span>
                     </h4>
                     <p className="text-[11px] text-blue-200">
-                      Creá las categorías que tiene este torneo (ej: Sub-12, Sub-14, Kata Mayores) para luego cargar los alumnos en cada una.
+                      Seleccioná del catálogo oficial (C01 a C145) cuáles categorías participarán de este torneo.
                     </p>
                   </div>
-                </div>
-
-                {/* Barra para crear nueva categoría libre */}
-                <div className="p-3.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-xs font-bold text-blue-100 flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Nombre de la Categoría *</span>
-                    </label>
-                    <span className="text-[11px] text-blue-300 hidden sm:inline">
-                      Escribí el nombre y hacé clic en &quot;+ Crear Categoría&quot; (o presioná Enter)
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black shadow-xs">
+                      {categorias.length} {categorias.length === 1 ? "categoría activa" : "categorías activas"}
                     </span>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        ref={catInputRef}
-                        type="text"
-                        value={newCatInput}
-                        onChange={(e) => {
-                          setNewCatInput(e.target.value);
-                          if (catError) setCatError(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddCategoria();
-                          }
-                        }}
-                        placeholder="Escribí el nombre de la categoría (ej: Sub-12, Sub-14 Kumite, Kata Infantiles)..."
-                        className={`w-full px-3.5 py-2.5 bg-[#0F3E86] border rounded-xl text-white text-xs font-semibold focus:outline-none transition-all placeholder-blue-300/70 ${
-                          catError
-                            ? "border-amber-400 ring-2 ring-amber-400/40 bg-[#0F3E86]"
-                            : "border-[#2056A8] focus:border-amber-400"
-                        }`}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAddCategoria}
-                      className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-md"
-                    >
-                      <FolderPlus className="w-4 h-4" />
-                      <span>+ Crear Categoría</span>
-                    </button>
-                  </div>
-
-                  {/* Mensaje de ayuda / error si intenta crear categoría sin nombre o duplicada */}
-                  {catError && (
-                    <div className="p-2.5 bg-amber-500/20 border border-amber-400/50 rounded-xl text-amber-200 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
-                      <span className="font-semibold">{catError}</span>
-                    </div>
-                  )}
-
-                  {/* Sugerencias rápidas de 1 clic */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                    <span className="text-[11px] text-blue-300 font-bold flex items-center gap-1 shrink-0">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      Sugerencias rápidas:
-                    </span>
-                    {CATEGORIAS_SUGERIDAS.filter(
-                      (sug) => !categorias.some((c) => c.toLowerCase() === sug.toLowerCase())
-                    )
-                      .slice(0, 6)
-                      .map((sug) => (
-                        <button
-                          key={sug}
-                          type="button"
-                          onClick={() => handleAddCategoriaWithName(sug)}
-                          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-amber-400 hover:text-slate-950 text-blue-200 border border-white/10 transition-colors cursor-pointer"
-                        >
-                          + {sug}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Si no hay categorías creadas aún */}
-                {categorias.length === 0 ? (
-                  <div className="p-6 text-center border-2 border-dashed border-white/20 rounded-xl bg-white/5 space-y-3">
-                    <Layers className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-                    <div>
-                      <p className="text-xs text-blue-200 font-bold">
-                        Aún no creaste categorías para este torneo.
-                      </p>
-                      <p className="text-[11px] text-blue-300 max-w-md mx-auto mt-0.5">
-                        Un torneo puede tener varias categorías (por ejemplo: Sub-12, Sub-14, Kata, Kumite).
-                        Escribí el nombre en el campo de arriba o hacé clic en una de las sugerencias rápidas.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    {categorias.length > 0 && (
                       <button
                         type="button"
                         onClick={() => {
-                          catInputRef.current?.focus();
-                          setCatError("Escribí el nombre de la categoría y hacé clic en '+ Crear Categoría'");
+                          if (
+                            confirm(
+                              "¿Deseas quitar todas las categorías seleccionadas? Se removerán también las inscripciones asociadas."
+                            )
+                          ) {
+                            setCategorias([]);
+                            setActiveCatTab("");
+                            setCompetidores([]);
+                          }
                         }}
-                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                        className="text-[11px] text-rose-300 hover:text-rose-100 underline font-semibold cursor-pointer"
                       >
-                        ✏️ Escribir categoría
+                        Limpiar todas
                       </button>
-                      {CATEGORIAS_SUGERIDAS.slice(0, 4).map((sug) => (
-                        <button
-                          key={sug}
-                          type="button"
-                          onClick={() => handleAddCategoriaWithName(sug)}
-                          className="px-3 py-1.5 bg-amber-400/20 hover:bg-amber-400 hover:text-slate-950 text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                        >
-                          + {sug}
-                        </button>
-                      ))}
+                    )}
+                  </div>
+                </div>
+
+                {/* Resumen de Categorías Seleccionadas (Pills con scroll) */}
+                {categorias.length > 0 && (
+                  <div className="p-3 bg-[#0A2E65] border border-amber-400/30 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Categorías habilitadas en este torneo ({categorias.length}):</span>
+                      </span>
+                      <span className="text-[10px] text-blue-300">
+                        Hacé clic en la ✕ para quitar una categoría
+                      </span>
                     </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                      {categorias.map((cat) => {
+                        const matchOficial = CATEGORIAS_OFICIALES_TORNEO.find((c) => c.nombre === cat);
+                        const countInThisCat = competidores.filter((c) => c.categoria === cat).length;
+                        return (
+                          <span
+                            key={cat}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#154495] text-white border border-blue-400/30 shadow-xs"
+                          >
+                            {matchOficial && (
+                              <span className="bg-amber-400 text-slate-950 text-[10px] px-1 rounded font-black font-mono">
+                                {matchOficial.codigo}
+                              </span>
+                            )}
+                            <span className="truncate max-w-[260px]">{cat}</span>
+                            {countInThisCat > 0 && (
+                              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-black text-cyan-200">
+                                {countInThisCat} al.
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCategoria(cat)}
+                              className="hover:text-rose-300 ml-0.5 p-0.5 text-blue-200 cursor-pointer"
+                              title="Quitar categoría"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Catálogo Interactivo de las 211 Categorías Oficiales */}
+                <div className="bg-[#0A2E65] border-2 border-[#1E57A8] rounded-2xl p-3.5 sm:p-4 space-y-3">
+                  {/* Buscador de Categorías */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-cyan-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={catSearchQuery}
+                        onChange={(e) => setCatSearchQuery(e.target.value)}
+                        placeholder="Buscar por código (ej: C01, C76, C145, C211), palabra (Cadetes, Infantil, Mayores, Para-Karate), peso (-40Kg), etc..."
+                        className="w-full pl-9 pr-8 py-2.5 bg-[#0F3E86] border border-[#2056A8] focus:border-amber-400 rounded-xl text-white text-xs font-semibold focus:outline-none placeholder-blue-300"
+                      />
+                      {catSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setCatSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white text-xs p-1 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowOnlySelected((prev) => !prev)}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+                          showOnlySelected
+                            ? "bg-amber-400 text-slate-950 border-amber-300 font-black shadow-xs"
+                            : "bg-[#0F3E86] text-blue-200 border-[#2056A8] hover:bg-white/10"
+                        }`}
+                      >
+                        <span>Solo seleccionadas</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-black">
+                          {categorias.length}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filtros por Grupo y Disciplina */}
+                  <div className="space-y-2 pt-1 border-t border-white/10">
+                    {/* Filtro por Grupo */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                      <span className="text-[11px] font-bold text-blue-300 shrink-0 flex items-center gap-1 mr-1">
+                        <Filter className="w-3 h-3 text-amber-400" />
+                        Grupos:
+                      </span>
+                      {[
+                        { id: "TODOS", label: "Todos (211)" },
+                        { id: "Ranking", label: "Ranking (C01-C69)" },
+                        { id: "Blancos", label: "Kata Blancos (C70-C79)" },
+                        { id: "Kata Kyu A", label: "Kata Kyu A (C80-C93)" },
+                        { id: "Kata Kyu B", label: "Kata Kyu B (C94-C109)" },
+                        { id: "Kata Senior Libre", label: "Kata Senior (C110-C115)" },
+                        { id: "Kumite Blancos", label: "Kumite Blancos (C116-C124)" },
+                        { id: "Kumite Kyu A", label: "Kumite Kyu A (C125-C149)" },
+                        { id: "Kumite Kyu B", label: "Kumite Kyu B (C150-C170)" },
+                        { id: "Kumite Kyu B / Open / Equipos", label: "Kumite Open/Equipos (C171-C194)" },
+                        { id: "Kumite Senior Libre", label: "Kumite Senior (C195-C198)" },
+                        { id: "Para-Karate", label: "Para-Karate (C199-C207)" },
+                        { id: "Equipos", label: "Equipos (C208-C211)" },
+                      ].map((grp) => {
+                        const isSelected = selectedGroupFilter === grp.id;
+                        return (
+                          <button
+                            key={grp.id}
+                            type="button"
+                            onClick={() => setSelectedGroupFilter(grp.id)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer border ${
+                              isSelected
+                                ? "bg-blue-600 text-white border-blue-400 font-black shadow-xs"
+                                : "bg-white/5 text-blue-200 border-white/10 hover:bg-white/10"
+                            }`}
+                          >
+                            {grp.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Filtro por Disciplina y Botones de Selección Masiva */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-blue-300">Disciplina:</span>
+                        {(["TODAS", "KATA", "KUMITE", "PARA-KARATE"] as const).map((disc) => {
+                          const isSelected = selectedDisciplinaFilter === disc;
+                          return (
+                            <button
+                              key={disc}
+                              type="button"
+                              onClick={() => setSelectedDisciplinaFilter(disc)}
+                              className={`px-2 py-0.5 rounded text-[11px] font-black transition-colors cursor-pointer border ${
+                                isSelected
+                                  ? disc === "KATA"
+                                    ? "bg-cyan-500 text-slate-950 border-cyan-400"
+                                    : disc === "KUMITE"
+                                    ? "bg-rose-500 text-white border-rose-400"
+                                    : disc === "PARA-KARATE"
+                                    ? "bg-purple-500 text-white border-purple-400"
+                                    : "bg-amber-400 text-slate-950 border-amber-300"
+                                  : "bg-white/5 text-blue-300 border-white/10 hover:bg-white/10"
+                              }`}
+                            >
+                              {disc}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Acciones masivas sobre las categorías visibles */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSelectAllFiltered}
+                          className="text-[11px] text-amber-300 hover:text-amber-200 font-bold underline cursor-pointer"
+                        >
+                          + Seleccionar las {filteredCategoriasOficiales.length} visibles
+                        </button>
+                        <span className="text-white/20">|</span>
+                        <button
+                          type="button"
+                          onClick={handleDeselectAllFiltered}
+                          className="text-[11px] text-blue-300 hover:text-white font-medium cursor-pointer"
+                        >
+                          Deseleccionar visibles
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lista con Scroll de las 145 Categorías Oficiales */}
+                  <div className="max-h-72 sm:max-h-80 overflow-y-auto space-y-1.5 p-1.5 divide-y divide-white/5 border border-white/10 rounded-xl bg-[#072049]">
+                    {filteredCategoriasOficiales.length === 0 ? (
+                      <div className="p-8 text-center text-blue-300 text-xs space-y-1.5">
+                        <p className="font-bold">No se encontraron categorías con los filtros actuales.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCatSearchQuery("");
+                            setSelectedGroupFilter("TODOS");
+                            setSelectedDisciplinaFilter("TODAS");
+                            setShowOnlySelected(false);
+                          }}
+                          className="text-amber-300 underline font-semibold text-[11px] cursor-pointer"
+                        >
+                          Restablecer todos los filtros
+                        </button>
+                      </div>
+                    ) : (
+                      filteredCategoriasOficiales.map((cat) => {
+                        const isSelected = categorias.includes(cat.nombre);
+                        const countInThisCat = competidores.filter((c) => c.categoria === cat.nombre).length;
+
+                        return (
+                          <div
+                            key={cat.codigo}
+                            onClick={() => handleToggleCategoria(cat.nombre)}
+                            className={`p-2.5 rounded-lg flex items-center justify-between gap-3 cursor-pointer transition-all border ${
+                              isSelected
+                                ? "bg-[#124286] border-amber-400/80 text-white shadow-xs"
+                                : "bg-transparent border-transparent hover:bg-white/5 text-blue-200"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              {/* Checkbox visual */}
+                              <div
+                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
+                                  isSelected
+                                    ? "bg-amber-400 border-amber-400 text-slate-950 font-black"
+                                    : "border-white/30 bg-black/20"
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                              </div>
+
+                              {/* Badge Código */}
+                              <span
+                                className={`font-black text-[11px] px-2 py-0.5 rounded-md font-mono shrink-0 ${
+                                  isSelected
+                                    ? "bg-amber-400 text-slate-950 font-black"
+                                    : "bg-white/10 text-amber-300 border border-amber-400/20"
+                                }`}
+                              >
+                                {cat.codigo}
+                              </span>
+
+                              {/* Badge Disciplina */}
+                              <span
+                                className={`text-[9px] font-black px-1.5 py-0.2 rounded shrink-0 uppercase tracking-wide ${
+                                  cat.disciplina === "KATA"
+                                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30"
+                                    : "bg-rose-500/20 text-rose-300 border border-rose-400/30"
+                                }`}
+                              >
+                                {cat.disciplina}
+                              </span>
+
+                              {/* Nombre de la Categoría */}
+                              <span
+                                className={`text-xs truncate ${
+                                  isSelected ? "text-white font-bold" : "text-blue-100 font-medium"
+                                }`}
+                              >
+                                {cat.nombre}
+                              </span>
+                            </div>
+
+                            {/* Grupo / Cantidad de alumnos inscriptos */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] text-blue-300 bg-white/5 px-2 py-0.5 rounded font-medium hidden md:inline">
+                                {cat.grupo}
+                              </span>
+                              {countInThisCat > 0 && (
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-black">
+                                  {countInThisCat} {countInThisCat === 1 ? "alumno" : "alumnos"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Opción secundaria: Agregar categoría personalizada */}
+                  <div className="pt-2 border-t border-white/10">
+                    {!showManualCategoryInput ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowManualCategoryInput(true)}
+                        className="text-[11px] text-blue-300 hover:text-white flex items-center gap-1 font-semibold cursor-pointer"
+                      >
+                        <Tag className="w-3 h-3 text-amber-400" />
+                        <span>+ ¿Necesitás una categoría personalizada fuera de la lista oficial?</span>
+                      </button>
+                    ) : (
+                      <div className="p-3 bg-[#072049] border border-[#2056A8] rounded-xl space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-amber-300">
+                            Agregar categoría personalizada:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowManualCategoryInput(false)}
+                            className="text-[11px] text-blue-300 hover:text-white cursor-pointer"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={catInputRef}
+                            type="text"
+                            value={newCatInput}
+                            onChange={(e) => {
+                              setNewCatInput(e.target.value);
+                              if (catError) setCatError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddCategoria();
+                              }
+                            }}
+                            placeholder="Ej: C146. Categoría Especial Invitados..."
+                            className="flex-1 px-3 py-2 bg-[#0F3E86] border border-[#2056A8] rounded-lg text-white text-xs font-semibold focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddCategoria}
+                            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-lg transition-all cursor-pointer shrink-0"
+                          >
+                            + Agregar
+                          </button>
+                        </div>
+                        {catError && (
+                          <p className="text-[11px] text-amber-300 font-semibold">{catError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Si no hay categorías seleccionadas aún */}
+                {categorias.length === 0 ? (
+                  <div className="p-6 text-center border-2 border-dashed border-white/20 rounded-xl bg-white/5 space-y-2">
+                    <Layers className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
+                    <p className="text-xs text-blue-200 font-bold">
+                      Aún no seleccionaste categorías para este torneo.
+                    </p>
+                    <p className="text-[11px] text-blue-300 max-w-md mx-auto">
+                      Hacé clic arriba en las categorías del catálogo oficial (C01 a C145) que participarán del torneo para poder asignar alumnos en cada una.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
