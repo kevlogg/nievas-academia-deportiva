@@ -35,3 +35,6 @@ next-env.d.ts
 # Local test scripts
 /scripts/
 supabase/.temp/
+
+.vercel
+.env*

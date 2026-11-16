@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -24,6 +24,7 @@ import {
   Layers,
   FolderPlus,
   Pencil,
+  Sparkles,
 } from "lucide-react";
 import { Torneo, Alumno, TipoMedalla, Usuario, KarateBelt } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
@@ -51,6 +52,17 @@ interface CompetidorDraft {
   notas: string;
 }
 
+const CATEGORIAS_SUGERIDAS = [
+  "Kata Infantiles",
+  "Kata Juveniles",
+  "Kata Mayores",
+  "Kumite Sub-12",
+  "Kumite Sub-14",
+  "Kumite Sub-17",
+  "Kumite Mayores",
+  "Open",
+];
+
 export function AdminTorneosClient({
   currentUser,
   initialTorneos,
@@ -74,6 +86,8 @@ export function AdminTorneosClient({
   const [categorias, setCategorias] = useState<string[]>([]);
   const [activeCatTab, setActiveCatTab] = useState<string>("");
   const [newCatInput, setNewCatInput] = useState("");
+  const [catError, setCatError] = useState<string | null>(null);
+  const catInputRef = useRef<HTMLInputElement>(null);
   const [editingCatIndex, setEditingCatIndex] = useState<number | null>(null);
   const [editingCatValue, setEditingCatValue] = useState("");
 
@@ -107,6 +121,7 @@ export function AdminTorneosClient({
     setCategorias([]);
     setActiveCatTab("");
     setNewCatInput("");
+    setCatError(null);
     setEditingCatIndex(null);
     setCompetidores([]);
     setAlumnoSearch("");
@@ -137,6 +152,7 @@ export function AdminTorneosClient({
     setCategorias(parsedCats);
     setActiveCatTab(parsedCats[0] || "");
     setNewCatInput("");
+    setCatError(null);
     setEditingCatIndex(null);
 
     setCompetidores(
@@ -164,14 +180,19 @@ export function AdminTorneosClient({
   // -------------------------------------------------------------
   // Gestión de Categorías en el Modal
   // -------------------------------------------------------------
-  const handleAddCategoria = () => {
-    const trimmed = newCatInput.trim();
-    if (!trimmed) return;
+  const handleAddCategoriaWithName = (catName: string) => {
+    const trimmed = catName.trim();
+    if (!trimmed) {
+      setCatError("Debés escribir el nombre de la categoría (ej: Sub-12, Kata, Kumite) antes de crearla.");
+      catInputRef.current?.focus();
+      return;
+    }
 
     // Verificar si ya existe (case-insensitive)
     const exists = categorias.some((c) => c.toLowerCase() === trimmed.toLowerCase());
     if (exists) {
-      setErrorMsg(`La categoría "${trimmed}" ya fue agregada.`);
+      setCatError(`La categoría "${trimmed}" ya fue agregada a este torneo.`);
+      catInputRef.current?.focus();
       return;
     }
 
@@ -179,7 +200,12 @@ export function AdminTorneosClient({
     setCategorias(updated);
     setActiveCatTab(trimmed);
     setNewCatInput("");
+    setCatError(null);
     setErrorMsg(null);
+  };
+
+  const handleAddCategoria = () => {
+    handleAddCategoriaWithName(newCatInput);
   };
 
   const handleRemoveCategoria = (catName: string) => {
@@ -191,6 +217,7 @@ export function AdminTorneosClient({
     if (activeCatTab === catName) {
       setActiveCatTab(updated[0] || "");
     }
+    setCatError(null);
   };
 
   const handleStartRenameCat = (index: number) => {
@@ -209,7 +236,7 @@ export function AdminTorneosClient({
 
     // Verificar duplicado
     if (categorias.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase())) {
-      setErrorMsg(`Ya existe otra categoría con el nombre "${newName}".`);
+      setCatError(`Ya existe otra categoría con el nombre "${newName}".`);
       return;
     }
 
@@ -235,6 +262,7 @@ export function AdminTorneosClient({
       setActiveCatTab(newName);
     }
     setEditingCatIndex(null);
+    setCatError(null);
     setErrorMsg(null);
   };
 
@@ -1018,44 +1046,117 @@ export function AdminTorneosClient({
                 </div>
 
                 {/* Barra para crear nueva categoría libre */}
-                <div className="p-3 bg-[#0A2E65] border border-[#2056A8] rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <Tag className="w-4 h-4 text-amber-400 shrink-0" />
-                    <input
-                      type="text"
-                      value={newCatInput}
-                      onChange={(e) => setNewCatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddCategoria();
-                        }
-                      }}
-                      placeholder="Escribí el nombre de la categoría (ej: Sub-12, Sub-14 Kumite, Kata Infantiles)..."
-                      className="w-full bg-transparent text-xs text-white placeholder-blue-300 focus:outline-none font-semibold"
-                    />
+                <div className="p-3.5 bg-[#0A2E65] border border-[#2056A8] rounded-xl space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-blue-100 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Nombre de la Categoría *</span>
+                    </label>
+                    <span className="text-[11px] text-blue-300 hidden sm:inline">
+                      Escribí el nombre y hacé clic en &quot;+ Crear Categoría&quot; (o presioná Enter)
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddCategoria}
-                    className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                  >
-                    <FolderPlus className="w-4 h-4" />
-                    <span>+ Crear Categoría</span>
-                  </button>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        ref={catInputRef}
+                        type="text"
+                        value={newCatInput}
+                        onChange={(e) => {
+                          setNewCatInput(e.target.value);
+                          if (catError) setCatError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddCategoria();
+                          }
+                        }}
+                        placeholder="Escribí el nombre de la categoría (ej: Sub-12, Sub-14 Kumite, Kata Infantiles)..."
+                        className={`w-full px-3.5 py-2.5 bg-[#0F3E86] border rounded-xl text-white text-xs font-semibold focus:outline-none transition-all placeholder-blue-300/70 ${
+                          catError
+                            ? "border-amber-400 ring-2 ring-amber-400/40 bg-[#0F3E86]"
+                            : "border-[#2056A8] focus:border-amber-400"
+                        }`}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCategoria}
+                      className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-md"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      <span>+ Crear Categoría</span>
+                    </button>
+                  </div>
+
+                  {/* Mensaje de ayuda / error si intenta crear categoría sin nombre o duplicada */}
+                  {catError && (
+                    <div className="p-2.5 bg-amber-500/20 border border-amber-400/50 rounded-xl text-amber-200 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
+                      <span className="font-semibold">{catError}</span>
+                    </div>
+                  )}
+
+                  {/* Sugerencias rápidas de 1 clic */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-[11px] text-blue-300 font-bold flex items-center gap-1 shrink-0">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Sugerencias rápidas:
+                    </span>
+                    {CATEGORIAS_SUGERIDAS.filter(
+                      (sug) => !categorias.some((c) => c.toLowerCase() === sug.toLowerCase())
+                    )
+                      .slice(0, 6)
+                      .map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => handleAddCategoriaWithName(sug)}
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-amber-400 hover:text-slate-950 text-blue-200 border border-white/10 transition-colors cursor-pointer"
+                        >
+                          + {sug}
+                        </button>
+                      ))}
+                  </div>
                 </div>
 
                 {/* Si no hay categorías creadas aún */}
                 {categorias.length === 0 ? (
-                  <div className="p-6 text-center border-2 border-dashed border-white/20 rounded-xl bg-white/5 space-y-2">
+                  <div className="p-6 text-center border-2 border-dashed border-white/20 rounded-xl bg-white/5 space-y-3">
                     <Layers className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
-                    <p className="text-xs text-blue-200 font-bold">
-                      Aún no creaste categorías para este torneo.
-                    </p>
-                    <p className="text-[11px] text-blue-300 max-w-md mx-auto">
-                      Un torneo puede tener muchas categorías (por ejemplo: Sub-12, Sub-14, Kata, Kumite).
-                      Escribí el nombre arriba y hacé clic en &quot;+ Crear Categoría&quot;.
-                    </p>
+                    <div>
+                      <p className="text-xs text-blue-200 font-bold">
+                        Aún no creaste categorías para este torneo.
+                      </p>
+                      <p className="text-[11px] text-blue-300 max-w-md mx-auto mt-0.5">
+                        Un torneo puede tener varias categorías (por ejemplo: Sub-12, Sub-14, Kata, Kumite).
+                        Escribí el nombre en el campo de arriba o hacé clic en una de las sugerencias rápidas.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          catInputRef.current?.focus();
+                          setCatError("Escribí el nombre de la categoría y hacé clic en '+ Crear Categoría'");
+                        }}
+                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        ✏️ Escribir categoría
+                      </button>
+                      {CATEGORIAS_SUGERIDAS.slice(0, 4).map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => handleAddCategoriaWithName(sug)}
+                          className="px-3 py-1.5 bg-amber-400/20 hover:bg-amber-400 hover:text-slate-950 text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        >
+                          + {sug}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
