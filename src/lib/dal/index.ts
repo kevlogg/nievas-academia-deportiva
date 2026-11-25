@@ -35,8 +35,10 @@ import {
   TorneoParticipacion,
   TipoMedalla,
   PreExamen,
+  PreExamenSesion,
   EvaluacionSemaforo,
   CrearPreExamenInput,
+  CrearPreExamenSesionInput,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -105,6 +107,7 @@ const dbState = {
   torneos: [] as Torneo[],
   torneo_participaciones: [] as TorneoParticipacion[],
   pre_examenes: [] as PreExamen[],
+  pre_examen_sesiones: [] as PreExamenSesion[],
 };
 
 /**
@@ -5187,9 +5190,9 @@ export async function dalGetTorneosAlumno(alumnoId: string): Promise<Array<{
  * 🔴 Rojo = 1 pt
  */
 export function calcularResultadoPreExamen(
-  kihon: EvaluacionSemaforo,
-  kata: EvaluacionSemaforo,
-  kumite: EvaluacionSemaforo
+  kihon?: EvaluacionSemaforo | null,
+  kata?: EvaluacionSemaforo | null,
+  kumite?: EvaluacionSemaforo | null
 ): {
   resultado_promedio: EvaluacionSemaforo;
   resultado_score: number;
@@ -5200,8 +5203,22 @@ export function calcularResultadoPreExamen(
     AMARILLO: 2,
     ROJO: 1,
   };
-  const sum = scoreMap[kihon] + scoreMap[kata] + scoreMap[kumite];
-  const score = Math.round((sum / 3) * 100) / 100;
+
+  const scores: number[] = [];
+  if (kihon && scoreMap[kihon]) scores.push(scoreMap[kihon]);
+  if (kata && scoreMap[kata]) scores.push(scoreMap[kata]);
+  if (kumite && scoreMap[kumite]) scores.push(scoreMap[kumite]);
+
+  if (scores.length === 0) {
+    return {
+      resultado_promedio: "AMARILLO",
+      resultado_score: 0,
+      resultado_estado: "REGULAR",
+    };
+  }
+
+  const sum = scores.reduce((a, b) => a + b, 0);
+  const score = Math.round((sum / scores.length) * 100) / 100;
 
   if (score >= 2.67) {
     return {
@@ -5225,6 +5242,152 @@ export function calcularResultadoPreExamen(
 }
 
 /**
+ * Obtener todas las mesas/sesiones de pre-examen
+ */
+export async function dalGetPreExamenSesiones(): Promise<PreExamenSesion[]> {
+  await requireAuth();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbSes, error } = await supabase
+      .from("pre_examen_sesiones")
+      .select("*")
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (!error && dbSes && dbSes.length > 0) {
+      return dbSes.map((s: any) => ({
+        id: s.id,
+        titulo: s.titulo || `Pre-Examen ${s.fecha}`,
+        fecha: s.fecha,
+        profesor_id: s.profesor_id,
+        profesor_nombre: s.profesor_nombre || "Sensei Evaluador",
+        estado: (s.estado || "ABIERTA") as "ABIERTA" | "FINALIZADA",
+        alumnos_ids: Array.isArray(s.alumnos_ids) ? s.alumnos_ids : [],
+        created_at: s.created_at,
+      }));
+    }
+  } catch (err) {
+    console.warn("dalGetPreExamenSesiones Supabase fallback:", err);
+  }
+
+  // Fallback a dbState.pre_examen_sesiones
+  if (dbState.pre_examen_sesiones && dbState.pre_examen_sesiones.length > 0) {
+    return [...dbState.pre_examen_sesiones].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  }
+
+  // Si no hay sesiones pero hay pre_examenes guardados históricamente, agrupar por fecha
+  const dateMap = new Map<string, string[]>();
+  dbState.pre_examenes.forEach((p) => {
+    const list = dateMap.get(p.fecha) || [];
+    if (!list.includes(p.alumno_id)) list.push(p.alumno_id);
+    dateMap.set(p.fecha, list);
+  });
+
+  const autoSesiones: PreExamenSesion[] = Array.from(dateMap.entries()).map(([fecha, alumnos_ids]) => ({
+    id: `auto-${fecha}`,
+    titulo: `Pre-Examen ${fecha}`,
+    fecha,
+    estado: "FINALIZADA",
+    alumnos_ids,
+    created_at: new Date().toISOString(),
+  }));
+
+  return autoSesiones.sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+/**
+ * Crear una nueva sesión/mesa de pre-examen con fecha y alumnos
+ */
+export async function dalCrearPreExamenSesion(input: CrearPreExamenSesionInput): Promise<PreExamenSesion> {
+  const evaluador = await requireAuth();
+  const cleanProfNombre = evaluador.nombre_completo
+    ? evaluador.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
+    : "Sensei Evaluador";
+
+  const nuevoId = crypto.randomUUID();
+  const fechaHoy = input.fecha || new Date().toISOString().split("T")[0];
+  const titulo = input.titulo?.trim() || `Pre-Examen ${fechaHoy}`;
+
+  const sesionObj: PreExamenSesion = {
+    id: nuevoId,
+    titulo,
+    fecha: fechaHoy,
+    profesor_id: evaluador.id,
+    profesor_nombre: cleanProfNombre,
+    estado: "ABIERTA",
+    alumnos_ids: input.alumnos_ids || [],
+    created_at: new Date().toISOString(),
+  };
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from("pre_examen_sesiones").insert({
+      id: sesionObj.id,
+      titulo: sesionObj.titulo,
+      fecha: sesionObj.fecha,
+      profesor_id: sesionObj.profesor_id,
+      profesor_nombre: sesionObj.profesor_nombre,
+      estado: sesionObj.estado,
+      alumnos_ids: sesionObj.alumnos_ids,
+    });
+  } catch (err) {
+    console.warn("dalCrearPreExamenSesion Supabase fallback:", err);
+  }
+
+  dbState.pre_examen_sesiones = dbState.pre_examen_sesiones || [];
+  dbState.pre_examen_sesiones.unshift(sesionObj);
+
+  return sesionObj;
+}
+
+/**
+ * Actualizar los alumnos convocados a una sesión de pre-examen
+ */
+export async function dalActualizarAlumnosPreExamenSesion(
+  sesionId: string,
+  alumnosIds: string[]
+): Promise<PreExamenSesion | null> {
+  await requireAuth();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase
+      .from("pre_examen_sesiones")
+      .update({ alumnos_ids: alumnosIds })
+      .eq("id", sesionId);
+  } catch (err) {
+    console.warn("dalActualizarAlumnosPreExamenSesion Supabase fallback:", err);
+  }
+
+  const s = dbState.pre_examen_sesiones?.find((x) => x.id === sesionId);
+  if (s) {
+    s.alumnos_ids = alumnosIds;
+    return s;
+  }
+  return null;
+}
+
+/**
+ * Eliminar una sesión de pre-examen
+ */
+export async function dalEliminarPreExamenSesion(sesionId: string): Promise<boolean> {
+  await requireAuth();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from("pre_examen_sesiones").delete().eq("id", sesionId);
+    await supabase.from("pre_examenes").delete().eq("sesion_id", sesionId);
+  } catch (err) {
+    console.warn("dalEliminarPreExamenSesion Supabase fallback:", err);
+  }
+
+  dbState.pre_examen_sesiones = (dbState.pre_examen_sesiones || []).filter((s) => s.id !== sesionId);
+  dbState.pre_examenes = dbState.pre_examenes.filter((p) => p.sesion_id !== sesionId);
+  return true;
+}
+
+/**
  * Obtener todos los pre-exámenes realizados
  */
 export async function dalGetPreExamenes(): Promise<PreExamen[]> {
@@ -5239,28 +5402,72 @@ export async function dalGetPreExamenes(): Promise<PreExamen[]> {
       .order("created_at", { ascending: false });
 
     if (!error && dbPre) {
-      return dbPre.map((p: any) => ({
-        id: p.id,
-        alumno_id: p.alumno_id,
-        alumno_nombre: p.alumno ? `${p.alumno.nombre} ${p.alumno.apellido}` : "Alumno",
-        alumno_cinturon: p.alumno ? (p.alumno.cinturon_actual === "Azul" ? "Violeta" : p.alumno.cinturon_actual) as KarateBelt : undefined,
-        alumno_subcategoria: p.alumno?.subcategoria_actual,
-        profesor_id: p.profesor_id,
-        profesor_nombre: p.profesor_nombre || "Sensei Evaluador",
-        fecha: p.fecha,
-        cinturon_actual: (p.cinturon_actual === "Azul" ? "Violeta" : p.cinturon_actual) as KarateBelt,
-        subcategoria_actual: p.subcategoria_actual,
-        cinturon_postula: p.cinturon_postula ? (p.cinturon_postula === "Azul" ? "Violeta" : p.cinturon_postula) as KarateBelt : null,
-        subcategoria_postula: p.subcategoria_postula,
-        kihon_nota: p.kihon_nota as EvaluacionSemaforo,
-        kata_nota: p.kata_nota as EvaluacionSemaforo,
-        kumite_nota: p.kumite_nota as EvaluacionSemaforo,
-        resultado_promedio: p.resultado_promedio as EvaluacionSemaforo,
-        resultado_score: Number(p.resultado_score) || 0,
-        resultado_estado: p.resultado_estado as "APROBADO" | "REGULAR" | "A_MEJORAR",
-        observaciones: p.observaciones,
-        created_at: p.created_at,
-      }));
+      // Identificar si hay registros donde la relación 'alumno' no vino o no trajo nombre
+      const missingAlumnoIds = dbPre
+        .filter((p: any) => {
+          const rawAl = Array.isArray(p.alumno) ? p.alumno[0] : p.alumno;
+          return (!rawAl || !rawAl.nombre) && !p.alumno_nombre;
+        })
+        .map((p: any) => p.alumno_id)
+        .filter(Boolean);
+
+      const extraAlumnosMap = new Map<string, any>();
+      if (missingAlumnoIds.length > 0) {
+        try {
+          const { data: fallbackAlumnos } = await supabase
+            .from("alumnos")
+            .select("id, nombre, apellido, cinturon_actual, subcategoria_actual")
+            .in("id", Array.from(new Set(missingAlumnoIds)));
+          if (fallbackAlumnos) {
+            fallbackAlumnos.forEach((a: any) => extraAlumnosMap.set(a.id, a));
+          }
+        } catch (e) {
+          console.warn("dalGetPreExamenes extra fallback alumnos:", e);
+        }
+      }
+
+      return dbPre.map((p: any) => {
+        const rawAl = Array.isArray(p.alumno) ? p.alumno[0] : p.alumno;
+        const extraAl = extraAlumnosMap.get(p.alumno_id) || dbState.alumnos.find((a) => a.id === p.alumno_id);
+        const alumnoFinal = rawAl?.nombre ? rawAl : extraAl;
+
+        let nombreCalculado = p.alumno_nombre;
+        if (!nombreCalculado || nombreCalculado === "Alumno") {
+          if (alumnoFinal?.nombre) {
+            nombreCalculado = `${alumnoFinal.nombre} ${alumnoFinal.apellido}`.trim();
+          } else {
+            nombreCalculado = "Alumno";
+          }
+        }
+
+        const cinturonAlumno = alumnoFinal?.cinturon_actual
+          ? ((alumnoFinal.cinturon_actual === "Azul" ? "Violeta" : alumnoFinal.cinturon_actual) as KarateBelt)
+          : undefined;
+
+        return {
+          id: p.id,
+          sesion_id: p.sesion_id || null,
+          alumno_id: p.alumno_id,
+          alumno_nombre: nombreCalculado,
+          alumno_cinturon: cinturonAlumno,
+          alumno_subcategoria: alumnoFinal?.subcategoria_actual,
+          profesor_id: p.profesor_id,
+          profesor_nombre: p.profesor_nombre || "Sensei Evaluador",
+          fecha: p.fecha,
+          cinturon_actual: (p.cinturon_actual === "Azul" ? "Violeta" : p.cinturon_actual) as KarateBelt,
+          subcategoria_actual: p.subcategoria_actual,
+          cinturon_postula: p.cinturon_postula ? (p.cinturon_postula === "Azul" ? "Violeta" : p.cinturon_postula) as KarateBelt : null,
+          subcategoria_postula: p.subcategoria_postula,
+          kihon_nota: p.kihon_nota as EvaluacionSemaforo,
+          kata_nota: p.kata_nota as EvaluacionSemaforo,
+          kumite_nota: p.kumite_nota as EvaluacionSemaforo,
+          resultado_promedio: p.resultado_promedio as EvaluacionSemaforo,
+          resultado_score: Number(p.resultado_score) || 0,
+          resultado_estado: p.resultado_estado as "APROBADO" | "REGULAR" | "A_MEJORAR",
+          observaciones: p.observaciones,
+          created_at: p.created_at,
+        };
+      });
     }
   } catch (err) {
     console.warn("dalGetPreExamenes Supabase fallback to dbState:", err);
@@ -5287,9 +5494,9 @@ export async function dalGetPreExamenesPorAlumno(alumnoId: string): Promise<PreE
 }
 
 /**
- * Registrar una nueva evaluación de pre-examen
+ * Guardar o actualizar la calificación de un alumno en un pre-examen (Upsert reactivo)
  */
-export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<PreExamen> {
+export async function dalGuardarPreExamen(input: CrearPreExamenInput): Promise<PreExamen> {
   const evaluador = await requireAuth();
 
   const calc = calcularResultadoPreExamen(
@@ -5302,12 +5509,47 @@ export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<Pre
     ? evaluador.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
     : "Sensei Evaluador";
 
-  const nuevoId = crypto.randomUUID();
   const fechaHoy = input.fecha || new Date().toISOString().split("T")[0];
 
+  let recordId = input.id;
+  if (!recordId) {
+    const existingInMem = dbState.pre_examenes.find(
+      (p) =>
+        p.alumno_id === input.alumno_id &&
+        (input.sesion_id ? p.sesion_id === input.sesion_id : p.fecha === fechaHoy)
+    );
+    if (existingInMem) {
+      recordId = existingInMem.id;
+    }
+  }
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    if (!recordId) {
+      let q = supabase.from("pre_examenes").select("id").eq("alumno_id", input.alumno_id);
+      if (input.sesion_id) {
+        q = q.eq("sesion_id", input.sesion_id);
+      } else {
+        q = q.eq("fecha", fechaHoy);
+      }
+      const { data: found } = await q.maybeSingle();
+      if (found?.id) {
+        recordId = found.id;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  if (!recordId) {
+    recordId = crypto.randomUUID();
+  }
+
   const preExamenObj: PreExamen = {
-    id: nuevoId,
+    id: recordId,
+    sesion_id: input.sesion_id || null,
     alumno_id: input.alumno_id,
+    alumno_nombre: input.alumno_nombre || undefined,
     profesor_id: evaluador.id,
     profesor_nombre: cleanProfNombre,
     fecha: fechaHoy,
@@ -5315,9 +5557,9 @@ export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<Pre
     subcategoria_actual: input.subcategoria_actual || null,
     cinturon_postula: input.cinturon_postula || null,
     subcategoria_postula: input.subcategoria_postula || null,
-    kihon_nota: input.kihon_nota,
-    kata_nota: input.kata_nota,
-    kumite_nota: input.kumite_nota,
+    kihon_nota: input.kihon_nota || null,
+    kata_nota: input.kata_nota || null,
+    kumite_nota: input.kumite_nota || null,
     resultado_promedio: calc.resultado_promedio,
     resultado_score: calc.resultado_score,
     resultado_estado: calc.resultado_estado,
@@ -5327,48 +5569,81 @@ export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<Pre
 
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: inserted, error } = await supabase
-      .from("pre_examenes")
-      .insert({
-        id: preExamenObj.id,
-        alumno_id: preExamenObj.alumno_id,
-        profesor_id: preExamenObj.profesor_id,
-        profesor_nombre: preExamenObj.profesor_nombre,
-        fecha: preExamenObj.fecha,
-        cinturon_actual: preExamenObj.cinturon_actual,
-        subcategoria_actual: preExamenObj.subcategoria_actual,
-        cinturon_postula: preExamenObj.cinturon_postula,
-        subcategoria_postula: preExamenObj.subcategoria_postula,
-        kihon_nota: preExamenObj.kihon_nota,
-        kata_nota: preExamenObj.kata_nota,
-        kumite_nota: preExamenObj.kumite_nota,
-        resultado_promedio: preExamenObj.resultado_promedio,
-        resultado_score: preExamenObj.resultado_score,
-        resultado_estado: preExamenObj.resultado_estado,
-        observaciones: preExamenObj.observaciones,
-      })
-      .select("*, alumno:alumnos(id, nombre, apellido, cinturon_actual, subcategoria_actual)")
-      .maybeSingle();
+    const payload: Record<string, any> = {
+      id: preExamenObj.id,
+      sesion_id: preExamenObj.sesion_id,
+      alumno_id: preExamenObj.alumno_id,
+      profesor_id: preExamenObj.profesor_id,
+      profesor_nombre: preExamenObj.profesor_nombre,
+      fecha: preExamenObj.fecha,
+      cinturon_actual: preExamenObj.cinturon_actual,
+      subcategoria_actual: preExamenObj.subcategoria_actual,
+      cinturon_postula: preExamenObj.cinturon_postula,
+      subcategoria_postula: preExamenObj.subcategoria_postula,
+      kihon_nota: preExamenObj.kihon_nota,
+      kata_nota: preExamenObj.kata_nota,
+      kumite_nota: preExamenObj.kumite_nota,
+      resultado_promedio: preExamenObj.resultado_promedio,
+      resultado_score: preExamenObj.resultado_score,
+      resultado_estado: preExamenObj.resultado_estado,
+      observaciones: preExamenObj.observaciones,
+    };
+    if (input.alumno_nombre) {
+      payload.alumno_nombre = input.alumno_nombre;
+    }
 
-    if (!error && inserted) {
-      preExamenObj.alumno_nombre = inserted.alumno ? `${inserted.alumno.nombre} ${inserted.alumno.apellido}` : undefined;
-      preExamenObj.alumno_cinturon = inserted.alumno ? inserted.alumno.cinturon_actual : undefined;
-      preExamenObj.alumno_subcategoria = inserted.alumno ? inserted.alumno.subcategoria_actual : undefined;
+    const { error: upsertError } = await supabase
+      .from("pre_examenes")
+      .upsert(payload, { onConflict: "id" });
+
+    if (upsertError) {
+      delete payload.alumno_nombre;
+      delete payload.sesion_id;
+      await supabase.from("pre_examenes").upsert(payload, { onConflict: "id" });
+    }
+
+    if (!preExamenObj.alumno_nombre) {
+      const { data: dbAl } = await supabase
+        .from("alumnos")
+        .select("nombre, apellido, cinturon_actual, subcategoria_actual")
+        .eq("id", input.alumno_id)
+        .maybeSingle();
+      if (dbAl?.nombre) {
+        preExamenObj.alumno_nombre = `${dbAl.nombre} ${dbAl.apellido}`.trim();
+        preExamenObj.alumno_cinturon = dbAl.cinturon_actual;
+        preExamenObj.alumno_subcategoria = dbAl.subcategoria_actual;
+      }
     }
   } catch (err) {
-    console.warn("dalCrearPreExamen Supabase insert fallback to dbState:", err);
+    console.warn("dalGuardarPreExamen Supabase fallback:", err);
   }
 
   // Guardar en dbState in-memory
   const alumnoState = dbState.alumnos.find((a) => a.id === input.alumno_id);
   if (alumnoState) {
-    preExamenObj.alumno_nombre = `${alumnoState.nombre} ${alumnoState.apellido}`;
-    preExamenObj.alumno_cinturon = alumnoState.cinturon_actual;
-    preExamenObj.alumno_subcategoria = alumnoState.subcategoria_actual;
+    preExamenObj.alumno_nombre = preExamenObj.alumno_nombre || `${alumnoState.nombre} ${alumnoState.apellido}`;
+    preExamenObj.alumno_cinturon = preExamenObj.alumno_cinturon || alumnoState.cinturon_actual;
+    preExamenObj.alumno_subcategoria = preExamenObj.alumno_subcategoria || alumnoState.subcategoria_actual;
   }
-  dbState.pre_examenes.unshift(preExamenObj);
+  if (!preExamenObj.alumno_nombre && input.alumno_nombre) {
+    preExamenObj.alumno_nombre = input.alumno_nombre;
+  }
+
+  const existingIdx = dbState.pre_examenes.findIndex((p) => p.id === preExamenObj.id);
+  if (existingIdx >= 0) {
+    dbState.pre_examenes[existingIdx] = preExamenObj;
+  } else {
+    dbState.pre_examenes.unshift(preExamenObj);
+  }
 
   return preExamenObj;
+}
+
+/**
+ * Registrar una nueva evaluación de pre-examen (alias de dalGuardarPreExamen)
+ */
+export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<PreExamen> {
+  return dalGuardarPreExamen(input);
 }
 
 /**

@@ -574,8 +574,20 @@ export interface OfflineActionPayload {
 
 export type EvaluacionSemaforo = "ROJO" | "AMARILLO" | "VERDE";
 
+export interface PreExamenSesion {
+  id: string;
+  titulo: string;
+  fecha: string; // YYYY-MM-DD
+  profesor_id?: string | null;
+  profesor_nombre?: string | null;
+  estado: "ABIERTA" | "FINALIZADA";
+  alumnos_ids: string[];
+  created_at: string;
+}
+
 export interface PreExamen {
   id: string;
+  sesion_id?: string | null;
   alumno_id: string;
   alumno_nombre?: string;
   alumno_cinturon?: KarateBelt;
@@ -587,25 +599,34 @@ export interface PreExamen {
   subcategoria_actual?: string | null;
   cinturon_postula?: KarateBelt | null;
   subcategoria_postula?: string | null;
-  kihon_nota: EvaluacionSemaforo;
-  kata_nota: EvaluacionSemaforo;
-  kumite_nota: EvaluacionSemaforo;
-  resultado_promedio: EvaluacionSemaforo;
-  resultado_score: number; // e.g. 2.67
-  resultado_estado: "APROBADO" | "REGULAR" | "A_MEJORAR";
+  kihon_nota?: EvaluacionSemaforo | null;
+  kata_nota?: EvaluacionSemaforo | null;
+  kumite_nota?: EvaluacionSemaforo | null;
+  resultado_promedio?: EvaluacionSemaforo | null;
+  resultado_score?: number; // e.g. 2.67
+  resultado_estado?: "APROBADO" | "REGULAR" | "A_MEJORAR" | null;
   observaciones?: string | null;
   created_at: string;
 }
 
 export interface CrearPreExamenInput {
+  id?: string;
+  sesion_id?: string | null;
   alumno_id: string;
+  alumno_nombre?: string | null;
   fecha: string;
   cinturon_actual: KarateBelt;
   subcategoria_actual?: string | null;
   cinturon_postula?: KarateBelt | null;
   subcategoria_postula?: string | null;
-  kihon_nota: EvaluacionSemaforo;
-  kata_nota: EvaluacionSemaforo;
-  kumite_nota: EvaluacionSemaforo;
+  kihon_nota?: EvaluacionSemaforo | null;
+  kata_nota?: EvaluacionSemaforo | null;
+  kumite_nota?: EvaluacionSemaforo | null;
   observaciones?: string | null;
+}
+
+export interface CrearPreExamenSesionInput {
+  fecha: string;
+  titulo?: string;
+  alumnos_ids: string[];
 }
