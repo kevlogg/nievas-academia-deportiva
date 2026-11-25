@@ -158,7 +158,7 @@ export function PreExamenClient({
       return;
     }
     if (!kihonNota || !kataNota || !kumiteNota) {
-      showFeedback("error", "Debés calificar las 3 instancias: Kihon, Kata y Kumite.");
+      showFeedback("error", "Debés calificar las 3 instancias: Kata, Kihon y Kumite.");
       return;
     }
 
@@ -263,7 +263,7 @@ export function PreExamenClient({
               Evaluación Técnica de Pre-Examen
             </h1>
             <p className="text-[11px] text-blue-200 font-medium truncate">
-              Simulacro y semáforo de graduación: Kihon, Kata y Kumite
+              Simulacro y semáforo de graduación: Kata, Kihon y Kumite
             </p>
           </div>
         </div>
@@ -507,69 +507,9 @@ export function PreExamenClient({
               </div>
             </div>
 
-            {/* Las 3 Secciones */}
+            {/* Las 3 Secciones: 1. Kata, 2. Kihon, 3. Kumite */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 1. KIHON */}
-              <div className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">🥋</span>
-                    <h3 className="font-black text-sm text-slate-900 uppercase tracking-tight">
-                      Kihon
-                    </h3>
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-500">
-                    Técnica Básica
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-tight">
-                  Posturas, desplazamientos, defensas y ataques fundamentales.
-                </p>
-
-                {/* Botones Semáforo */}
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setKihonNota("ROJO")}
-                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                      kihonNota === "ROJO"
-                        ? "bg-rose-500 text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-400 scale-102"
-                        : "bg-white text-rose-700 hover:bg-rose-50 border border-rose-200"
-                    }`}
-                  >
-                    <span className="text-base">🔴</span>
-                    <span>Malo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setKihonNota("AMARILLO")}
-                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                      kihonNota === "AMARILLO"
-                        ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30 ring-2 ring-amber-300 scale-102"
-                        : "bg-white text-amber-700 hover:bg-amber-50 border border-amber-200"
-                    }`}
-                  >
-                    <span className="text-base">🟡</span>
-                    <span>Regular</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setKihonNota("VERDE")}
-                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                      kihonNota === "VERDE"
-                        ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400 scale-102"
-                        : "bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
-                    }`}
-                  >
-                    <span className="text-base">🟢</span>
-                    <span>Bueno</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. KATA */}
+              {/* 1. KATA */}
               <div className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -619,6 +559,66 @@ export function PreExamenClient({
                     onClick={() => setKataNota("VERDE")}
                     className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
                       kataNota === "VERDE"
+                        ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400 scale-102"
+                        : "bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+                    }`}
+                  >
+                    <span className="text-base">🟢</span>
+                    <span>Bueno</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. KIHON */}
+              <div className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">🥋</span>
+                    <h3 className="font-black text-sm text-slate-900 uppercase tracking-tight">
+                      Kihon
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    Técnica Básica
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  Posturas, desplazamientos, defensas y ataques fundamentales.
+                </p>
+
+                {/* Botones Semáforo */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setKihonNota("ROJO")}
+                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                      kihonNota === "ROJO"
+                        ? "bg-rose-500 text-white shadow-md shadow-rose-500/30 ring-2 ring-rose-400 scale-102"
+                        : "bg-white text-rose-700 hover:bg-rose-50 border border-rose-200"
+                    }`}
+                  >
+                    <span className="text-base">🔴</span>
+                    <span>Malo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setKihonNota("AMARILLO")}
+                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                      kihonNota === "AMARILLO"
+                        ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30 ring-2 ring-amber-300 scale-102"
+                        : "bg-white text-amber-700 hover:bg-amber-50 border border-amber-200"
+                    }`}
+                  >
+                    <span className="text-base">🟡</span>
+                    <span>Regular</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setKihonNota("VERDE")}
+                    className={`py-3 px-1 rounded-xl text-xs font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                      kihonNota === "VERDE"
                         ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30 ring-2 ring-emerald-400 scale-102"
                         : "bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
                     }`}
@@ -745,7 +745,7 @@ export function PreExamenClient({
                     <span>Score: {liveResult.score} / 3.0</span>
                   </div>
                   <div className="text-[10px] font-semibold opacity-75 mt-1">
-                    Kihon: {kihonNota} | Kata: {kataNota} | Kumite: {kumiteNota}
+                    Kata: {kataNota} | Kihon: {kihonNota} | Kumite: {kumiteNota}
                   </div>
                 </div>
               )}
@@ -954,21 +954,8 @@ export function PreExamenClient({
                       </div>
                     </div>
 
-                    {/* Desglose de las 3 Secciones (Kihon, Kata, Kumite) */}
+                    {/* Desglose de las 3 Secciones (Kata, Kihon, Kumite) */}
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-                      <div className="p-2 bg-slate-50 rounded-xl text-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                          Kihon
-                        </span>
-                        <span className="text-xs font-black text-slate-900 flex items-center justify-center gap-1 mt-0.5">
-                          {item.kihon_nota === "VERDE"
-                            ? "🟢 Bueno"
-                            : item.kihon_nota === "AMARILLO"
-                            ? "🟡 Regular"
-                            : "🔴 Malo"}
-                        </span>
-                      </div>
-
                       <div className="p-2 bg-slate-50 rounded-xl text-center">
                         <span className="text-[10px] font-bold text-slate-500 uppercase block">
                           Kata
@@ -977,6 +964,19 @@ export function PreExamenClient({
                           {item.kata_nota === "VERDE"
                             ? "🟢 Bueno"
                             : item.kata_nota === "AMARILLO"
+                            ? "🟡 Regular"
+                            : "🔴 Malo"}
+                        </span>
+                      </div>
+
+                      <div className="p-2 bg-slate-50 rounded-xl text-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Kihon
+                        </span>
+                        <span className="text-xs font-black text-slate-900 flex items-center justify-center gap-1 mt-0.5">
+                          {item.kihon_nota === "VERDE"
+                            ? "🟢 Bueno"
+                            : item.kihon_nota === "AMARILLO"
                             ? "🟡 Regular"
                             : "🔴 Malo"}
                         </span>

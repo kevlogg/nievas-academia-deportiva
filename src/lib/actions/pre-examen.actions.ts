@@ -31,10 +31,10 @@ export async function crearPreExamenAction(
       };
     }
 
-    if (!data.kihon_nota || !data.kata_nota || !data.kumite_nota) {
+    if (!data.kata_nota || !data.kihon_nota || !data.kumite_nota) {
       return {
         success: false,
-        error: "Debe calificar las 3 instancias (Kihon, Kata y Kumite).",
+        error: "Debe calificar las 3 instancias (Kata, Kihon y Kumite).",
       };
     }
 
