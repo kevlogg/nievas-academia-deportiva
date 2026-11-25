@@ -43,6 +43,7 @@ import {
   MessageSquare,
   Check,
   Zap,
+  Save,
 } from "lucide-react";
 
 interface PreExamenClientProps {
@@ -88,6 +89,7 @@ export function PreExamenClient({
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ tipo: "exito" | "error"; mensaje: string } | null>(null);
   const [savingAlumnoId, setSavingAlumnoId] = useState<string | null>(null);
+  const [isGuardandoTodo, setIsGuardandoTodo] = useState<boolean>(false);
 
   const showFeedback = (tipo: "exito" | "error", mensaje: string) => {
     setFeedback({ tipo, mensaje });
@@ -336,6 +338,7 @@ export function PreExamenClient({
         setPreExamenes((prev) =>
           prev.map((p) => (p.id === tempId || p.id === res.data.id ? res.data : p))
         );
+        showFeedback("exito", `Calificación de ${alumno.nombre} guardada automáticamente.`);
       }
     } catch (e) {
       console.error("Error guardando calificación de alumno:", e);
@@ -383,6 +386,62 @@ export function PreExamenClient({
       }
     } catch (e) {
       console.error("Error guardando observación:", e);
+    }
+  };
+
+  // Guardar manualmente todas las calificaciones de la mesa actual
+  const handleGuardarTodoManual = async () => {
+    if (!activeSesion) return;
+    setIsGuardandoTodo(true);
+
+    try {
+      const fechaSesion = activeSesion.fecha;
+      let guardadosCount = 0;
+
+      for (const alumno of alumnosEnMesa) {
+        const ev = preExamenes.find(
+          (p) =>
+            p.alumno_id === alumno.id &&
+            (p.sesion_id === activeSesion.id || p.fecha === fechaSesion)
+        );
+
+        if (ev && (ev.kihon_nota || ev.kata_nota || ev.kumite_nota || ev.observaciones)) {
+          const proximo = getProximoGrado(alumno.cinturon_actual, alumno.subcategoria_actual);
+          const alumnoNombreCompleto = `${alumno.nombre} ${alumno.apellido}`.trim();
+
+          const res = await guardarPreExamenAction({
+            id: ev.id,
+            sesion_id: activeSesion.id,
+            alumno_id: alumno.id,
+            alumno_nombre: alumnoNombreCompleto,
+            fecha: fechaSesion,
+            cinturon_actual: alumno.cinturon_actual,
+            subcategoria_actual: alumno.subcategoria_actual,
+            cinturon_postula: proximo?.cinturon || null,
+            subcategoria_postula: proximo?.subcategoria || null,
+            kihon_nota: ev.kihon_nota || null,
+            kata_nota: ev.kata_nota || null,
+            kumite_nota: ev.kumite_nota || null,
+            observaciones: ev.observaciones || null,
+          });
+
+          if (res.success && res.data) {
+            guardadosCount++;
+          }
+        }
+      }
+
+      showFeedback(
+        "exito",
+        guardadosCount > 0
+          ? `¡Mesa guardada! Se sincronizaron las calificaciones de ${guardadosCount} alumno(s) correctamente.`
+          : "¡Mesa sincronizada! Todas las calificaciones se encuentran guardadas en la base de datos."
+      );
+    } catch (err) {
+      console.error("Error al guardar todo:", err);
+      showFeedback("error", "Ocurrió un error al guardar todas las evaluaciones.");
+    } finally {
+      setIsGuardandoTodo(false);
     }
   };
 
@@ -570,8 +629,23 @@ export function PreExamenClient({
                 </div>
               </div>
 
-              {/* Botón rápido para sumar alumnos a la mesa */}
-              <div className="flex items-center gap-2 self-end sm:self-center">
+              {/* Botón rápido para guardar y sumar alumnos a la mesa */}
+              <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleGuardarTodoManual}
+                  disabled={isGuardandoTodo}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  title="Guardar todas las calificaciones en la base de datos"
+                >
+                  {isGuardandoTodo ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isGuardandoTodo ? "Guardando..." : "Guardar Calificaciones"}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setIsModalAgregarAlumnosOpen(true)}
@@ -652,6 +726,35 @@ export function PreExamenClient({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Banner de Ayuda y Estado de Guardado */}
+          <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/50 border-2 border-blue-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-blue-950 font-medium shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div>
+                <span className="font-bold text-slate-900 block">
+                  Autoguardado en vivo activo
+                </span>
+                <span className="text-[11px] text-slate-600">
+                  Cada botón que presionás se guarda al instante. También podés usar el botón <strong>&quot;Guardar Calificaciones&quot;</strong> para asegurar la sincronización total en la base de datos.
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGuardarTodoManual}
+              disabled={isGuardandoTodo}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0 disabled:opacity-50 self-end sm:self-auto"
+            >
+              {isGuardandoTodo ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>{isGuardandoTodo ? "Guardando..." : "Guardar Calificaciones"}</span>
+            </button>
           </div>
 
           {/* LISTA DE ALUMNOS UNO DEBAJO DEL OTRO */}
@@ -760,14 +863,14 @@ export function PreExamenClient({
                       {/* Status + Quitar de la mesa */}
                       <div className="flex items-center gap-2 self-end sm:self-center">
                         {savingAlumnoId === alumno.id ? (
-                          <span className="text-[11px] font-bold text-blue-600 flex items-center gap-1 px-2.5 py-1 bg-blue-50 rounded-lg">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Guardando...
+                          <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                            <span>Guardando...</span>
                           </span>
                         ) : ev?.id ? (
-                          <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" />
-                            Guardado
+                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Guardado en BD ✓</span>
                           </span>
                         ) : null}
 
@@ -971,13 +1074,27 @@ export function PreExamenClient({
                             type="text"
                             defaultValue={ev?.observaciones || ""}
                             placeholder="Ej: Corregir postura Zenkutsu Dachi o guardia en Kumite..."
-                            onBlur={(e) => {
-                              if (e.target.value !== (ev?.observaciones || "")) {
-                                handleGuardarObservacionAlumno(alumno, e.target.value);
+                            id={`obs-input-${alumno.id}`}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleGuardarObservacionAlumno(alumno, (e.target as HTMLInputElement).value);
                               }
                             }}
                             className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#0F3E86]"
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const inputEl = document.getElementById(`obs-input-${alumno.id}`) as HTMLInputElement;
+                              if (inputEl) {
+                                handleGuardarObservacionAlumno(alumno, inputEl.value);
+                              }
+                            }}
+                            className="px-3 py-2 bg-[#0F3E86] hover:bg-blue-900 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Guardar Nota</span>
+                          </button>
                         </div>
                       </details>
                     </div>
@@ -986,6 +1103,49 @@ export function PreExamenClient({
               })}
             </div>
           )}
+
+          {/* Barra Flotante de Acciones Inferior */}
+          <div className="sticky bottom-4 z-30 bg-white/95 backdrop-blur-md border-2 border-slate-300 p-3.5 sm:p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <div className="text-xs">
+                <span className="font-black text-slate-900 block">
+                  Autoguardado reactivo activo
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {progresoMesa.calificados} de {progresoMesa.total} alumnos calificados ({progresoMesa.pct}%) • Datos sincronizados
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={handleGuardarTodoManual}
+                disabled={isGuardandoTodo}
+                className="flex-1 sm:flex-initial px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isGuardandoTodo ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span>Guardar Calificaciones</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  showFeedback("exito", "Mesa de pre-examen finalizada y guardada.");
+                  setActiveSesionId(null);
+                }}
+                className="flex-1 sm:flex-initial px-4 py-2 bg-[#0F3E86] hover:bg-blue-900 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-cyan-300" />
+                <span>Finalizar Mesa</span>
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         /* =========================================================================
