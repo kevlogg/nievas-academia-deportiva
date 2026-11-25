@@ -276,9 +276,6 @@ export function AdminDashboardClient({
         >
           <CreditCard className="w-4 h-4" />
           <span>Plan KevDev</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
-            $ 55.000
-          </span>
         </button>
       </div>
 
