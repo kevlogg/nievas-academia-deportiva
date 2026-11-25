@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Usuario } from "@/types";
 import { UserMenu } from "@/components/navigation/UserMenu";
-import { Shield, BarChart3, Users, CalendarDays, History, Tablet, Trophy, CreditCard } from "lucide-react";
+import { Shield, BarChart3, Users, CalendarDays, History, Tablet, Trophy, CreditCard, Award } from "lucide-react";
 
 interface NavbarProps {
   currentUser: Usuario | null;
@@ -108,22 +108,23 @@ export function Navbar({ currentUser }: NavbarProps) {
               );
             })()}
 
-            {/* 3. Métricas */}
+            {/* 3. Pre-examen */}
             {(() => {
-              const isActive = pathname.startsWith("/profesor/metricas");
+              const isActive =
+                pathname.startsWith("/pre-examen") || pathname.startsWith("/admin/pre-examen");
               return (
                 <Link
-                  href="/profesor/metricas"
+                  href="/pre-examen"
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all ${
                     isActive
                       ? "bg-white text-[#0F3E86] font-black shadow-md shadow-blue-950/25 ring-2 ring-white/80"
                       : "text-blue-100/90 hover:text-white hover:bg-white/10 font-bold"
                   }`}
                 >
-                  <BarChart3
-                    className={`w-4 h-4 ${isActive ? "text-cyan-600" : "text-cyan-300"}`}
+                  <Award
+                    className={`w-4 h-4 ${isActive ? "text-amber-500 fill-amber-500" : "text-amber-300"}`}
                   />
-                  <span>Métricas</span>
+                  <span>Pre-examen</span>
                 </Link>
               );
             })()}

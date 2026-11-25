@@ -571,3 +571,41 @@ export interface OfflineActionPayload {
   timestamp: number;
   synced: boolean;
 }
+
+export type EvaluacionSemaforo = "ROJO" | "AMARILLO" | "VERDE";
+
+export interface PreExamen {
+  id: string;
+  alumno_id: string;
+  alumno_nombre?: string;
+  alumno_cinturon?: KarateBelt;
+  alumno_subcategoria?: string | null;
+  profesor_id?: string | null;
+  profesor_nombre?: string | null;
+  fecha: string; // YYYY-MM-DD
+  cinturon_actual: KarateBelt;
+  subcategoria_actual?: string | null;
+  cinturon_postula?: KarateBelt | null;
+  subcategoria_postula?: string | null;
+  kihon_nota: EvaluacionSemaforo;
+  kata_nota: EvaluacionSemaforo;
+  kumite_nota: EvaluacionSemaforo;
+  resultado_promedio: EvaluacionSemaforo;
+  resultado_score: number; // e.g. 2.67
+  resultado_estado: "APROBADO" | "REGULAR" | "A_MEJORAR";
+  observaciones?: string | null;
+  created_at: string;
+}
+
+export interface CrearPreExamenInput {
+  alumno_id: string;
+  fecha: string;
+  cinturon_actual: KarateBelt;
+  subcategoria_actual?: string | null;
+  cinturon_postula?: KarateBelt | null;
+  subcategoria_postula?: string | null;
+  kihon_nota: EvaluacionSemaforo;
+  kata_nota: EvaluacionSemaforo;
+  kumite_nota: EvaluacionSemaforo;
+  observaciones?: string | null;
+}

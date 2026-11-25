@@ -34,6 +34,9 @@ import {
   Torneo,
   TorneoParticipacion,
   TipoMedalla,
+  PreExamen,
+  EvaluacionSemaforo,
+  CrearPreExamenInput,
 } from "@/types";
 import {
   InscribirAlumnoInput,
@@ -101,6 +104,7 @@ const dbState = {
   historial_bajas: [] as RegistroHistorialBaja[],
   torneos: [] as Torneo[],
   torneo_participaciones: [] as TorneoParticipacion[],
+  pre_examenes: [] as PreExamen[],
 };
 
 /**
@@ -449,21 +453,35 @@ export async function dalGetOrCreateSesionClase(
         .maybeSingle();
 
       if (existingSesion) {
-        const sesionObj: SesionClase = {
-          id: existingSesion.id,
-          clase_id: existingSesion.clase_id,
-          profesor_id: existingSesion.profesor_id,
-          fecha: existingSesion.fecha,
-          hora_apertura: existingSesion.hora_apertura,
-          estado: existingSesion.estado,
-          observaciones: existingSesion.observaciones,
-          created_at: existingSesion.created_at,
-          clase_nombre: dbClase.nombre,
-        };
-        if (!dbState.sesiones.some((s) => s.id === sesionObj.id)) {
-          dbState.sesiones.push(sesionObj);
+        const aperturaMs = new Date(existingSesion.hora_apertura).getTime();
+        const isExpired = Date.now() - aperturaMs >= 2 * 60 * 60 * 1000;
+
+        if (isExpired) {
+          // Si pasaron 2 horas desde que se abrió, se cierra automáticamente
+          await supabase
+            .from("sesiones_clase")
+            .update({ estado: "FINALIZADA" })
+            .eq("id", existingSesion.id);
+
+          const sMem = dbState.sesiones.find((s) => s.id === existingSesion.id);
+          if (sMem) sMem.estado = "FINALIZADA";
+        } else {
+          const sesionObj: SesionClase = {
+            id: existingSesion.id,
+            clase_id: existingSesion.clase_id,
+            profesor_id: existingSesion.profesor_id,
+            fecha: existingSesion.fecha,
+            hora_apertura: existingSesion.hora_apertura,
+            estado: existingSesion.estado,
+            observaciones: existingSesion.observaciones,
+            created_at: existingSesion.created_at,
+            clase_nombre: dbClase.nombre,
+          };
+          if (!dbState.sesiones.some((s) => s.id === sesionObj.id)) {
+            dbState.sesiones.push(sesionObj);
+          }
+          return sesionObj;
         }
-        return sesionObj;
       }
 
       // Buscar sesión de la fecha objetivo
@@ -632,6 +650,20 @@ export async function dalGetSesionDetalle(
         }
       }
 
+      if (dbSesion.estado === "ABIERTA") {
+        const aperturaMs = new Date(dbSesion.hora_apertura).getTime();
+        if (Date.now() - aperturaMs >= 2 * 60 * 60 * 1000) {
+          // Auto-cerrar si pasaron 2 horas desde su apertura
+          await supabase
+            .from("sesiones_clase")
+            .update({ estado: "FINALIZADA" })
+            .eq("id", dbSesion.id);
+          dbSesion.estado = "FINALIZADA";
+          const sMem = dbState.sesiones.find((s) => s.id === dbSesion.id);
+          if (sMem) sMem.estado = "FINALIZADA";
+        }
+      }
+
       const sesionObj: SesionClase = {
         id: dbSesion.id,
         clase_id: dbSesion.clase_id,
@@ -760,6 +792,14 @@ export async function dalGetSesionDetalle(
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");
+  }
+
+  // Auto-cierre si pasaron 2 horas desde que se abrió
+  if (
+    sesion.estado === "ABIERTA" &&
+    Date.now() - new Date(sesion.hora_apertura).getTime() >= 2 * 60 * 60 * 1000
+  ) {
+    sesion.estado = "FINALIZADA";
   }
 
   const clase = dbState.clases.find((c) => c.id === sesion.clase_id);
@@ -915,6 +955,14 @@ export async function dalMarcarAsistencia(
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");
+  }
+
+  // Auto-cierre si pasaron 2 horas desde que se abrió
+  if (
+    sesion.estado === "ABIERTA" &&
+    Date.now() - new Date(sesion.hora_apertura).getTime() >= 2 * 60 * 60 * 1000
+  ) {
+    sesion.estado = "FINALIZADA";
   }
 
   if (currentUser.rol === "PROFESOR" && sesion.profesor_id !== currentUser.id) {
@@ -4071,11 +4119,66 @@ export async function dalActualizarCinturonAlumno(
 }
 
 /**
- * Obtener clases abiertas de un sensei (permanecen abiertas hasta que el sensei las cierra)
+ * Auto-cerrar sesiones de tatami que llevan más de 2 horas abiertas.
+ * Regla de negocio: Si pasaron 2 horas desde que se abrió la clase (hora_apertura),
+ * se finaliza automáticamente preservando todas las asistencias y datos guardados.
+ */
+export async function dalAutoCerrarSesionesExpiradas(): Promise<number> {
+  const DOS_HORAS_MS = 2 * 60 * 60 * 1000;
+  const now = Date.now();
+  const twoHoursAgoISO = new Date(now - DOS_HORAS_MS).toISOString();
+  let count = 0;
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: expired, error } = await supabase
+      .from("sesiones_clase")
+      .select("id, clase_id, hora_apertura")
+      .eq("estado", "ABIERTA")
+      .lte("hora_apertura", twoHoursAgoISO);
+
+    if (!error && expired && expired.length > 0) {
+      const ids = expired.map((s: any) => s.id);
+      await supabase
+        .from("sesiones_clase")
+        .update({ estado: "FINALIZADA" })
+        .in("id", ids);
+
+      count = ids.length;
+
+      for (const sMem of dbState.sesiones) {
+        if (ids.includes(sMem.id)) {
+          sMem.estado = "FINALIZADA";
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in dalAutoCerrarSesionesExpiradas Supabase:", err);
+  }
+
+  // Sincronizar en memoria
+  for (const s of dbState.sesiones) {
+    if (s.estado === "ABIERTA") {
+      const aperturaTime = new Date(s.hora_apertura).getTime();
+      if (now - aperturaTime >= DOS_HORAS_MS) {
+        s.estado = "FINALIZADA";
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Obtener clases abiertas de un sensei (se cierran manualmente o auto a las 2HS)
  */
 export async function dalGetClasesAbiertas(
   profesorId?: string
 ): Promise<ClaseAbiertaItem[]> {
+  // Ejecutar auto-cierre de cualquier sesión con más de 2 horas de abierta
+  await dalAutoCerrarSesionesExpiradas();
+
   const currentUser = await requireProfesor();
   const effectiveProfId =
     currentUser.rol === "ADMIN" ? profesorId || currentUser.id : currentUser.id;
@@ -4296,6 +4399,14 @@ export async function dalCerrarSesionClase(
   const sesion = dbState.sesiones.find((s) => s.id === sesionId);
   if (!sesion) {
     throw new Error("Sesión no encontrada");
+  }
+
+  // Auto-cierre si pasaron 2 horas desde que se abrió
+  if (
+    sesion.estado === "ABIERTA" &&
+    Date.now() - new Date(sesion.hora_apertura).getTime() >= 2 * 60 * 60 * 1000
+  ) {
+    sesion.estado = "FINALIZADA";
   }
 
   if (currentUser.rol === "PROFESOR" && sesion.profesor_id !== currentUser.id) {
@@ -5066,4 +5177,213 @@ export async function dalGetTorneosAlumno(alumnoId: string): Promise<Array<{
         notas: p.notas,
       };
     });
+}
+
+/**
+ * Lógica canónica para calcular el resultado promedio de un pre-examen
+ * en base a las 3 secciones (Kihon, Kata, Kumite).
+ * 🟢 Verde = 3 pts
+ * 🟡 Amarillo = 2 pts
+ * 🔴 Rojo = 1 pt
+ */
+export function calcularResultadoPreExamen(
+  kihon: EvaluacionSemaforo,
+  kata: EvaluacionSemaforo,
+  kumite: EvaluacionSemaforo
+): {
+  resultado_promedio: EvaluacionSemaforo;
+  resultado_score: number;
+  resultado_estado: "APROBADO" | "REGULAR" | "A_MEJORAR";
+} {
+  const scoreMap: Record<EvaluacionSemaforo, number> = {
+    VERDE: 3,
+    AMARILLO: 2,
+    ROJO: 1,
+  };
+  const sum = scoreMap[kihon] + scoreMap[kata] + scoreMap[kumite];
+  const score = Math.round((sum / 3) * 100) / 100;
+
+  if (score >= 2.67) {
+    return {
+      resultado_promedio: "VERDE",
+      resultado_score: score,
+      resultado_estado: "APROBADO",
+    };
+  } else if (score >= 2.0) {
+    return {
+      resultado_promedio: "AMARILLO",
+      resultado_score: score,
+      resultado_estado: "REGULAR",
+    };
+  } else {
+    return {
+      resultado_promedio: "ROJO",
+      resultado_score: score,
+      resultado_estado: "A_MEJORAR",
+    };
+  }
+}
+
+/**
+ * Obtener todos los pre-exámenes realizados
+ */
+export async function dalGetPreExamenes(): Promise<PreExamen[]> {
+  await requireAuth();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: dbPre, error } = await supabase
+      .from("pre_examenes")
+      .select("*, alumno:alumnos(id, nombre, apellido, cinturon_actual, subcategoria_actual)")
+      .order("fecha", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (!error && dbPre) {
+      return dbPre.map((p: any) => ({
+        id: p.id,
+        alumno_id: p.alumno_id,
+        alumno_nombre: p.alumno ? `${p.alumno.nombre} ${p.alumno.apellido}` : "Alumno",
+        alumno_cinturon: p.alumno ? (p.alumno.cinturon_actual === "Azul" ? "Violeta" : p.alumno.cinturon_actual) as KarateBelt : undefined,
+        alumno_subcategoria: p.alumno?.subcategoria_actual,
+        profesor_id: p.profesor_id,
+        profesor_nombre: p.profesor_nombre || "Sensei Evaluador",
+        fecha: p.fecha,
+        cinturon_actual: (p.cinturon_actual === "Azul" ? "Violeta" : p.cinturon_actual) as KarateBelt,
+        subcategoria_actual: p.subcategoria_actual,
+        cinturon_postula: p.cinturon_postula ? (p.cinturon_postula === "Azul" ? "Violeta" : p.cinturon_postula) as KarateBelt : null,
+        subcategoria_postula: p.subcategoria_postula,
+        kihon_nota: p.kihon_nota as EvaluacionSemaforo,
+        kata_nota: p.kata_nota as EvaluacionSemaforo,
+        kumite_nota: p.kumite_nota as EvaluacionSemaforo,
+        resultado_promedio: p.resultado_promedio as EvaluacionSemaforo,
+        resultado_score: Number(p.resultado_score) || 0,
+        resultado_estado: p.resultado_estado as "APROBADO" | "REGULAR" | "A_MEJORAR",
+        observaciones: p.observaciones,
+        created_at: p.created_at,
+      }));
+    }
+  } catch (err) {
+    console.warn("dalGetPreExamenes Supabase fallback to dbState:", err);
+  }
+
+  // Fallback a dbState
+  return dbState.pre_examenes.map((p) => {
+    const al = dbState.alumnos.find((a) => a.id === p.alumno_id);
+    return {
+      ...p,
+      alumno_nombre: al ? `${al.nombre} ${al.apellido}` : p.alumno_nombre || "Alumno",
+      alumno_cinturon: al ? (al.cinturon_actual === "Azul" ? "Violeta" : al.cinturon_actual) as KarateBelt : p.alumno_cinturon,
+      alumno_subcategoria: al ? al.subcategoria_actual : p.alumno_subcategoria,
+    };
+  }).sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+/**
+ * Obtener historial de pre-exámenes de un alumno
+ */
+export async function dalGetPreExamenesPorAlumno(alumnoId: string): Promise<PreExamen[]> {
+  const todos = await dalGetPreExamenes();
+  return todos.filter((p) => p.alumno_id === alumnoId);
+}
+
+/**
+ * Registrar una nueva evaluación de pre-examen
+ */
+export async function dalCrearPreExamen(input: CrearPreExamenInput): Promise<PreExamen> {
+  const evaluador = await requireAuth();
+
+  const calc = calcularResultadoPreExamen(
+    input.kihon_nota,
+    input.kata_nota,
+    input.kumite_nota
+  );
+
+  const cleanProfNombre = evaluador.nombre_completo
+    ? evaluador.nombre_completo.replace(/\s*\((admin|superadmin|profesor)\)/gi, "").trim()
+    : "Sensei Evaluador";
+
+  const nuevoId = crypto.randomUUID();
+  const fechaHoy = input.fecha || new Date().toISOString().split("T")[0];
+
+  const preExamenObj: PreExamen = {
+    id: nuevoId,
+    alumno_id: input.alumno_id,
+    profesor_id: evaluador.id,
+    profesor_nombre: cleanProfNombre,
+    fecha: fechaHoy,
+    cinturon_actual: (input.cinturon_actual === "Azul" ? "Violeta" : input.cinturon_actual) as KarateBelt,
+    subcategoria_actual: input.subcategoria_actual || null,
+    cinturon_postula: input.cinturon_postula || null,
+    subcategoria_postula: input.subcategoria_postula || null,
+    kihon_nota: input.kihon_nota,
+    kata_nota: input.kata_nota,
+    kumite_nota: input.kumite_nota,
+    resultado_promedio: calc.resultado_promedio,
+    resultado_score: calc.resultado_score,
+    resultado_estado: calc.resultado_estado,
+    observaciones: input.observaciones?.trim() || null,
+    created_at: new Date().toISOString(),
+  };
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: inserted, error } = await supabase
+      .from("pre_examenes")
+      .insert({
+        id: preExamenObj.id,
+        alumno_id: preExamenObj.alumno_id,
+        profesor_id: preExamenObj.profesor_id,
+        profesor_nombre: preExamenObj.profesor_nombre,
+        fecha: preExamenObj.fecha,
+        cinturon_actual: preExamenObj.cinturon_actual,
+        subcategoria_actual: preExamenObj.subcategoria_actual,
+        cinturon_postula: preExamenObj.cinturon_postula,
+        subcategoria_postula: preExamenObj.subcategoria_postula,
+        kihon_nota: preExamenObj.kihon_nota,
+        kata_nota: preExamenObj.kata_nota,
+        kumite_nota: preExamenObj.kumite_nota,
+        resultado_promedio: preExamenObj.resultado_promedio,
+        resultado_score: preExamenObj.resultado_score,
+        resultado_estado: preExamenObj.resultado_estado,
+        observaciones: preExamenObj.observaciones,
+      })
+      .select("*, alumno:alumnos(id, nombre, apellido, cinturon_actual, subcategoria_actual)")
+      .maybeSingle();
+
+    if (!error && inserted) {
+      preExamenObj.alumno_nombre = inserted.alumno ? `${inserted.alumno.nombre} ${inserted.alumno.apellido}` : undefined;
+      preExamenObj.alumno_cinturon = inserted.alumno ? inserted.alumno.cinturon_actual : undefined;
+      preExamenObj.alumno_subcategoria = inserted.alumno ? inserted.alumno.subcategoria_actual : undefined;
+    }
+  } catch (err) {
+    console.warn("dalCrearPreExamen Supabase insert fallback to dbState:", err);
+  }
+
+  // Guardar en dbState in-memory
+  const alumnoState = dbState.alumnos.find((a) => a.id === input.alumno_id);
+  if (alumnoState) {
+    preExamenObj.alumno_nombre = `${alumnoState.nombre} ${alumnoState.apellido}`;
+    preExamenObj.alumno_cinturon = alumnoState.cinturon_actual;
+    preExamenObj.alumno_subcategoria = alumnoState.subcategoria_actual;
+  }
+  dbState.pre_examenes.unshift(preExamenObj);
+
+  return preExamenObj;
+}
+
+/**
+ * Eliminar una evaluación de pre-examen
+ */
+export async function dalEliminarPreExamen(preExamenId: string): Promise<boolean> {
+  await requireAuth();
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    await supabase.from("pre_examenes").delete().eq("id", preExamenId);
+  } catch (err) {
+    console.warn("dalEliminarPreExamen Supabase delete fallback to dbState:", err);
+  }
+
+  dbState.pre_examenes = dbState.pre_examenes.filter((p) => p.id !== preExamenId);
+  return true;
 }

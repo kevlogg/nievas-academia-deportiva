@@ -8,6 +8,7 @@ import {
   dalInscribirAlumnoRapido,
   dalMarcarAsistencia,
   dalCerrarSesionClase,
+  dalAutoCerrarSesionesExpiradas,
 } from "@/lib/dal";
 import {
   AgregarRecuperacionSchema,
@@ -333,6 +334,34 @@ export async function cerrarClaseAction(
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Error al cerrar la clase";
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Auto-cerrar sesiones que hayan superado las 2HS de abiertas
+ */
+export async function autoCerrarSesionesExpiradasAction(): Promise<
+  ActionResponse<{ cerradas: number }>
+> {
+  try {
+    const cerradas = await dalAutoCerrarSesionesExpiradas();
+    if (cerradas > 0) {
+      revalidatePath(`/profesor/clases`);
+      revalidatePath(`/profesor/clases/[id]/asistencia`, "page");
+      revalidatePath(`/profesor/historial`);
+      revalidatePath(`/admin/dashboard`);
+      revalidatePath(`/admin/historial`);
+    }
+
+    return {
+      success: true,
+      data: { cerradas },
+      message: `Se cerraron ${cerradas} sesión(es) expiradas.`,
+    };
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Error al auto-cerrar sesiones expiradas";
     return { success: false, error: msg };
   }
 }

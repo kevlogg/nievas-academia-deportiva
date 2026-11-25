@@ -21,7 +21,10 @@ import { ModalEditarClaseHistorial } from "./ModalEditarClaseHistorial";
 import { ModalInscribirAlumno } from "@/components/tatami/ModalInscribirAlumno";
 import { TerminalSessionWatcher } from "@/components/terminal/TerminalSessionWatcher";
 import { formatDaysList, formatTime } from "@/lib/utils";
-import { cerrarClaseAction } from "@/lib/actions/asistencia.actions";
+import {
+  cerrarClaseAction,
+  autoCerrarSesionesExpiradasAction,
+} from "@/lib/actions/asistencia.actions";
 import { eliminarListaAlumnosAction } from "@/lib/actions/clases.actions";
 import {
   CalendarDays,
@@ -112,6 +115,37 @@ export function ProfesorClasesClient({
   React.useEffect(() => {
     setAlumnos(alumnosDisponibles);
   }, [alumnosDisponibles]);
+
+  // Auto-cierre de clases abiertas tras 2HS de haber sido iniciadas
+  React.useEffect(() => {
+    if (clasesAbiertas.length === 0) return;
+
+    const checkAutoCierre = async () => {
+      const now = Date.now();
+      const DOS_HORAS_MS = 2 * 60 * 60 * 1000;
+      const expiradas = clasesAbiertas.filter(
+        (it) => now - new Date(it.sesion.hora_apertura).getTime() >= DOS_HORAS_MS
+      );
+
+      if (expiradas.length > 0) {
+        for (const exp of expiradas) {
+          try {
+            await cerrarClaseAction(exp.sesion.id);
+          } catch (e) {
+            console.error("Error al autocerrar clase expirada:", e);
+          }
+        }
+        setClasesAbiertas((prev) =>
+          prev.filter((it) => !expiradas.some((exp) => exp.sesion.id === it.sesion.id))
+        );
+        router.refresh();
+      }
+    };
+
+    checkAutoCierre();
+    const interval = setInterval(checkAutoCierre, 30000);
+    return () => clearInterval(interval);
+  }, [clasesAbiertas, router]);
 
   const handleAlumnoCreado = (nuevoAlumno: Alumno) => {
     setAlumnos((prev) => {
@@ -306,6 +340,10 @@ export function ProfesorClasesClient({
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
                         </span>
                         <span>CLASE EN CURSO EN TATAMI</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-300 bg-amber-400/20 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold shrink-0">
+                        <Clock className="w-3 h-3 text-amber-400" />
+                        <span>Auto-cierre a las 2hs</span>
                       </span>
                       <h2 className="text-lg sm:text-xl font-black text-white tracking-tight truncate">
                         {item.clase.nombre}
@@ -529,6 +567,10 @@ export function ProfesorClasesClient({
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
                       </span>
                       <span>CLASE ABIERTA</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold shrink-0">
+                      <Clock className="w-2.5 h-2.5 text-amber-400" />
+                      <span>Auto-cierre a las 2hs</span>
                     </span>
 
                     <h2 className="text-sm sm:text-base font-black text-white tracking-tight truncate">

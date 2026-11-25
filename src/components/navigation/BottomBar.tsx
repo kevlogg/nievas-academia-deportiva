@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, BarChart2, Shield, Users, Trophy } from "lucide-react";
+import { Calendar, BarChart2, Shield, Users, Trophy, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserRole } from "@/types";
 
@@ -27,10 +27,10 @@ export function BottomBar({ userRole }: BottomBarProps) {
       active: pathname.startsWith("/profesor/clases"),
     },
     {
-      label: "Métricas",
-      href: "/profesor/metricas",
-      icon: BarChart2,
-      active: pathname === "/profesor/metricas",
+      label: "Pre-examen",
+      href: "/pre-examen",
+      icon: Award,
+      active: pathname.startsWith("/pre-examen") || pathname.startsWith("/admin/pre-examen"),
     },
     ...(isAdmin
       ? [

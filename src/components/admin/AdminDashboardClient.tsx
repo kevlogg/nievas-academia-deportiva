@@ -45,6 +45,7 @@ import {
   X,
   Archive,
   CreditCard,
+  BarChart3,
 } from "lucide-react";
 
 interface AdminDashboardClientProps {
@@ -202,6 +203,15 @@ export function AdminDashboardClient({
 
         <div className="flex items-center gap-2 shrink-0">
           <Link
+            href="/profesor/metricas"
+            className="px-3.5 py-2 bg-cyan-400/20 hover:bg-cyan-400/30 text-cyan-200 hover:text-white border border-cyan-400/40 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-all active:scale-95 shrink-0"
+            title="Ver métricas de rendimiento y estadísticas del dojo"
+          >
+            <BarChart3 className="w-4 h-4 text-cyan-300" />
+            <span>Métricas</span>
+          </Link>
+
+          <Link
             href="/terminal"
             className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 touch-target-safe cursor-pointer transition-transform active:scale-95 shrink-0"
             title="Activar Modo Terminal en la tablet fija del dojo"
@@ -247,6 +257,14 @@ export function AdminDashboardClient({
           <ShieldCheck className="w-4 h-4" />
           <span>Gestión del Dojo</span>
         </button>
+
+        <Link
+          href="/profesor/metricas"
+          className="px-4 py-2 rounded-xl text-xs sm:text-sm font-black text-slate-700 hover:text-[#0F3E86] hover:bg-white/60 transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <BarChart3 className="w-4 h-4 text-cyan-600" />
+          <span>Métricas y Rendimiento</span>
+        </Link>
 
         <button
           onClick={() => setActiveTab("plan")}

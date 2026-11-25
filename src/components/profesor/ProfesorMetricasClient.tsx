@@ -198,11 +198,11 @@ export function ProfesorMetricasClient({
       {/* Botón Volver y Badge de Estado */}
       <div className="flex items-center justify-between">
         <Link
-          href="/profesor/clases"
+          href={userRole === "ADMIN" ? "/admin/dashboard" : "/profesor/clases"}
           className="flex items-center gap-1.5 text-xs text-[#0F3E86] hover:text-blue-900 font-bold transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4 text-[#0F3E86]" />
-          <span>Volver a Clases Tatami</span>
+          <span>{userRole === "ADMIN" ? "Volver a Dirección" : "Volver a Clases Tatami"}</span>
         </Link>
 
         <span className="text-xs font-bold text-[#0F3E86] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">

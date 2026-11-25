@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Torneo, Alumno, TipoMedalla, Usuario, KarateBelt } from "@/types";
 import { BeltBadge } from "@/components/ui/BeltBadge";
+import { cn } from "@/lib/utils";
 import {
   crearTorneoAction,
   actualizarTorneoAction,
@@ -39,6 +40,274 @@ import {
   CATEGORIAS_OFICIALES_TORNEO,
   CategoriaOficialTorneo,
 } from "@/lib/constants/torneoCategorias";
+
+interface SelectorCategoriaAlumnoDropdownProps {
+  alumno: Alumno;
+  assignedCategorias: string[];
+  onToggleCategoria: (catNombre: string) => void;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+}
+
+function SelectorCategoriaAlumnoDropdown({
+  alumno,
+  assignedCategorias,
+  onToggleCategoria,
+  isOpen,
+  onToggleOpen,
+}: SelectorCategoriaAlumnoDropdownProps) {
+  const [query, setQuery] = useState("");
+  const [disciplina, setDisciplina] = useState<"TODAS" | "KATA" | "KUMITE" | "PARA-KARATE">("TODAS");
+  const [customCatInput, setCustomCatInput] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const [customError, setCustomError] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return CATEGORIAS_OFICIALES_TORNEO.filter((cat) => {
+      if (disciplina !== "TODAS" && cat.disciplina !== disciplina) {
+        return false;
+      }
+      if (q) {
+        const matchCode = cat.codigo.toLowerCase().includes(q);
+        const matchName = cat.nombre.toLowerCase().includes(q);
+        const matchGroup = cat.grupo.toLowerCase().includes(q);
+        return matchCode || matchName || matchGroup;
+      }
+      return true;
+    });
+  }, [query, disciplina]);
+
+  const handleAddCustom = () => {
+    const trimmed = customCatInput.trim();
+    if (!trimmed) {
+      setCustomError("Escribí el nombre de la categoría.");
+      return;
+    }
+    if (assignedCategorias.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      setCustomError("Este alumno ya tiene asignada esa categoría.");
+      return;
+    }
+    onToggleCategoria(trimmed);
+    setCustomCatInput("");
+    setShowCustom(false);
+    setCustomError(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="text-[11px] font-bold text-blue-100 flex items-center gap-1.5">
+          <Layers className="w-3.5 h-3.5 text-amber-400" />
+          <span>Categorías para {alumno.nombre}:</span>
+        </label>
+
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm ${isOpen
+              ? "bg-amber-300 text-slate-950 border border-amber-200"
+              : "bg-amber-400 hover:bg-amber-300 text-slate-950"
+            }`}
+        >
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>{isOpen ? "Cerrar lista desplegable" : "Desplegar lista de categorías"}</span>
+          {assignedCategorias.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-950 text-amber-300 text-[10px] font-black ml-1">
+              {assignedCategorias.length}
+            </span>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      {/* Menú Desplegable con Catálogo Completo */}
+      {isOpen && (
+        <div className="p-3 bg-[#072049] border-2 border-amber-400/40 rounded-xl space-y-3 shadow-xl animate-in fade-in slide-in-from-top-1">
+          {/* Header del desplegable */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <div>
+              <p className="text-xs font-black text-white flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-cyan-300" />
+                <span>Lista Desplegable de Categorías (Catálogo Oficial)</span>
+              </p>
+              <p className="text-[11px] text-blue-300">
+                Hacé clic en una categoría para asignarla o quitarla para {alumno.nombre} {alumno.apellido}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onToggleOpen}
+              className="text-xs font-bold text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg cursor-pointer"
+            >
+              Listo ✓
+            </button>
+          </div>
+
+          {/* Buscador de categorías dentro del desplegable */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-cyan-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por código (C01, C15, C76...), Kata, Kumite, Para-Karate, peso, edad..."
+              className="w-full pl-8 pr-8 py-2 bg-[#0A2E65] border border-[#2056A8] focus:border-amber-400 rounded-lg text-white text-xs font-semibold focus:outline-none placeholder-blue-300"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white text-xs p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Filtros rápidos por Disciplina */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+            <span className="font-bold text-blue-300 shrink-0">Filtro:</span>
+            {(["TODAS", "KATA", "KUMITE", "PARA-KARATE"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDisciplina(d)}
+                className={`px-2 py-0.5 rounded text-[10px] font-black transition-colors cursor-pointer border ${disciplina === d
+                    ? "bg-amber-400 text-slate-950 border-amber-300"
+                    : "bg-white/5 text-blue-300 border-white/10 hover:bg-white/10"
+                  }`}
+              >
+                {d}
+              </button>
+            ))}
+            <span className="text-white/20">|</span>
+            <span className="text-[10px] text-blue-300 font-medium">
+              {filtered.length} disponibles
+            </span>
+          </div>
+
+          {/* Lista de categorías para hacer scroll */}
+          <div className="max-h-56 overflow-y-auto space-y-1 p-1 bg-[#051838] border border-white/10 rounded-lg">
+            {filtered.length === 0 ? (
+              <p className="p-4 text-center text-xs text-blue-300">
+                No se encontraron categorías con esa búsqueda.
+              </p>
+            ) : (
+              filtered.map((cat) => {
+                const isAssigned = assignedCategorias.includes(cat.nombre);
+                return (
+                  <button
+                    key={cat.codigo}
+                    type="button"
+                    onClick={() => onToggleCategoria(cat.nombre)}
+                    className={`w-full p-2 rounded-lg flex items-center justify-between gap-2 text-left transition-all cursor-pointer border ${isAssigned
+                        ? "bg-[#164E9E] border-emerald-400/80 text-white font-bold shadow-xs"
+                        : "bg-transparent border-transparent hover:bg-white/5 text-blue-200"
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div
+                        className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isAssigned
+                            ? "bg-emerald-400 border-emerald-400 text-slate-950"
+                            : "border-white/30 bg-black/20"
+                          }`}
+                      >
+                        {isAssigned && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-mono font-black px-1.5 py-0.2 rounded shrink-0 ${isAssigned
+                            ? "bg-amber-400 text-slate-950"
+                            : "bg-white/10 text-amber-300 border border-amber-400/20"
+                          }`}
+                      >
+                        {cat.codigo}
+                      </span>
+
+                      <span
+                        className={`text-[9px] font-black px-1 rounded shrink-0 uppercase ${cat.disciplina === "KATA"
+                            ? "bg-cyan-500/20 text-cyan-300"
+                            : cat.disciplina === "KUMITE"
+                              ? "bg-rose-500/20 text-rose-300"
+                              : "bg-purple-500/20 text-purple-300"
+                          }`}
+                      >
+                        {cat.disciplina}
+                      </span>
+
+                      <span className="text-xs truncate text-white">
+                        {cat.nombre}
+                      </span>
+                    </div>
+
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded shrink-0 ${isAssigned
+                          ? "bg-emerald-500/30 text-emerald-300 border border-emerald-400/40"
+                          : "text-amber-300 hover:text-white"
+                        }`}
+                    >
+                      {isAssigned ? "✓ Inscripto" : "+ Inscribir"}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Categoría personalizada */}
+          <div className="pt-2 border-t border-white/10">
+            {!showCustom ? (
+              <button
+                type="button"
+                onClick={() => setShowCustom(true)}
+                className="text-[11px] text-cyan-300 hover:text-cyan-100 flex items-center gap-1 font-semibold cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Agregar categoría personalizada (fuera del catálogo)</span>
+              </button>
+            ) : (
+              <div className="space-y-1.5 p-2 bg-[#0A2E65] rounded-lg border border-[#2056A8]">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={customCatInput}
+                    onChange={(e) => {
+                      setCustomCatInput(e.target.value);
+                      if (customError) setCustomError(null);
+                    }}
+                    placeholder="Ej: C146. Categoría Invitados Especiales..."
+                    className="flex-1 px-2.5 py-1.5 bg-[#072049] border border-[#2056A8] rounded text-white text-xs focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustom}
+                    className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded transition-all cursor-pointer shrink-0"
+                  >
+                    + Agregar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCustom(false);
+                      setCustomError(null);
+                    }}
+                    className="text-xs text-blue-300 hover:text-white px-2 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                {customError && (
+                  <p className="text-[10px] text-rose-300 font-semibold">{customError}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface AdminTorneosClientProps {
   currentUser: Usuario;
@@ -77,28 +346,14 @@ export function AdminTorneosClient({
   const [lugar, setLugar] = useState("");
   const [descripcion, setDescripcion] = useState("");
 
-  // Categorías del torneo en edición
-  const [categorias, setCategorias] = useState<string[]>([]);
-  const [activeCatTab, setActiveCatTab] = useState<string>("");
-  const [newCatInput, setNewCatInput] = useState("");
-  const [catError, setCatError] = useState<string | null>(null);
-  const catInputRef = useRef<HTMLInputElement>(null);
-  const [editingCatIndex, setEditingCatIndex] = useState<number | null>(null);
-  const [editingCatValue, setEditingCatValue] = useState("");
-
-  // Estados del catálogo interactivo de 211 categorías oficiales
-  const [catSearchQuery, setCatSearchQuery] = useState("");
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("TODOS");
-  const [selectedDisciplinaFilter, setSelectedDisciplinaFilter] = useState<
-    "TODAS" | "KATA" | "KUMITE" | "PARA-KARATE"
-  >("TODAS");
-  const [showOnlySelected, setShowOnlySelected] = useState(false);
-  const [showManualCategoryInput, setShowManualCategoryInput] = useState(false);
-
-  // Competidores asignados a categorías
+  // Alumnos seleccionados para el torneo en creación / edición
+  const [selectedAlumnos, setSelectedAlumnos] = useState<Alumno[]>([]);
+  // Competidores asignados a categorías con medallas y premios
   const [competidores, setCompetidores] = useState<CompetidorDraft[]>([]);
+  // Alumno cuyo desplegable de categorías está abierto actualmente (alumnoId o null)
+  const [openCategoryDropdownAlumnoId, setOpenCategoryDropdownAlumnoId] = useState<string | null>(null);
 
-  // Búsqueda de alumnos en la categoría activa del modal
+  // Búsqueda de alumnos para sumar al torneo
   const [alumnoSearch, setAlumnoSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -122,17 +377,9 @@ export function AdminTorneosClient({
     setFecha(new Date().toISOString().split("T")[0]);
     setLugar("");
     setDescripcion("");
-    setCategorias([]);
-    setActiveCatTab("");
-    setNewCatInput("");
-    setCatError(null);
-    setCatSearchQuery("");
-    setSelectedGroupFilter("TODOS");
-    setSelectedDisciplinaFilter("TODAS");
-    setShowOnlySelected(false);
-    setShowManualCategoryInput(false);
-    setEditingCatIndex(null);
+    setSelectedAlumnos([]);
     setCompetidores([]);
+    setOpenCategoryDropdownAlumnoId(null);
     setAlumnoSearch("");
     setErrorMsg(null);
     setIsModalOpen(true);
@@ -146,265 +393,108 @@ export function AdminTorneosClient({
     setLugar(torneo.lugar || "");
     setDescripcion(torneo.descripcion || "");
 
-    // Extraer categorías del torneo o de sus participaciones
-    const catsSet = new Set<string>();
-    if (torneo.categorias && torneo.categorias.length > 0) {
-      torneo.categorias.forEach((c) => catsSet.add(c.trim()));
-    }
-    torneo.participaciones.forEach((p) => {
-      if (p.categoria && p.categoria.trim()) {
-        catsSet.add(p.categoria.trim());
+    const loadedDrafts = torneo.participaciones.map((p) => {
+      const al = alumnos.find((a) => a.id === p.alumno_id);
+      const cat = p.categoria ? p.categoria.trim() : "General";
+      return {
+        draftKey: `${p.alumno_id}__${cat}__${p.id || Math.random()}`,
+        alumno_id: p.alumno_id,
+        alumno_nombre: p.alumno_nombre || (al ? `${al.nombre} ${al.apellido}` : "Alumno"),
+        alumno_cinturon: (p.alumno_cinturon || al?.cinturon_actual || "Blanco") as KarateBelt,
+        alumno_subcategoria: p.alumno_subcategoria || al?.subcategoria_actual,
+        categoria: cat,
+        puesto_premio: p.puesto_premio || "1° Puesto (Oro)",
+        medalla: p.medalla || "OTRO",
+        notas: p.notas || "",
+      };
+    });
+
+    setCompetidores(loadedDrafts);
+
+    // Obtener los alumnos únicos a partir de las participaciones
+    const uniqueAlumnoIds = Array.from(new Set(loadedDrafts.map((d) => d.alumno_id)));
+    const matchedAlumnos: Alumno[] = [];
+    uniqueAlumnoIds.forEach((id) => {
+      const al = alumnos.find((a) => a.id === id);
+      if (al) {
+        matchedAlumnos.push(al);
+      } else {
+        const draft = loadedDrafts.find((d) => d.alumno_id === id);
+        matchedAlumnos.push({
+          id,
+          nombre: draft?.alumno_nombre.split(" ")[0] || "Alumno",
+          apellido: draft?.alumno_nombre.split(" ").slice(1).join(" ") || "",
+          fecha_nacimiento: "",
+          telefono_contacto: "",
+          contacto_emergencia: "",
+          cinturon_actual: draft?.alumno_cinturon || "Blanco",
+          subcategoria_actual: draft?.alumno_subcategoria || null,
+          estado: "ACTIVO",
+          created_at: new Date().toISOString(),
+        });
       }
     });
 
-    const parsedCats = Array.from(catsSet);
-    setCategorias(parsedCats);
-    setActiveCatTab(parsedCats[0] || "");
-    setNewCatInput("");
-    setCatError(null);
-    setCatSearchQuery("");
-    setSelectedGroupFilter("TODOS");
-    setSelectedDisciplinaFilter("TODAS");
-    setShowOnlySelected(false);
-    setShowManualCategoryInput(false);
-    setEditingCatIndex(null);
-
-    setCompetidores(
-      torneo.participaciones.map((p) => {
-        const al = alumnos.find((a) => a.id === p.alumno_id);
-        const cat = p.categoria ? p.categoria.trim() : "General";
-        return {
-          draftKey: `${p.alumno_id}__${cat}__${p.id}`,
-          alumno_id: p.alumno_id,
-          alumno_nombre: p.alumno_nombre || (al ? `${al.nombre} ${al.apellido}` : "Alumno"),
-          alumno_cinturon: (p.alumno_cinturon || al?.cinturon_actual || "Blanco") as KarateBelt,
-          alumno_subcategoria: p.alumno_subcategoria || al?.subcategoria_actual,
-          categoria: cat,
-          puesto_premio: p.puesto_premio,
-          medalla: p.medalla || "OTRO",
-          notas: p.notas || "",
-        };
-      })
-    );
+    setSelectedAlumnos(matchedAlumnos);
+    setOpenCategoryDropdownAlumnoId(null);
     setAlumnoSearch("");
     setErrorMsg(null);
     setIsModalOpen(true);
   };
 
   // -------------------------------------------------------------
-  // Filtrado y Selección de las 145 Categorías Oficiales
+  // Gestión de Alumnos Participantes
   // -------------------------------------------------------------
-  const filteredCategoriasOficiales = useMemo(() => {
-    const q = catSearchQuery.toLowerCase().trim();
-
-    return CATEGORIAS_OFICIALES_TORNEO.filter((cat) => {
-      // Filtro de solo seleccionadas
-      if (showOnlySelected && !categorias.includes(cat.nombre)) {
-        return false;
-      }
-
-      // Filtro por disciplina
-      if (selectedDisciplinaFilter !== "TODAS" && cat.disciplina !== selectedDisciplinaFilter) {
-        return false;
-      }
-
-      // Filtro por grupo
-      if (selectedGroupFilter !== "TODOS" && cat.grupo !== selectedGroupFilter) {
-        return false;
-      }
-
-      // Filtro por búsqueda de texto
-      if (q) {
-        const matchCode = cat.codigo.toLowerCase().includes(q);
-        const matchName = cat.nombre.toLowerCase().includes(q);
-        const matchGroup = cat.grupo.toLowerCase().includes(q);
-        const matchDisc = cat.disciplina.toLowerCase().includes(q);
-        const matchGen = cat.genero.toLowerCase().includes(q);
-        return matchCode || matchName || matchGroup || matchDisc || matchGen;
-      }
-
-      return true;
-    });
-  }, [catSearchQuery, selectedDisciplinaFilter, selectedGroupFilter, showOnlySelected, categorias]);
-
-  const handleToggleCategoria = (catNombre: string) => {
-    if (categorias.includes(catNombre)) {
-      const count = competidores.filter((c) => c.categoria === catNombre).length;
-      if (
-        count > 0 &&
-        !confirm(
-          `La categoría "${catNombre}" tiene ${count} alumno(s) asignado(s). Si la quitas, se removerán esas inscripciones. ¿Deseas continuar?`
-        )
-      ) {
-        return;
-      }
-
-      const updated = categorias.filter((c) => c !== catNombre);
-      setCategorias(updated);
-      setCompetidores((prev) => prev.filter((c) => c.categoria !== catNombre));
-      if (activeCatTab === catNombre) {
-        setActiveCatTab(updated[0] || "");
-      }
-    } else {
-      const updated = [...categorias, catNombre];
-      setCategorias(updated);
-      if (!activeCatTab) {
-        setActiveCatTab(catNombre);
-      }
+  const handleAddAlumno = (alumno: Alumno) => {
+    if (!selectedAlumnos.some((a) => a.id === alumno.id)) {
+      setSelectedAlumnos((prev) => [...prev, alumno]);
     }
-    setCatError(null);
-  };
-
-  const handleSelectAllFiltered = () => {
-    const toAdd = filteredCategoriasOficiales
-      .map((c) => c.nombre)
-      .filter((nombre) => !categorias.includes(nombre));
-    if (toAdd.length === 0) return;
-    const updated = [...categorias, ...toAdd];
-    setCategorias(updated);
-    if (!activeCatTab) {
-      setActiveCatTab(updated[0] || "");
-    }
-    setCatError(null);
-  };
-
-  const handleDeselectAllFiltered = () => {
-    const toRemove = new Set(filteredCategoriasOficiales.map((c) => c.nombre));
-    const enrolledInFiltered = competidores.filter((c) => toRemove.has(c.categoria)).length;
-    if (
-      enrolledInFiltered > 0 &&
-      !confirm(
-        `Hay ${enrolledInFiltered} inscripción(es) en las categorías visibles. ¿Deseas deseleccionarlas y remover sus alumnos?`
-      )
-    ) {
-      return;
-    }
-
-    const updated = categorias.filter((c) => !toRemove.has(c));
-    setCategorias(updated);
-    setCompetidores((prev) => prev.filter((c) => !toRemove.has(c.categoria)));
-    if (toRemove.has(activeCatTab)) {
-      setActiveCatTab(updated[0] || "");
-    }
-    setCatError(null);
-  };
-
-  // -------------------------------------------------------------
-  // Gestión de Categorías Manuales / Renombrar
-  // -------------------------------------------------------------
-  const handleAddCategoriaWithName = (catName: string) => {
-    const trimmed = catName.trim();
-    if (!trimmed) {
-      setCatError("Debés escribir el nombre de la categoría antes de crearla.");
-      catInputRef.current?.focus();
-      return;
-    }
-
-    // Verificar si ya existe (case-insensitive)
-    const exists = categorias.some((c) => c.toLowerCase() === trimmed.toLowerCase());
-    if (exists) {
-      setCatError(`La categoría "${trimmed}" ya fue agregada a este torneo.`);
-      catInputRef.current?.focus();
-      return;
-    }
-
-    const updated = [...categorias, trimmed];
-    setCategorias(updated);
-    if (!activeCatTab) {
-      setActiveCatTab(trimmed);
-    }
-    setNewCatInput("");
-    setCatError(null);
-    setErrorMsg(null);
-  };
-
-  const handleAddCategoria = () => {
-    handleAddCategoriaWithName(newCatInput);
-  };
-
-  const handleRemoveCategoria = (catName: string) => {
-    handleToggleCategoria(catName);
-  };
-
-  const handleStartRenameCat = (index: number) => {
-    setEditingCatIndex(index);
-    setEditingCatValue(categorias[index]);
-  };
-
-  const handleSaveRenameCat = (index: number) => {
-    const oldName = categorias[index];
-    const newName = editingCatValue.trim();
-
-    if (!newName || newName === oldName) {
-      setEditingCatIndex(null);
-      return;
-    }
-
-    // Verificar duplicado
-    if (categorias.some((c, i) => i !== index && c.toLowerCase() === newName.toLowerCase())) {
-      setCatError(`Ya existe otra categoría con el nombre "${newName}".`);
-      return;
-    }
-
-    const updated = [...categorias];
-    updated[index] = newName;
-    setCategorias(updated);
-
-    // Actualizar categoría en los competidores existentes
-    setCompetidores((prev) =>
-      prev.map((c) => {
-        if (c.categoria === oldName) {
-          return {
-            ...c,
-            categoria: newName,
-            draftKey: `${c.alumno_id}__${newName}`,
-          };
-        }
-        return c;
-      })
-    );
-
-    if (activeCatTab === oldName) {
-      setActiveCatTab(newName);
-    }
-    setEditingCatIndex(null);
-    setCatError(null);
-    setErrorMsg(null);
-  };
-
-  // -------------------------------------------------------------
-  // Gestión de Alumnos en la Categoría Activa
-  // -------------------------------------------------------------
-  const handleAddAlumnoToCategoria = (alumno: Alumno, categoria: string) => {
-    if (!categoria) return;
-
-    // Verificar si ya está en ESTA categoría
-    const yaEnCategoria = competidores.some(
-      (c) => c.alumno_id === alumno.id && c.categoria === categoria
-    );
-    if (yaEnCategoria) {
-      setErrorMsg(`El alumno ya está inscripto en la categoría "${categoria}".`);
-      return;
-    }
-
-    const nuevo: CompetidorDraft = {
-      draftKey: `${alumno.id}__${categoria}`,
-      alumno_id: alumno.id,
-      alumno_nombre: `${alumno.nombre} ${alumno.apellido}`,
-      alumno_cinturon: (alumno.cinturon_actual === "Azul" ? "Violeta" : alumno.cinturon_actual) as KarateBelt,
-      alumno_subcategoria: alumno.subcategoria_actual,
-      categoria,
-      puesto_premio: "1° Puesto (Oro)",
-      medalla: "ORO",
-      notas: "",
-    };
-
-    setCompetidores((prev) => [...prev, nuevo]);
+    setOpenCategoryDropdownAlumnoId(alumno.id);
     setAlumnoSearch("");
     setErrorMsg(null);
   };
 
-  const handleRemoveCompetidor = (draftKey: string) => {
+  const handleRemoveAlumno = (alumnoId: string) => {
+    setSelectedAlumnos((prev) => prev.filter((a) => a.id !== alumnoId));
+    setCompetidores((prev) => prev.filter((c) => c.alumno_id !== alumnoId));
+    if (openCategoryDropdownAlumnoId === alumnoId) {
+      setOpenCategoryDropdownAlumnoId(null);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Gestión de Categorías para un Alumno específico
+  // -------------------------------------------------------------
+  const handleToggleCategoriaParaAlumno = (alumno: Alumno, categoriaNombre: string) => {
+    const trimmedCat = categoriaNombre.trim();
+    if (!trimmedCat) return;
+
+    const yaAsignada = competidores.some(
+      (c) => c.alumno_id === alumno.id && c.categoria === trimmedCat
+    );
+
+    if (yaAsignada) {
+      setCompetidores((prev) =>
+        prev.filter((c) => !(c.alumno_id === alumno.id && c.categoria === trimmedCat))
+      );
+    } else {
+      const nuevo: CompetidorDraft = {
+        draftKey: `${alumno.id}__${trimmedCat}__${Date.now()}`,
+        alumno_id: alumno.id,
+        alumno_nombre: `${alumno.nombre} ${alumno.apellido}`,
+        alumno_cinturon: (alumno.cinturon_actual === "Azul" ? "Violeta" : alumno.cinturon_actual) as KarateBelt,
+        alumno_subcategoria: alumno.subcategoria_actual,
+        categoria: trimmedCat,
+        puesto_premio: "1° Puesto (Oro)",
+        medalla: "ORO",
+        notas: "",
+      };
+      setCompetidores((prev) => [...prev, nuevo]);
+    }
+    setErrorMsg(null);
+  };
+
+  const handleRemoveCategoriaDeAlumno = (draftKey: string) => {
     setCompetidores((prev) => prev.filter((c) => c.draftKey !== draftKey));
   };
 
@@ -445,12 +535,21 @@ export function AdminTorneosClient({
       return;
     }
 
-    // Asegurarse de resolver todas las categorías
+    if (selectedAlumnos.length > 0) {
+      const sinCategorias = selectedAlumnos.filter(
+        (al) => !competidores.some((c) => c.alumno_id === al.id)
+      );
+      if (sinCategorias.length > 0) {
+        setErrorMsg(
+          `El alumno ${sinCategorias[0].nombre} ${sinCategorias[0].apellido} aún no tiene categorías asignadas. Por favor abrí su lista desplegable y seleccioná sus categorías o quitalo del torneo.`
+        );
+        return;
+      }
+    }
+
+    // Resolver las categorías del torneo: todas las categorías en las que compiten los alumnos
     const resolvedCategorias = Array.from(
-      new Set([
-        ...categorias.map((c) => c.trim()).filter(Boolean),
-        ...competidores.map((c) => c.categoria.trim()).filter(Boolean),
-      ])
+      new Set(competidores.map((c) => c.categoria.trim()).filter(Boolean))
     );
 
     setIsSaving(true);
@@ -511,22 +610,15 @@ export function AdminTorneosClient({
   };
 
   // -------------------------------------------------------------
-  // Filtro de Alumnos candidatos para la categoría activa
-  // (Un alumno puede estar en varias categorías, pero no repetido en la MISMA)
+  // Filtro de Alumnos candidatos para sumar al torneo
   // -------------------------------------------------------------
-  const candidatosAlumnosParaCatActiva = useMemo(() => {
-    if (!activeCatTab) return [];
+  const candidatosAlumnosParaSumar = useMemo(() => {
     const q = alumnoSearch.toLowerCase().trim();
+    if (!q) return [];
 
     return alumnos
       .filter((a) => {
-        // No mostrar si ya está en esta categoría
-        const yaEnEstaCat = competidores.some(
-          (c) => c.alumno_id === a.id && c.categoria === activeCatTab
-        );
-        if (yaEnEstaCat) return false;
-
-        if (!q) return true;
+        if (selectedAlumnos.some((sel) => sel.id === a.id)) return false;
         const full = `${a.nombre} ${a.apellido}`.toLowerCase();
         return (
           full.includes(q) ||
@@ -535,14 +627,7 @@ export function AdminTorneosClient({
         );
       })
       .slice(0, 10);
-  }, [alumnos, competidores, activeCatTab, alumnoSearch]);
-
-  // Alumnos que ya compiten en otras categorías (para dar feedback útil)
-  const getOtrasCategoriasAlumno = (alumnoId: string, currentCat: string) => {
-    return competidores
-      .filter((c) => c.alumno_id === alumnoId && c.categoria !== currentCat)
-      .map((c) => c.categoria);
-  };
+  }, [alumnos, selectedAlumnos, alumnoSearch]);
 
   // Torneos filtrados
   const torneosFiltrados = useMemo(() => {
@@ -927,11 +1012,10 @@ export function AdminTorneosClient({
                               [torneo.id]: "TODAS",
                             }))
                           }
-                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
-                            activeCardCategory === "TODAS"
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${activeCardCategory === "TODAS"
                               ? "bg-amber-400 text-slate-950 shadow-sm"
                               : "bg-white/10 text-blue-200 hover:bg-white/20"
-                          }`}
+                            }`}
                         >
                           Todas las Categorías ({partCount})
                         </button>
@@ -949,11 +1033,10 @@ export function AdminTorneosClient({
                                   [torneo.id]: cat,
                                 }))
                               }
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                                isCatActive
+                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${isCatActive
                                   ? "bg-cyan-400 text-slate-950 shadow-sm font-black"
                                   : "bg-white/10 text-blue-200 hover:bg-white/20"
-                              }`}
+                                }`}
                             >
                               <span>{cat}</span>
                               <span className="text-[10px] opacity-80">({catCount})</span>
@@ -1013,15 +1096,14 @@ export function AdminTorneosClient({
 
                               {/* Badge de Puesto / Medalla */}
                               <div
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 border flex items-center gap-1.5 ${
-                                  isOro
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black shrink-0 border flex items-center gap-1.5 ${isOro
                                     ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-500/20"
                                     : isPlata
-                                    ? "bg-slate-200 text-slate-900 border-slate-300 shadow-md"
-                                    : isBronce
-                                    ? "bg-amber-800 text-amber-100 border-amber-700"
-                                    : "bg-blue-600/40 text-blue-100 border-blue-400/40"
-                                }`}
+                                      ? "bg-slate-200 text-slate-900 border-slate-300 shadow-md"
+                                      : isBronce
+                                        ? "bg-amber-800 text-amber-100 border-amber-700"
+                                        : "bg-blue-600/40 text-blue-100 border-blue-400/40"
+                                  }`}
                               >
                                 <span>{isOro ? "🥇" : isPlata ? "🥈" : isBronce ? "🥉" : "🎖️"}</span>
                                 <span>{part.puesto_premio}</span>
@@ -1137,685 +1219,253 @@ export function AdminTorneosClient({
                 </div>
               </div>
 
-              {/* 2. SECCIÓN CATEGORÍAS DEL TORNEO (CATÁLOGO OFICIAL 145) */}
+              {/* 2. SECCIÓN PARTICIPANTES Y CATEGORÍAS */}
               <div className="pt-4 border-t border-white/15 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="text-xs font-black uppercase text-amber-300 tracking-wider flex items-center gap-2">
-                      <Layers className="w-4 h-4" />
-                      <span>2. Categorías del Torneo ({categorias.length} seleccionadas)</span>
+                      <Users className="w-4 h-4" />
+                      <span>2. Alumnos Participantes ({selectedAlumnos.length})</span>
                     </h4>
                     <p className="text-[11px] text-blue-200">
-                      Seleccioná del catálogo oficial (C01 a C145) cuáles categorías participarán de este torneo.
+                      Elegí el alumno participante y desplegá la lista para asignarle las categorías en las que va a competir.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-black shadow-xs">
-                      {categorias.length} {categorias.length === 1 ? "categoría activa" : "categorías activas"}
+                      {selectedAlumnos.length} {selectedAlumnos.length === 1 ? "alumno" : "alumnos"} | {competidores.length} inscripciones
                     </span>
-                    {categorias.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "¿Deseas quitar todas las categorías seleccionadas? Se removerán también las inscripciones asociadas."
-                            )
-                          ) {
-                            setCategorias([]);
-                            setActiveCatTab("");
-                            setCompetidores([]);
-                          }
-                        }}
-                        className="text-[11px] text-rose-300 hover:text-rose-100 underline font-semibold cursor-pointer"
-                      >
-                        Limpiar todas
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Resumen de Categorías Seleccionadas (Pills con scroll) */}
-                {categorias.length > 0 && (
-                  <div className="p-3 bg-[#0A2E65] border border-amber-400/30 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Categorías habilitadas en este torneo ({categorias.length}):</span>
-                      </span>
-                      <span className="text-[10px] text-blue-300">
-                        Hacé clic en la ✕ para quitar una categoría
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
-                      {categorias.map((cat) => {
-                        const matchOficial = CATEGORIAS_OFICIALES_TORNEO.find((c) => c.nombre === cat);
-                        const countInThisCat = competidores.filter((c) => c.categoria === cat).length;
-                        return (
-                          <span
-                            key={cat}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#154495] text-white border border-blue-400/30 shadow-xs"
-                          >
-                            {matchOficial && (
-                              <span className="bg-amber-400 text-slate-950 text-[10px] px-1 rounded font-black font-mono">
-                                {matchOficial.codigo}
-                              </span>
-                            )}
-                            <span className="truncate max-w-[260px]">{cat}</span>
-                            {countInThisCat > 0 && (
-                              <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-black text-cyan-200">
-                                {countInThisCat} al.
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleCategoria(cat)}
-                              className="hover:text-rose-300 ml-0.5 p-0.5 text-blue-200 cursor-pointer"
-                              title="Quitar categoría"
-                            >
-                              ✕
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Catálogo Interactivo de las 211 Categorías Oficiales */}
-                <div className="bg-[#0A2E65] border-2 border-[#1E57A8] rounded-2xl p-3.5 sm:p-4 space-y-3">
-                  {/* Buscador de Categorías */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search className="w-4 h-4 text-cyan-300 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={catSearchQuery}
-                        onChange={(e) => setCatSearchQuery(e.target.value)}
-                        placeholder="Buscar por código (ej: C01, C76, C145, C211), palabra (Cadetes, Infantil, Mayores, Para-Karate), peso (-40Kg), etc..."
-                        className="w-full pl-9 pr-8 py-2.5 bg-[#0F3E86] border border-[#2056A8] focus:border-amber-400 rounded-xl text-white text-xs font-semibold focus:outline-none placeholder-blue-300"
-                      />
-                      {catSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setCatSearchQuery("")}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-300 hover:text-white text-xs p-1 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
+                {/* Buscador / Selector para Elegir Alumno Participante */}
+                <div className="relative">
+                  <label className="text-xs font-bold text-blue-100 block mb-1">
+                    Elegir Alumno Participante:
+                  </label>
+                  <div className="flex items-center gap-2 p-2.5 bg-[#0A2E65] border border-[#2056A8] focus-within:border-amber-400 rounded-xl">
+                    <Search className="w-4 h-4 text-cyan-300 ml-1 shrink-0" />
+                    <input
+                      type="text"
+                      value={alumnoSearch}
+                      onChange={(e) => setAlumnoSearch(e.target.value)}
+                      placeholder="Escribí el nombre o apellido del alumno para sumarlo al torneo..."
+                      className="w-full bg-transparent text-xs text-white placeholder-blue-300 focus:outline-none font-medium"
+                    />
+                    {alumnoSearch && (
                       <button
                         type="button"
-                        onClick={() => setShowOnlySelected((prev) => !prev)}
-                        className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
-                          showOnlySelected
-                            ? "bg-amber-400 text-slate-950 border-amber-300 font-black shadow-xs"
-                            : "bg-[#0F3E86] text-blue-200 border-[#2056A8] hover:bg-white/10"
-                        }`}
+                        onClick={() => setAlumnoSearch("")}
+                        className="text-blue-300 hover:text-white p-1 text-xs cursor-pointer"
                       >
-                        <span>Solo seleccionadas</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-black">
-                          {categorias.length}
-                        </span>
+                        <X className="w-3.5 h-3.5" />
                       </button>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Filtros por Grupo y Disciplina */}
-                  <div className="space-y-2 pt-1 border-t border-white/10">
-                    {/* Filtro por Grupo */}
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                      <span className="text-[11px] font-bold text-blue-300 shrink-0 flex items-center gap-1 mr-1">
-                        <Filter className="w-3 h-3 text-amber-400" />
-                        Grupos:
-                      </span>
-                      {[
-                        { id: "TODOS", label: "Todos (211)" },
-                        { id: "Ranking", label: "Ranking (C01-C69)" },
-                        { id: "Blancos", label: "Kata Blancos (C70-C79)" },
-                        { id: "Kata Kyu A", label: "Kata Kyu A (C80-C93)" },
-                        { id: "Kata Kyu B", label: "Kata Kyu B (C94-C109)" },
-                        { id: "Kata Senior Libre", label: "Kata Senior (C110-C115)" },
-                        { id: "Kumite Blancos", label: "Kumite Blancos (C116-C124)" },
-                        { id: "Kumite Kyu A", label: "Kumite Kyu A (C125-C149)" },
-                        { id: "Kumite Kyu B", label: "Kumite Kyu B (C150-C170)" },
-                        { id: "Kumite Kyu B / Open / Equipos", label: "Kumite Open/Equipos (C171-C194)" },
-                        { id: "Kumite Senior Libre", label: "Kumite Senior (C195-C198)" },
-                        { id: "Para-Karate", label: "Para-Karate (C199-C207)" },
-                        { id: "Equipos", label: "Equipos (C208-C211)" },
-                      ].map((grp) => {
-                        const isSelected = selectedGroupFilter === grp.id;
-                        return (
+                  {/* Sugerencias de alumnos flotante */}
+                  {alumnoSearch && (
+                    <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#0F3E86] border-2 border-[#1E57A8] rounded-xl shadow-2xl max-h-56 overflow-y-auto divide-y divide-white/10">
+                      {candidatosAlumnosParaSumar.length === 0 ? (
+                        <p className="p-3 text-xs text-blue-300 text-center">
+                          No se encontraron alumnos disponibles con ese nombre
+                        </p>
+                      ) : (
+                        candidatosAlumnosParaSumar.map((al) => (
                           <button
-                            key={grp.id}
+                            key={al.id}
                             type="button"
-                            onClick={() => setSelectedGroupFilter(grp.id)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer border ${
-                              isSelected
-                                ? "bg-blue-600 text-white border-blue-400 font-black shadow-xs"
-                                : "bg-white/5 text-blue-200 border-white/10 hover:bg-white/10"
-                            }`}
+                            onClick={() => handleAddAlumno(al)}
+                            className="w-full p-2.5 text-left hover:bg-white/10 flex items-center justify-between gap-2 transition-colors cursor-pointer"
                           >
-                            {grp.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Filtro por Disciplina y Botones de Selección Masiva */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-blue-300">Disciplina:</span>
-                        {(["TODAS", "KATA", "KUMITE", "PARA-KARATE"] as const).map((disc) => {
-                          const isSelected = selectedDisciplinaFilter === disc;
-                          return (
-                            <button
-                              key={disc}
-                              type="button"
-                              onClick={() => setSelectedDisciplinaFilter(disc)}
-                              className={`px-2 py-0.5 rounded text-[11px] font-black transition-colors cursor-pointer border ${
-                                isSelected
-                                  ? disc === "KATA"
-                                    ? "bg-cyan-500 text-slate-950 border-cyan-400"
-                                    : disc === "KUMITE"
-                                    ? "bg-rose-500 text-white border-rose-400"
-                                    : disc === "PARA-KARATE"
-                                    ? "bg-purple-500 text-white border-purple-400"
-                                    : "bg-amber-400 text-slate-950 border-amber-300"
-                                  : "bg-white/5 text-blue-300 border-white/10 hover:bg-white/10"
-                              }`}
-                            >
-                              {disc}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Acciones masivas sobre las categorías visibles */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleSelectAllFiltered}
-                          className="text-[11px] text-amber-300 hover:text-amber-200 font-bold underline cursor-pointer"
-                        >
-                          + Seleccionar las {filteredCategoriasOficiales.length} visibles
-                        </button>
-                        <span className="text-white/20">|</span>
-                        <button
-                          type="button"
-                          onClick={handleDeselectAllFiltered}
-                          className="text-[11px] text-blue-300 hover:text-white font-medium cursor-pointer"
-                        >
-                          Deseleccionar visibles
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Lista con Scroll de las 145 Categorías Oficiales */}
-                  <div className="max-h-72 sm:max-h-80 overflow-y-auto space-y-1.5 p-1.5 divide-y divide-white/5 border border-white/10 rounded-xl bg-[#072049]">
-                    {filteredCategoriasOficiales.length === 0 ? (
-                      <div className="p-8 text-center text-blue-300 text-xs space-y-1.5">
-                        <p className="font-bold">No se encontraron categorías con los filtros actuales.</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCatSearchQuery("");
-                            setSelectedGroupFilter("TODOS");
-                            setSelectedDisciplinaFilter("TODAS");
-                            setShowOnlySelected(false);
-                          }}
-                          className="text-amber-300 underline font-semibold text-[11px] cursor-pointer"
-                        >
-                          Restablecer todos los filtros
-                        </button>
-                      </div>
-                    ) : (
-                      filteredCategoriasOficiales.map((cat) => {
-                        const isSelected = categorias.includes(cat.nombre);
-                        const countInThisCat = competidores.filter((c) => c.categoria === cat.nombre).length;
-
-                        return (
-                          <div
-                            key={cat.codigo}
-                            onClick={() => handleToggleCategoria(cat.nombre)}
-                            className={`p-2.5 rounded-lg flex items-center justify-between gap-3 cursor-pointer transition-all border ${
-                              isSelected
-                                ? "bg-[#124286] border-amber-400/80 text-white shadow-xs"
-                                : "bg-transparent border-transparent hover:bg-white/5 text-blue-200"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                              {/* Checkbox visual */}
-                              <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
-                                  isSelected
-                                    ? "bg-amber-400 border-amber-400 text-slate-950 font-black"
-                                    : "border-white/30 bg-black/20"
-                                }`}
-                              >
-                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                              </div>
-
-                              {/* Badge Código */}
-                              <span
-                                className={`font-black text-[11px] px-2 py-0.5 rounded-md font-mono shrink-0 ${
-                                  isSelected
-                                    ? "bg-amber-400 text-slate-950 font-black"
-                                    : "bg-white/10 text-amber-300 border border-amber-400/20"
-                                }`}
-                              >
-                                {cat.codigo}
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-white text-xs truncate">
+                                {al.nombre} {al.apellido}
                               </span>
-
-                              {/* Badge Disciplina */}
-                              <span
-                                className={`text-[9px] font-black px-1.5 py-0.2 rounded shrink-0 uppercase tracking-wide ${
-                                  cat.disciplina === "KATA"
-                                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30"
-                                    : "bg-rose-500/20 text-rose-300 border border-rose-400/30"
-                                }`}
-                              >
-                                {cat.disciplina}
-                              </span>
-
-                              {/* Nombre de la Categoría */}
-                              <span
-                                className={`text-xs truncate ${
-                                  isSelected ? "text-white font-bold" : "text-blue-100 font-medium"
-                                }`}
-                              >
-                                {cat.nombre}
-                              </span>
-                            </div>
-
-                            {/* Grupo / Cantidad de alumnos inscriptos */}
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-[10px] text-blue-300 bg-white/5 px-2 py-0.5 rounded font-medium hidden md:inline">
-                                {cat.grupo}
-                              </span>
-                              {countInThisCat > 0 && (
-                                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-black">
-                                  {countInThisCat} {countInThisCat === 1 ? "alumno" : "alumnos"}
+                              <BeltBadge belt={al.cinturon_actual} size="sm" />
+                              {al.subcategoria_actual && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/10 text-cyan-200">
+                                  {al.subcategoria_actual}
                                 </span>
                               )}
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* Opción secundaria: Agregar categoría personalizada */}
-                  <div className="pt-2 border-t border-white/10">
-                    {!showManualCategoryInput ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowManualCategoryInput(true)}
-                        className="text-[11px] text-blue-300 hover:text-white flex items-center gap-1 font-semibold cursor-pointer"
-                      >
-                        <Tag className="w-3 h-3 text-amber-400" />
-                        <span>+ ¿Necesitás una categoría personalizada fuera de la lista oficial?</span>
-                      </button>
-                    ) : (
-                      <div className="p-3 bg-[#072049] border border-[#2056A8] rounded-xl space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-amber-300">
-                            Agregar categoría personalizada:
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setShowManualCategoryInput(false)}
-                            className="text-[11px] text-blue-300 hover:text-white cursor-pointer"
-                          >
-                            Cerrar
+                            <span className="text-[11px] font-bold text-amber-300 shrink-0">
+                              + Sumar al Torneo
+                            </span>
                           </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            ref={catInputRef}
-                            type="text"
-                            value={newCatInput}
-                            onChange={(e) => {
-                              setNewCatInput(e.target.value);
-                              if (catError) setCatError(null);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddCategoria();
-                              }
-                            }}
-                            placeholder="Ej: C146. Categoría Especial Invitados..."
-                            className="flex-1 px-3 py-2 bg-[#0F3E86] border border-[#2056A8] rounded-lg text-white text-xs font-semibold focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddCategoria}
-                            className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-lg transition-all cursor-pointer shrink-0"
-                          >
-                            + Agregar
-                          </button>
-                        </div>
-                        {catError && (
-                          <p className="text-[11px] text-amber-300 font-semibold">{catError}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Si no hay categorías seleccionadas aún */}
-                {categorias.length === 0 ? (
+                {/* Lista de Alumnos Participantes Seleccionados */}
+                {selectedAlumnos.length === 0 ? (
                   <div className="p-6 text-center border-2 border-dashed border-white/20 rounded-xl bg-white/5 space-y-2">
-                    <Layers className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
+                    <Users className="w-8 h-8 text-blue-300 mx-auto opacity-50" />
                     <p className="text-xs text-blue-200 font-bold">
-                      Aún no seleccionaste categorías para este torneo.
+                      Aún no agregaste alumnos a este torneo.
                     </p>
                     <p className="text-[11px] text-blue-300 max-w-md mx-auto">
-                      Hacé clic arriba en las categorías del catálogo oficial (C01 a C145) que participarán del torneo para poder asignar alumnos en cada una.
+                      Usá el buscador de arriba para elegir un alumno. Al seleccionarlo, se desplegará la lista con todas las categorías oficiales para que elijas en cuáles va a competir.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Selector de Pestañas de Categoría */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-white/10">
-                      {categorias.map((cat, idx) => {
-                        const countInThisCat = competidores.filter((c) => c.categoria === cat).length;
-                        const isSelected = activeCatTab === cat;
-                        const isRenaming = editingCatIndex === idx;
+                    {selectedAlumnos.map((alumno) => {
+                      const studentDrafts = competidores.filter((c) => c.alumno_id === alumno.id);
+                      const assignedCatNames = studentDrafts.map((c) => c.categoria);
+                      const isDropdownOpen = openCategoryDropdownAlumnoId === alumno.id;
 
-                        return (
-                          <div
-                            key={cat}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
-                              isSelected
-                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black"
-                                : "bg-[#0A2E65] text-blue-200 hover:bg-white/10 border-[#2056A8]"
-                            }`}
-                          >
-                            {isRenaming ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={editingCatValue}
-                                  onChange={(e) => setEditingCatValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      handleSaveRenameCat(idx);
-                                    } else if (e.key === "Escape") {
-                                      setEditingCatIndex(null);
-                                    }
-                                  }}
-                                  className="px-2 py-0.5 bg-slate-900 text-white rounded text-xs font-bold focus:outline-none"
-                                  autoFocus
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleSaveRenameCat(idx)}
-                                  className="text-emerald-400 hover:text-emerald-200 p-0.5 cursor-pointer"
-                                  title="Guardar nombre"
-                                >
-                                  ✓
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingCatIndex(null)}
-                                  className="text-rose-400 hover:text-rose-200 p-0.5 cursor-pointer"
-                                  title="Cancelar"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveCatTab(cat)}
-                                  className="flex items-center gap-1.5 cursor-pointer text-left"
-                                >
-                                  <Tag className="w-3.5 h-3.5" />
-                                  <span>{cat}</span>
-                                  <span
-                                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                                      isSelected
-                                        ? "bg-slate-950 text-amber-300"
-                                        : "bg-white/15 text-blue-200"
-                                    }`}
-                                  >
-                                    {countInThisCat}
-                                  </span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleStartRenameCat(idx)}
-                                  className={`p-1 rounded hover:bg-black/20 cursor-pointer ${
-                                    isSelected ? "text-slate-950 hover:text-black" : "text-blue-300 hover:text-white"
-                                  }`}
-                                  title="Renombrar categoría"
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCategoria(cat)}
-                                  className={`p-1 rounded hover:bg-black/20 cursor-pointer ${
-                                    isSelected ? "text-rose-950 hover:text-rose-800" : "text-rose-300 hover:text-rose-100"
-                                  }`}
-                                  title="Eliminar categoría"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Panel de la Categoría Activa */}
-                    {activeCatTab && (
-                      <div className="bg-[#0A2E65] border-2 border-[#1E57A8] rounded-2xl p-4 sm:p-5 space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="p-1 rounded-lg bg-amber-400 text-slate-950 font-black">
-                                <Tag className="w-3.5 h-3.5" />
+                      return (
+                        <div
+                          key={alumno.id}
+                          className="p-4 bg-[#0A2E65] border-2 border-[#1E57A8] rounded-2xl space-y-3.5 shadow-md"
+                        >
+                          {/* Header del Alumno */}
+                          <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="font-black text-white text-sm">
+                                {alumno.nombre} {alumno.apellido}
                               </span>
-                              <h5 className="text-sm font-black text-white">
-                                Alumnos en categoría: <span className="text-amber-300">{activeCatTab}</span>
-                              </h5>
-                              <span className="text-xs text-blue-200 font-semibold">
-                                ({competidores.filter((c) => c.categoria === activeCatTab).length} inscriptos)
+                              <BeltBadge belt={alumno.cinturon_actual} size="sm" />
+                              {alumno.subcategoria_actual && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-cyan-200 border border-white/15">
+                                  {alumno.subcategoria_actual}
+                                </span>
+                              )}
+                              <span className="text-[11px] font-black text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30">
+                                {studentDrafts.length} {studentDrafts.length === 1 ? "categoría" : "categorías"}
                               </span>
                             </div>
-                            <p className="text-[11px] text-blue-300 mt-0.5">
-                              Un alumno puede competir en esta categoría y también en otras categorías del mismo torneo.
-                            </p>
-                          </div>
-                        </div>
 
-                        {/* Buscador de alumnos para sumar a ESTA categoría */}
-                        <div className="relative">
-                          <label className="text-[11px] font-bold text-blue-200 block mb-1">
-                            Sumar Alumno a &quot;{activeCatTab}&quot;:
-                          </label>
-                          <div className="flex items-center gap-2 p-2.5 bg-[#0F3E86] border border-[#2056A8] focus-within:border-amber-400 rounded-xl">
-                            <Search className="w-4 h-4 text-cyan-300 ml-1 shrink-0" />
-                            <input
-                              type="text"
-                              value={alumnoSearch}
-                              onChange={(e) => setAlumnoSearch(e.target.value)}
-                              placeholder={`Escribí el nombre para inscribir a ${activeCatTab}...`}
-                              className="w-full bg-transparent text-xs text-white placeholder-blue-300 focus:outline-none font-medium"
-                            />
-                            {alumnoSearch && (
-                              <button
-                                type="button"
-                                onClick={() => setAlumnoSearch("")}
-                                className="text-blue-300 hover:text-white p-1 text-xs cursor-pointer"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAlumno(alumno.id)}
+                              className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-rose-500/30 flex items-center gap-1 shrink-0"
+                              title="Quitar alumno del torneo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Quitar Alumno</span>
+                            </button>
                           </div>
 
-                          {/* Menú desplegable de sugerencias de alumnos */}
-                          {alumnoSearch && (
-                            <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#0F3E86] border-2 border-[#1E57A8] rounded-xl shadow-2xl max-h-56 overflow-y-auto divide-y divide-white/10">
-                              {candidatosAlumnosParaCatActiva.length === 0 ? (
-                                <p className="p-3 text-xs text-blue-300 text-center">
-                                  No se encontraron alumnos disponibles con ese nombre
-                                </p>
-                              ) : (
-                                candidatosAlumnosParaCatActiva.map((al) => {
-                                  const otrasCats = getOtrasCategoriasAlumno(al.id, activeCatTab);
-                                  return (
-                                    <button
-                                      key={al.id}
-                                      type="button"
-                                      onClick={() => handleAddAlumnoToCategoria(al, activeCatTab)}
-                                      className="w-full p-2.5 text-left hover:bg-white/10 flex items-center justify-between gap-2 transition-colors cursor-pointer"
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <span className="font-bold text-white text-xs truncate">
-                                          {al.nombre} {al.apellido}
+                          {/* Selector Desplegable de Categorías */}
+                          <SelectorCategoriaAlumnoDropdown
+                            alumno={alumno}
+                            assignedCategorias={assignedCatNames}
+                            onToggleCategoria={(catNombre) => handleToggleCategoriaParaAlumno(alumno, catNombre)}
+                            isOpen={isDropdownOpen}
+                            onToggleOpen={() =>
+                              setOpenCategoryDropdownAlumnoId((curr) => (curr === alumno.id ? null : alumno.id))
+                            }
+                          />
+
+                          {/* Tarjetas de Categorías Asignadas a este Alumno */}
+                          {studentDrafts.length === 0 ? (
+                            <div className="p-3 bg-amber-400/10 border border-amber-400/25 rounded-xl text-amber-200 text-xs flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>
+                                Este alumno aún no tiene categorías asignadas. Hacé clic en{" "}
+                                <strong>&quot;Desplegar lista de categorías&quot;</strong> para elegir en cuáles competirá.
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5 pt-1">
+                              <span className="text-[11px] font-bold text-blue-200 block">
+                                Categorías asignadas ({studentDrafts.length}):
+                              </span>
+                              {studentDrafts.map((comp) => {
+                                const matchOficial = CATEGORIAS_OFICIALES_TORNEO.find(
+                                  (c) => c.nombre === comp.categoria
+                                );
+
+                                return (
+                                  <div
+                                    key={comp.draftKey}
+                                    className="p-3 bg-[#0F3E86] border border-[#2056A8] rounded-xl space-y-2.5"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                        {matchOficial && (
+                                          <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded font-black font-mono">
+                                            {matchOficial.codigo}
+                                          </span>
+                                        )}
+                                        <span className="text-xs font-bold text-white truncate max-w-[320px] sm:max-w-md">
+                                          {comp.categoria}
                                         </span>
-                                        <BeltBadge belt={al.cinturon_actual} size="sm" />
-                                        {al.subcategoria_actual && (
-                                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/10 text-cyan-200">
-                                            {al.subcategoria_actual}
-                                          </span>
-                                        )}
-                                        {otrasCats.length > 0 && (
-                                          <span className="text-[10px] text-amber-300 bg-amber-400/20 border border-amber-400/30 px-1.5 py-0.2 rounded font-semibold truncate">
-                                            Ya compite en: {otrasCats.join(", ")}
-                                          </span>
-                                        )}
                                       </div>
-                                      <span className="text-[11px] font-bold text-amber-300 shrink-0">
-                                        + Inscribir
-                                      </span>
-                                    </button>
-                                  );
-                                })
-                              )}
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveCategoriaDeAlumno(comp.draftKey)}
+                                        className="text-rose-300 hover:text-rose-100 p-1 text-xs font-bold transition-colors cursor-pointer"
+                                        title="Quitar esta categoría"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+
+                                    {/* Campos Medalla, Puesto y Notas */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                      <div>
+                                        <label className="text-[10px] font-bold text-blue-200 block mb-1">
+                                          Medalla / Premio:
+                                        </label>
+                                        <select
+                                          value={comp.medalla}
+                                          onChange={(e) =>
+                                            handleUpdateCompetidor(comp.draftKey, "medalla", e.target.value)
+                                          }
+                                          className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-bold focus:outline-none"
+                                        >
+                                          <option value="ORO">🥇 1° Puesto (Oro)</option>
+                                          <option value="PLATA">🥈 2° Puesto (Plata)</option>
+                                          <option value="BRONCE">🥉 3° Puesto (Bronce)</option>
+                                          <option value="PARTICIPACION">🎖️ Participación / Diploma</option>
+                                          <option value="OTRO">✏️ Otro puesto / mención</option>
+                                        </select>
+                                      </div>
+
+                                      <div>
+                                        <label className="text-[10px] font-bold text-blue-200 block mb-1">
+                                          Detalle del Puesto:
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={comp.puesto_premio}
+                                          onChange={(e) =>
+                                            handleUpdateCompetidor(comp.draftKey, "puesto_premio", e.target.value)
+                                          }
+                                          placeholder="Ej: 1° Puesto (Oro), Campeón..."
+                                          className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-semibold focus:outline-none"
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="text-[10px] font-bold text-blue-200 block mb-1">
+                                          Notas de Combate (opcional):
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={comp.notas}
+                                          onChange={(e) =>
+                                            handleUpdateCompetidor(comp.draftKey, "notas", e.target.value)
+                                          }
+                                          placeholder="Ej: Ganó 3 combates por ippon..."
+                                          className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-medium focus:outline-none"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
-
-                        {/* Lista de competidores en esta categoría */}
-                        {competidores.filter((c) => c.categoria === activeCatTab).length === 0 ? (
-                          <div className="p-5 text-center border-2 border-dashed border-white/15 rounded-xl bg-white/5">
-                            <Users className="w-7 h-7 text-blue-300 mx-auto mb-1.5 opacity-50" />
-                            <p className="text-xs text-blue-200 font-semibold">
-                              No hay alumnos inscriptos en &quot;{activeCatTab}&quot; aún.
-                            </p>
-                            <p className="text-[11px] text-blue-300">
-                              Usá el buscador de arriba para inscribir alumnos en esta categoría.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                            {competidores
-                              .filter((c) => c.categoria === activeCatTab)
-                              .map((comp) => (
-                                <div
-                                  key={comp.draftKey}
-                                  className="p-3 bg-[#0F3E86] border border-[#2056A8] rounded-xl space-y-2.5"
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-bold text-white text-xs">
-                                        {comp.alumno_nombre}
-                                      </span>
-                                      <BeltBadge belt={comp.alumno_cinturon} size="sm" />
-                                      {comp.alumno_subcategoria && (
-                                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/10 text-cyan-200">
-                                          {comp.alumno_subcategoria}
-                                        </span>
-                                      )}
-                                      <span className="text-[10px] font-black text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30">
-                                        {comp.categoria}
-                                      </span>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveCompetidor(comp.draftKey)}
-                                      className="text-rose-300 hover:text-rose-100 p-1 text-xs font-bold transition-colors cursor-pointer"
-                                      title="Quitar de esta categoría"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-
-                                  {/* Campos de Medalla, Puesto y Notas */}
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                    {/* Medalla rápida */}
-                                    <div>
-                                      <label className="text-[10px] font-bold text-blue-200 block mb-1">
-                                        Medalla / Premio:
-                                      </label>
-                                      <select
-                                        value={comp.medalla}
-                                        onChange={(e) =>
-                                          handleUpdateCompetidor(comp.draftKey, "medalla", e.target.value)
-                                        }
-                                        className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-bold focus:outline-none"
-                                      >
-                                        <option value="ORO">🥇 1° Puesto (Oro)</option>
-                                        <option value="PLATA">🥈 2° Puesto (Plata)</option>
-                                        <option value="BRONCE">🥉 3° Puesto (Bronce)</option>
-                                        <option value="PARTICIPACION">🎖️ Participación / Diploma</option>
-                                        <option value="OTRO">✏️ Otro puesto / mención</option>
-                                      </select>
-                                    </div>
-
-                                    {/* Puesto / Texto libre */}
-                                    <div>
-                                      <label className="text-[10px] font-bold text-blue-200 block mb-1">
-                                        Detalle del Puesto:
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={comp.puesto_premio}
-                                        onChange={(e) =>
-                                          handleUpdateCompetidor(comp.draftKey, "puesto_premio", e.target.value)
-                                        }
-                                        placeholder="Ej: 1° Puesto, Campeón, 3er Puesto..."
-                                        className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-semibold focus:outline-none"
-                                      />
-                                    </div>
-
-                                    {/* Notas / Observaciones */}
-                                    <div>
-                                      <label className="text-[10px] font-bold text-blue-200 block mb-1">
-                                        Notas de Combate (opcional):
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={comp.notas}
-                                        onChange={(e) =>
-                                          handleUpdateCompetidor(comp.draftKey, "notas", e.target.value)
-                                        }
-                                        placeholder="Ej: Ganó 3 combates por ippon..."
-                                        className="w-full px-2.5 py-1.5 bg-[#0A2E65] border border-[#2056A8] rounded-lg text-white text-xs font-medium focus:outline-none"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
                 )}
               </div>

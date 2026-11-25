@@ -204,6 +204,39 @@ export function AsistenciaTatamiList({
     });
   };
 
+  // Auto-cierre de sesión tras 2 horas de abierta (guardando todos los datos)
+  useEffect(() => {
+    if (!sesion || sesion.estado !== "ABIERTA") return;
+
+    const aperturaMs = new Date(sesion.hora_apertura).getTime();
+    const DOS_HORAS_MS = 2 * 60 * 60 * 1000;
+    const transcurrido = Date.now() - aperturaMs;
+    const restante = DOS_HORAS_MS - transcurrido;
+
+    const ejecutarAutoCierre = async () => {
+      try {
+        const res = await finalizarSesionClaseAction(sesion.id);
+        if (res.success) {
+          setSesion((prev) => (prev ? { ...prev, estado: "FINALIZADA" } : null));
+          setBannerNotice(
+            "⏰ Pasaron 2 horas desde que se abrió la clase: se cerró automáticamente con todos los datos guardados."
+          );
+          triggerHaptic("warn");
+        }
+      } catch (err) {
+        console.error("Error en auto-cierre de clase:", err);
+      }
+    };
+
+    if (restante <= 0) {
+      ejecutarAutoCierre();
+      return;
+    }
+
+    const timer = setTimeout(ejecutarAutoCierre, restante);
+    return () => clearTimeout(timer);
+  }, [sesion?.id, sesion?.estado, sesion?.hora_apertura]);
+
   // Finalizar clase
   const handleFinalizarClase = () => {
     if (!sesion) return;
@@ -460,6 +493,16 @@ export function AsistenciaTatamiList({
                   />
                   {sesion.estado === "ABIERTA" ? "Sesión Activa" : "Finalizada"}
                 </span>
+
+                {sesion.estado === "ABIERTA" && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-full font-semibold shrink-0"
+                    title="Si no se cierra manualmente, se cerrará de forma automática al cumplirse 2 horas de su inicio, guardando todas las asistencias"
+                  >
+                    <Clock className="w-3 h-3 text-amber-400" />
+                    <span>Auto-cierre a las 2hs</span>
+                  </span>
+                )}
 
                 <h1 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
                   {clase.nombre}
