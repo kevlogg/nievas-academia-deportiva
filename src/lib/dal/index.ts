@@ -47,6 +47,8 @@ import {
 } from "@/schemas";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getArgentinaDateTime } from "@/lib/utils";
+import fs from "fs";
+import path from "path";
 
 /**
  * Helper para paginar y traer el 100% de los registros de Supabase
@@ -94,6 +96,44 @@ const SEED_SESIONES: SesionClase[] = [];
 const SEED_ASISTENCIAS: Asistencia[] = [];
 const SEED_LISTAS_ALUMNOS: ListaAlumnos[] = [];
 
+const PRE_EXAMENES_FILE_PATH = path.join(process.cwd(), "data", "pre_examenes_db.json");
+
+function loadPreExamenesDisk(): { pre_examenes: PreExamen[]; pre_examen_sesiones: PreExamenSesion[] } {
+  try {
+    if (fs.existsSync(PRE_EXAMENES_FILE_PATH)) {
+      const raw = fs.readFileSync(PRE_EXAMENES_FILE_PATH, "utf-8");
+      if (raw && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        return {
+          pre_examenes: Array.isArray(parsed.pre_examenes) ? parsed.pre_examenes : [],
+          pre_examen_sesiones: Array.isArray(parsed.pre_examen_sesiones) ? parsed.pre_examen_sesiones : [],
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("loadPreExamenesDisk error:", err);
+  }
+  return { pre_examenes: [], pre_examen_sesiones: [] };
+}
+
+function savePreExamenesDisk() {
+  try {
+    const dir = path.dirname(PRE_EXAMENES_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const data = {
+      pre_examenes: dbState.pre_examenes || [],
+      pre_examen_sesiones: dbState.pre_examen_sesiones || [],
+    };
+    fs.writeFileSync(PRE_EXAMENES_FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("savePreExamenesDisk error:", err);
+  }
+}
+
+const initialDiskPreExamenes = loadPreExamenesDisk();
+
 const dbState = {
   usuarios: [...SEED_USUARIOS],
   clases: [...SEED_CLASES],
@@ -106,8 +146,8 @@ const dbState = {
   historial_bajas: [] as RegistroHistorialBaja[],
   torneos: [] as Torneo[],
   torneo_participaciones: [] as TorneoParticipacion[],
-  pre_examenes: [] as PreExamen[],
-  pre_examen_sesiones: [] as PreExamenSesion[],
+  pre_examenes: initialDiskPreExamenes.pre_examenes,
+  pre_examen_sesiones: initialDiskPreExamenes.pre_examen_sesiones,
 };
 
 /**
@@ -5271,7 +5311,25 @@ export async function dalGetPreExamenSesiones(): Promise<PreExamenSesion[]> {
     console.warn("dalGetPreExamenSesiones Supabase fallback:", err);
   }
 
-  // Fallback a dbState.pre_examen_sesiones
+  // Fallback a dbState.pre_examen_sesiones con sincronización en disco
+  const diskData = loadPreExamenesDisk();
+  if (diskData.pre_examen_sesiones.length > 0) {
+    const memIds = new Set((dbState.pre_examen_sesiones || []).map((s) => s.id));
+    diskData.pre_examen_sesiones.forEach((s) => {
+      if (!memIds.has(s.id)) {
+        dbState.pre_examen_sesiones.push(s);
+      }
+    });
+  }
+  if (diskData.pre_examenes.length > 0) {
+    const memEvalIds = new Set((dbState.pre_examenes || []).map((p) => p.id));
+    diskData.pre_examenes.forEach((p) => {
+      if (!memEvalIds.has(p.id)) {
+        dbState.pre_examenes.push(p);
+      }
+    });
+  }
+
   if (dbState.pre_examen_sesiones && dbState.pre_examen_sesiones.length > 0) {
     return [...dbState.pre_examen_sesiones].sort((a, b) => b.fecha.localeCompare(a.fecha));
   }
@@ -5337,6 +5395,7 @@ export async function dalCrearPreExamenSesion(input: CrearPreExamenSesionInput):
 
   dbState.pre_examen_sesiones = dbState.pre_examen_sesiones || [];
   dbState.pre_examen_sesiones.unshift(sesionObj);
+  savePreExamenesDisk();
 
   return sesionObj;
 }
@@ -5363,6 +5422,7 @@ export async function dalActualizarAlumnosPreExamenSesion(
   const s = dbState.pre_examen_sesiones?.find((x) => x.id === sesionId);
   if (s) {
     s.alumnos_ids = alumnosIds;
+    savePreExamenesDisk();
     return s;
   }
   return null;
@@ -5384,6 +5444,7 @@ export async function dalEliminarPreExamenSesion(sesionId: string): Promise<bool
 
   dbState.pre_examen_sesiones = (dbState.pre_examen_sesiones || []).filter((s) => s.id !== sesionId);
   dbState.pre_examenes = dbState.pre_examenes.filter((p) => p.sesion_id !== sesionId);
+  savePreExamenesDisk();
   return true;
 }
 
@@ -5473,7 +5534,17 @@ export async function dalGetPreExamenes(): Promise<PreExamen[]> {
     console.warn("dalGetPreExamenes Supabase fallback to dbState:", err);
   }
 
-  // Fallback a dbState
+  // Fallback a dbState con sincronización en disco
+  const diskData = loadPreExamenesDisk();
+  if (diskData.pre_examenes.length > 0) {
+    const memEvalIds = new Set((dbState.pre_examenes || []).map((p) => p.id));
+    diskData.pre_examenes.forEach((p) => {
+      if (!memEvalIds.has(p.id)) {
+        dbState.pre_examenes.push(p);
+      }
+    });
+  }
+
   return dbState.pre_examenes.map((p) => {
     const al = dbState.alumnos.find((a) => a.id === p.alumno_id);
     return {
@@ -5635,6 +5706,7 @@ export async function dalGuardarPreExamen(input: CrearPreExamenInput): Promise<P
   } else {
     dbState.pre_examenes.unshift(preExamenObj);
   }
+  savePreExamenesDisk();
 
   return preExamenObj;
 }
@@ -5660,5 +5732,6 @@ export async function dalEliminarPreExamen(preExamenId: string): Promise<boolean
   }
 
   dbState.pre_examenes = dbState.pre_examenes.filter((p) => p.id !== preExamenId);
+  savePreExamenesDisk();
   return true;
 }

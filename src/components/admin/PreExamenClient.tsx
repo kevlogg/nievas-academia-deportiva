@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, { useState, useMemo, useTransition, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -71,6 +71,138 @@ export function PreExamenClient({
 
   const [activeTab, setActiveTab] = useState<"mesas" | "historial">("mesas");
   const [activeSesionId, setActiveSesionId] = useState<string | null>(null);
+
+  const isHydratedRef = useRef(false);
+
+  // Claves de LocalStorage para resiliencia absoluta en cliente
+  const LS_SESIONES_KEY = "nievas_pre_examen_sesiones_v1";
+  const LS_EVALUACIONES_KEY = "nievas_pre_examenes_v1";
+  const LS_ACTIVE_SESION_KEY = "nievas_pre_examen_active_sesion_id_v1";
+
+  // 1. Restaurar desde LocalStorage al montar si el servidor no tiene los datos o hay cambios locales más recientes
+  useEffect(() => {
+    try {
+      const storedActiveId = localStorage.getItem(LS_ACTIVE_SESION_KEY);
+      const storedSesionesRaw = localStorage.getItem(LS_SESIONES_KEY);
+      const storedEvalsRaw = localStorage.getItem(LS_EVALUACIONES_KEY);
+
+      let storedSesiones: PreExamenSesion[] = [];
+      let storedEvals: PreExamen[] = [];
+
+      if (storedSesionesRaw) {
+        try {
+          storedSesiones = JSON.parse(storedSesionesRaw);
+        } catch {}
+      }
+
+      if (storedEvalsRaw) {
+        try {
+          storedEvals = JSON.parse(storedEvalsRaw);
+        } catch {}
+      }
+
+      // Combinar sesiones: si en localStorage hay sesiones que no llegaron al servidor, conservarlas
+      if (storedSesiones.length > 0) {
+        setSesiones((prev) => {
+          const serverIds = new Set(prev.map((s) => s.id));
+          const faltantes = storedSesiones.filter((s) => !serverIds.has(s.id));
+          if (faltantes.length > 0) {
+            return [...prev, ...faltantes];
+          }
+          return prev;
+        });
+      }
+
+      // Combinar evaluaciones: si en localStorage hay evaluaciones con notas que no están en el server
+      if (storedEvals.length > 0) {
+        setPreExamenes((prev) => {
+          const evalMap = new Map<string, PreExamen>();
+          prev.forEach((e) => evalMap.set(e.id, e));
+
+          const pendientesDeSincro: PreExamen[] = [];
+
+          storedEvals.forEach((st) => {
+            const inServer = evalMap.get(st.id);
+            if (!inServer) {
+              evalMap.set(st.id, st);
+              pendientesDeSincro.push(st);
+            } else {
+              const localNotas = (st.kihon_nota ? 1 : 0) + (st.kata_nota ? 1 : 0) + (st.kumite_nota ? 1 : 0);
+              const serverNotas = (inServer.kihon_nota ? 1 : 0) + (inServer.kata_nota ? 1 : 0) + (inServer.kumite_nota ? 1 : 0);
+              if (localNotas > serverNotas) {
+                evalMap.set(st.id, st);
+                pendientesDeSincro.push(st);
+              }
+            }
+          });
+
+          // Si hay evaluaciones en el navegador que el servidor no tiene guardadas, sincronizarlas en segundo plano
+          if (pendientesDeSincro.length > 0) {
+            setTimeout(async () => {
+              for (const ev of pendientesDeSincro) {
+                try {
+                  await guardarPreExamenAction({
+                    id: ev.id,
+                    sesion_id: ev.sesion_id,
+                    alumno_id: ev.alumno_id,
+                    alumno_nombre: ev.alumno_nombre,
+                    fecha: ev.fecha,
+                    cinturon_actual: ev.cinturon_actual,
+                    subcategoria_actual: ev.subcategoria_actual,
+                    cinturon_postula: ev.cinturon_postula,
+                    subcategoria_postula: ev.subcategoria_postula,
+                    kihon_nota: ev.kihon_nota,
+                    kata_nota: ev.kata_nota,
+                    kumite_nota: ev.kumite_nota,
+                    observaciones: ev.observaciones,
+                  });
+                } catch (e) {
+                  console.warn("Auto-sync background error:", e);
+                }
+              }
+            }, 800);
+          }
+
+          return Array.from(evalMap.values());
+        });
+      }
+
+      // Restaurar sesión activa
+      if (storedActiveId) {
+        setActiveSesionId(storedActiveId);
+      }
+    } catch (e) {
+      console.warn("Error leyendo localStorage pre-examen:", e);
+    } finally {
+      isHydratedRef.current = true;
+    }
+  }, []);
+
+  // 2. Guardar automáticamente en LocalStorage al cambiar cualquier sesión o evaluación
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    try {
+      localStorage.setItem(LS_SESIONES_KEY, JSON.stringify(sesiones));
+    } catch (e) {}
+  }, [sesiones]);
+
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    try {
+      localStorage.setItem(LS_EVALUACIONES_KEY, JSON.stringify(preExamenes));
+    } catch (e) {}
+  }, [preExamenes]);
+
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    try {
+      if (activeSesionId) {
+        localStorage.setItem(LS_ACTIVE_SESION_KEY, activeSesionId);
+      } else {
+        localStorage.removeItem(LS_ACTIVE_SESION_KEY);
+      }
+    } catch (e) {}
+  }, [activeSesionId]);
 
   // Mapa rápido de alumnos
   const alumnosMap = useMemo(() => {
