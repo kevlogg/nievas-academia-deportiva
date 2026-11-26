@@ -59,6 +59,58 @@ function getProximoGrado(cinturon: KarateBelt, subcategoria?: string | null) {
   return nextGrad || null;
 }
 
+function calcularResultadoLocal(
+  kihon: EvaluacionSemaforo | null,
+  kata: EvaluacionSemaforo | null,
+  kumite: EvaluacionSemaforo | null
+): {
+  promedio: EvaluacionSemaforo | null;
+  score: number;
+  estado: "APROBADO" | "REGULAR" | "A_MEJORAR" | null;
+} {
+  const scoreMap: Record<EvaluacionSemaforo, number> = {
+    VERDE: 3,
+    AMARILLO: 2,
+    ROJO: 1,
+  };
+
+  const scores: number[] = [];
+  if (kihon && scoreMap[kihon]) scores.push(scoreMap[kihon]);
+  if (kata && scoreMap[kata]) scores.push(scoreMap[kata]);
+  if (kumite && scoreMap[kumite]) scores.push(scoreMap[kumite]);
+
+  if (scores.length < 3) {
+    return {
+      promedio: null,
+      score: 0,
+      estado: null,
+    };
+  }
+
+  const sum = scores.reduce((a, b) => a + b, 0);
+  const score = Math.round((sum / scores.length) * 100) / 100;
+
+  if (score >= 2.67) {
+    return {
+      promedio: "VERDE",
+      score,
+      estado: "APROBADO",
+    };
+  } else if (score >= 2.0) {
+    return {
+      promedio: "AMARILLO",
+      score,
+      estado: "REGULAR",
+    };
+  } else {
+    return {
+      promedio: "ROJO",
+      score,
+      estado: "A_MEJORAR",
+    };
+  }
+}
+
 export function PreExamenClient({
   currentUser,
   initialAlumnos,
@@ -411,6 +463,12 @@ export function PreExamenClient({
       kumite_nota: instancia === "kumite" ? nota : evalExistente?.kumite_nota || null,
     };
 
+    const calcOptimista = calcularResultadoLocal(
+      nuevasNotas.kihon_nota,
+      nuevasNotas.kata_nota,
+      nuevasNotas.kumite_nota
+    );
+
     // Actualización optimista inmediata en local
     const alumnoNombreCompleto = `${alumno.nombre} ${alumno.apellido}`.trim();
     const tempId = evalExistente?.id || crypto.randomUUID();
@@ -430,9 +488,9 @@ export function PreExamenClient({
       kihon_nota: nuevasNotas.kihon_nota,
       kata_nota: nuevasNotas.kata_nota,
       kumite_nota: nuevasNotas.kumite_nota,
-      resultado_promedio: null,
-      resultado_score: 0,
-      resultado_estado: null,
+      resultado_promedio: calcOptimista.promedio,
+      resultado_score: calcOptimista.score,
+      resultado_estado: calcOptimista.estado,
       observaciones: evalExistente?.observaciones || null,
       created_at: evalExistente?.created_at || new Date().toISOString(),
     };
@@ -919,28 +977,59 @@ export function PreExamenClient({
                 const kumite = ev?.kumite_nota || null;
                 const isCompleto = Boolean(kihon && kata && kumite);
 
+                // Cálculo reactivo si ya se completaron las 3 instancias
+                const calc = isCompleto
+                  ? (ev?.resultado_promedio && ev?.resultado_score
+                      ? { promedio: ev.resultado_promedio, score: ev.resultado_score, estado: ev.resultado_estado }
+                      : calcularResultadoLocal(kihon, kata, kumite))
+                  : null;
+
+                const resultadoPromedio = calc?.promedio || null;
+                const resultadoScore = calc?.score || 0;
+
+                // Estilos dinámicos de la tarjeta completa según el resultado
+                let cardColorClasses = "bg-white border-2 border-slate-200 hover:border-blue-400 shadow-sm";
+                let subBoxClasses = "bg-slate-50/70 border-slate-200";
+                let obsInputClasses = "bg-slate-50 border-slate-200";
+
+                if (isCompleto && resultadoPromedio) {
+                  if (resultadoPromedio === "VERDE") {
+                    cardColorClasses = "bg-emerald-50/90 border-2 border-emerald-400 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-300/40";
+                    subBoxClasses = "bg-white/85 border-emerald-200 shadow-2xs";
+                    obsInputClasses = "bg-white border-emerald-200";
+                  } else if (resultadoPromedio === "AMARILLO") {
+                    cardColorClasses = "bg-amber-50/90 border-2 border-amber-400 shadow-md shadow-amber-500/10 ring-2 ring-amber-300/40";
+                    subBoxClasses = "bg-white/85 border-amber-200 shadow-2xs";
+                    obsInputClasses = "bg-white border-amber-200";
+                  } else if (resultadoPromedio === "ROJO") {
+                    cardColorClasses = "bg-rose-50/90 border-2 border-rose-400 shadow-md shadow-rose-500/10 ring-2 ring-rose-300/40";
+                    subBoxClasses = "bg-white/85 border-rose-200 shadow-2xs";
+                    obsInputClasses = "bg-white border-rose-200";
+                  }
+                }
+
                 // Cálculo de estado para el badge
                 let statusBadge = null;
-                if (isCompleto && ev?.resultado_score) {
-                  if (ev.resultado_promedio === "VERDE") {
+                if (isCompleto && resultadoPromedio && resultadoScore) {
+                  if (resultadoPromedio === "VERDE") {
                     statusBadge = (
-                      <span className="px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-black flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        🟢 Apto / Bueno ({ev.resultado_score.toFixed(2)})
+                      <span className="px-3 py-1 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-black flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                        🟢 Apto / Aprobado ({resultadoScore.toFixed(2)})
                       </span>
                     );
-                  } else if (ev.resultado_promedio === "AMARILLO") {
+                  } else if (resultadoPromedio === "AMARILLO") {
                     statusBadge = (
-                      <span className="px-3 py-1 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-black flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-400" />
-                        🟡 Regular ({ev.resultado_score.toFixed(2)})
+                      <span className="px-3 py-1 rounded-xl bg-amber-100 border border-amber-300 text-amber-950 text-xs font-black flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        🟡 Regular ({resultadoScore.toFixed(2)})
                       </span>
                     );
                   } else {
                     statusBadge = (
-                      <span className="px-3 py-1 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-black flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                        🔴 A Mejorar ({ev.resultado_score.toFixed(2)})
+                      <span className="px-3 py-1 rounded-xl bg-rose-100 border border-rose-300 text-rose-950 text-xs font-black flex items-center gap-1.5 shadow-2xs">
+                        <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+                        🔴 A Mejorar ({resultadoScore.toFixed(2)})
                       </span>
                     );
                   }
@@ -959,7 +1048,7 @@ export function PreExamenClient({
                 return (
                   <div
                     key={alumno.id}
-                    className="p-4 sm:p-5 bg-white border-2 border-slate-200 hover:border-blue-400 rounded-2xl shadow-sm transition-all space-y-4"
+                    className={`p-4 sm:p-5 rounded-2xl transition-all duration-300 space-y-4 ${cardColorClasses}`}
                   >
                     {/* Fila 1: Cabecera del alumno */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1022,7 +1111,7 @@ export function PreExamenClient({
                     {/* Fila 2: LAS 3 INSTANCIAS CON LOS 3 BOTONES VISIBLES */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                       {/* 1. KIHON */}
-                      <div className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">
+                      <div className={`p-3 rounded-xl border space-y-2 transition-colors ${subBoxClasses}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
                             <span>🥋</span>
@@ -1078,7 +1167,7 @@ export function PreExamenClient({
                       </div>
 
                       {/* 2. KATA */}
-                      <div className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">
+                      <div className={`p-3 rounded-xl border space-y-2 transition-colors ${subBoxClasses}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
                             <span>📜</span>
@@ -1134,7 +1223,7 @@ export function PreExamenClient({
                       </div>
 
                       {/* 3. KUMITE */}
-                      <div className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">
+                      <div className={`p-3 rounded-xl border space-y-2 transition-colors ${subBoxClasses}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-black text-slate-900 uppercase tracking-tight flex items-center gap-1.5">
                             <span>🥊</span>
@@ -1212,7 +1301,7 @@ export function PreExamenClient({
                                 handleGuardarObservacionAlumno(alumno, (e.target as HTMLInputElement).value);
                               }
                             }}
-                            className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#0F3E86]"
+                            className={`flex-1 p-2 border rounded-xl text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#0F3E86] transition-colors ${obsInputClasses}`}
                           />
                           <button
                             type="button"
@@ -1548,10 +1637,16 @@ export function PreExamenClient({
                             .toUpperCase()
                         : "AL";
 
+                    const cardHistorialClasses = isAprobado
+                      ? "bg-emerald-50/80 border-2 border-emerald-300 hover:border-emerald-500 shadow-2xs"
+                      : isRegular
+                      ? "bg-amber-50/80 border-2 border-amber-300 hover:border-amber-500 shadow-2xs"
+                      : "bg-rose-50/80 border-2 border-rose-300 hover:border-rose-500 shadow-2xs";
+
                     return (
                       <div
                         key={item.id}
-                        className="p-4 bg-white border-2 border-slate-200 hover:border-blue-400 rounded-2xl shadow-sm transition-all space-y-3"
+                        className={`p-4 rounded-2xl shadow-sm transition-all space-y-3 ${cardHistorialClasses}`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           {/* Info Alumno */}
